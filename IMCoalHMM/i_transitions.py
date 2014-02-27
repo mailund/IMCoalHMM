@@ -1,21 +1,24 @@
 '''
-Calculations of HMM transition probabilities.
+Calculations of HMM transition probabilities for an isolation model.
 
-FIXME: This requires a lot more work to both handle more general cases
-(variation in rates, handling periods with no migration, handle a final
-epoch in a single population, etc.) and optimisations to make it fast
-enough for proper use.
+FIXME: This is only half-done and only implements the migration phase
+but does this from time zero an up... it shouldn't be too hard to fix,
+though.
 '''
 
 from numpy import zeros
 from scipy import matrix
 from numpy.testing import assert_almost_equal
 
-def compute_transition_probabilities(ctmc, break_points):
-    '''Calculate the HMM transition probabilities from the CTMC.
+def compute_transition_probabilities(isolation_ctmc,
+                                     single_ctmc,
+                                     break_points):
+    '''Calculate the HMM transition probabilities from the CTMCs.
 
-    The time break points are the times between intervals, so there
-    is one break point less than the number of states in the HMM.
+    The time break points are the times between intervals except that
+    the first break point is the speciation event and nothing coalesces
+    before this point, so there is one state per breakpoint, corresponding
+    to the time intervals just after the break points.
 
     Returns both the stationary probability pi and the transition
     probability T, since pi is autumatically calculated as part of
