@@ -43,6 +43,8 @@ class CoalSystem(object):
     def __init__(self):
         self.transitions = []
         self.state_numbers = None
+        
+        self.init = None # Should be set by a sub-class!
 
     def successors(self, state):
         '''Calculate all successors of "state".
@@ -75,19 +77,12 @@ class CoalSystem(object):
                     new_state = state.difference(pre).union(post)
                     yield ttype, pop_a, pop_b, new_state
 
-    def initial_state(self):
-        '''Virtual function for specifying the initial state.'''
-        raise exceptions.NotImplementedError()
-
     def compute_state_space(self):
         '''Computes the CTMC system.'''
-        initial_states = self.initial_state()
-
-        seen = set(initial_states)
-        unprocessed = initial_states
+        seen = set([self.init])
+        unprocessed = [self.init]
         self.state_numbers = {}
-        for i, state in enumerate(initial_states):
-            self.state_numbers[state] = i
+        self.state_numbers[self.init] = 0
         edges = []
 
         while unprocessed:
@@ -119,54 +114,7 @@ class CoalSystem(object):
 
         return self.state_numbers, edges
 
-
-
-class BasicCoalSystem(CoalSystem):
-    '''The basic two-nucleotide coalescence system.'''
-
-    def recombination(self, token):
-        '''Compute the tokens we get from a recombination on "token".
-
-        Returns None if the recombination would just return
-        "token" again, so we avoid returning "empty" tokens.
-        '''
-        _, nucs = token
-        left, right = nucs
-        if not (left and right):
-            return []
-        return [(0, 0, frozenset([(0, (left, frozenset())),
-                             (0, (frozenset(), right))]))]
-
-    def coalesce(self, token1, token2):
-        '''Construct a new token by coalescening "token1" and "token2".'''
-        _, nuc1 = token1
-        _, nuc2 = token2
-        left1, right1 = nuc1
-        left2, right2 = nuc2
-        left, right = left1.union(left2), right1.union(right2)
-        return 0, 0, frozenset([(0, (left, right))])
-
-    def initial_state(self):
-        '''Build the initial state for this system.
-
-        This doesn't necessarily mean that there is only a single
-        initial state, but that doesn't matter much since we just need
-        a state in an initial connected component for this to work...
-        '''
-        return self.init
-
-    def __init__(self, species):
-        CoalSystem.__init__(self)
-        self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]]
-        self.init = [frozenset([(0, (frozenset([s]), frozenset([s]))) \
-                            for s in species])]
-
-
-
-class IM(CoalSystem):
-    '''The basic two-nucleotide coalescence system.'''
-
+    # Transitions: these will be in all our systems
     def recombination(self, token):
         '''Compute the tokens we get from a recombination on "token".
 
@@ -177,8 +125,10 @@ class IM(CoalSystem):
         left, right = nucs
         if not (left and right):
             return []
+
         return [(pop, pop, frozenset([(pop, (left, frozenset())),
-                                 (pop, (frozenset(), right))]))]
+                                      (pop, (frozenset(), right))]))]
+
 
     def coalesce(self, token1, token2):
         '''Construct a new token by coalescening "token1" and "token2".'''
@@ -193,6 +143,49 @@ class IM(CoalSystem):
         left, right = left1.union(left2), right1.union(right2)
         return pop1, pop2, frozenset([(pop1, (left, right))])
 
+class Single(CoalSystem):
+    '''The basic two-nucleotide coalescence system in a single
+    population.'''
+
+    def __init__(self):
+        super(Single, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]
+                            ]
+
+        samples = [1, 2]
+        self.init = frozenset([(0,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                        for sample in samples])
+
+class Isolation(CoalSystem):
+    '''The basic two-nucleotide coalescence system with two
+    populations with no migration allowed between them.
+    
+    This isn't really that useful unless it is followed by a
+    migration system or the two populations are merged into a
+    single population later.
+    '''
+
+    def __init__(self, species):
+        super(Isolation, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]
+                            ]
+
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                        for sample in species])
+
+
+class Migration(CoalSystem):
+    '''The basic two-nucleotide coalescence system with two
+    populations and migration allowed between them.'''
+
     def migrate(self, token):
         '''Move nucleotides from one population to another'''
         pop, nuc = token
@@ -200,17 +193,8 @@ class IM(CoalSystem):
                 for pop2 in self.legal_migrations[pop]]
         return res
 
-    def initial_state(self):
-        '''Build the initial state for this system.
-
-        This doesn't necessarily mean that there is only a single
-        initial state, but that doesn't matter much since we just need
-        a state in an initial connected component for this to work...
-        '''
-        return self.init[:]
-
     def __init__(self, species):
-        CoalSystem.__init__(self)
+        super(Migration, self).__init__()
 
         self.legal_migrations = dict()
         for sample in species:
@@ -220,31 +204,42 @@ class IM(CoalSystem):
         self.transitions = [[('R', self.recombination),
                              ('M', self.migrate)],
         					[('C', self.coalesce)]]
-        self.init = [frozenset([(sample,
+        self.init = frozenset([(sample,
                                 (frozenset([sample]),
                                  frozenset([sample])))
-                        for sample in species])]
+                        for sample in species])
 
 
-def pretty_lineage(lin):
-    '''Pretty representation of a lineage.'''
-    return ''.join(str(e) for e in lin)
+def has_left_coalesced(state):
+    '''Predicate checking if a state is coalesced on the left.'''
+    for _, (left, _) in state:
+        if len(left) == 2:
+            return True
+    return False
 
-def pretty_state(state):
-    '''Pretty textual representation of a state ...'''
-    return [(pop, pretty_lineage(lin)) for (pop, lin) in state]
+def has_right_coalesced(state):
+    '''Predicate checking if a state is coalesced on the right.'''
+    for _, (_, right) in state:
+        if len(right) == 2:
+            return True
+    return False
 
-def pretty_coal_class(state):
-    '''Pretty textual representation of a state, showing not the
-    populations but only which lineages have coalesced.'''
-    return '/'.join(pretty_lineage(lin) for _, lin in state)
 
 
 def main():
     '''Test.'''
-    state_space = IM(range(2))
+    state_space = Single()
     states, transitions = state_space.compute_state_space()
-    print len(states), 'and', len(transitions), 'transitions'
+    print 'Single:', len(states), 'and', len(transitions), 'transitions'
+
+    state_space = Isolation(range(2))
+    states, transitions = state_space.compute_state_space()
+    print 'Isolation:', len(states), 'and', len(transitions), 'transitions'
+
+    state_space = Migration(range(2))
+    states, transitions = state_space.compute_state_space()
+    print 'Migration:', len(states), 'and', len(transitions), 'transitions'
+
 
 if __name__ == "__main__":
     main()

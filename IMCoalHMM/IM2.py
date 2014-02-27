@@ -2,25 +2,10 @@
 
 '''
 
-from statespace_generator import IM
+from statespace_generator import Migration
+from statespace_generator import has_left_coalesced, has_right_coalesced
 
-def _has_left_coalesced(state):
-    '''Predicate checking if a state is coalesced on the left.'''
-    for _, (left, _) in state:
-        if len(left) == 2:
-            return True
-    return False
-
-def _has_right_coalesced(state):
-    '''Predicate checking if a state is coalesced on the right.'''
-    for _, (_, right) in state:
-        if len(right) == 2:
-            return True
-    return False
-
-
-
-class IM2(IM):
+class IM2(Migration):
     '''Class for IM system with exactly two samples.'''
 
     def __init__(self):
@@ -31,7 +16,8 @@ class IM2(IM):
         (realistic) initial states, with both chromosomes in population 1
         or in 2 or one from each.'''
 
-        IM.__init__(self, [1, 2])
+        super(IM2, self).__init__([1, 2])
+        
 
         self.states, self.transitions = self.compute_state_space()
 
@@ -54,8 +40,8 @@ class IM2(IM):
         self.R_states = []
         self.E_states = []
         for state, index in self.states.items():
-            has_left = _has_left_coalesced(state)
-            has_right = _has_right_coalesced(state)
+            has_left = has_left_coalesced(state)
+            has_right = has_right_coalesced(state)
             if not has_left and not has_right:
                 self.B_states.append(index)
             elif has_left and not has_right:
