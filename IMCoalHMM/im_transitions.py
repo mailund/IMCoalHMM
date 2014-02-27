@@ -108,11 +108,11 @@ def compute_transition_probabilities(ctmc, break_points):
 def main():
     '''Test'''
 
-    from IM2 import IM2, make_rates_table
+    from IM2 import IM2, make_rates_table_migration
     from CTMC import CTMC
 
     state_space = IM2()
-    rates = make_rates_table(1, 0.5, 4e-4, 0.2, 0.2)
+    rates = make_rates_table_migration(1, 0.5, 4e-4, 0.2, 0.2)
     coal_system = CTMC(state_space, rates)
 
     pi, T = compute_transition_probabilities(coal_system, [1, 2, 3])

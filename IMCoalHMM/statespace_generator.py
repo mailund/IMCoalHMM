@@ -108,11 +108,28 @@ class CoalSystem(object):
             remapping[state_no] = len(remapping)
         for state, state_no in self.state_numbers.iteritems():
             mapped_state_numbers[state] = remapping[state_no]
-        self.state_numbers = mapped_state_numbers
-        edges = [(remapping[src], (trans, pop1, pop2), remapping[dest]) \
-                    for src, (trans, pop1, pop2), dest in edges]
+        self.states = mapped_state_numbers
+        self.transitions = [(remapping[src], (trans, pop1, pop2), remapping[dest]) \
+                             for src, (trans, pop1, pop2), dest in edges]
 
-        return self.state_numbers, edges
+        self.B_states = []
+        self.L_states = []
+        self.R_states = []
+        self.E_states = []
+        for state, index in self.states.items():
+            has_left = has_left_coalesced(state)
+            has_right = has_right_coalesced(state)
+            if not has_left and not has_right:
+                self.B_states.append(index)
+            elif has_left and not has_right:
+                self.L_states.append(index)
+            elif not has_left and has_right:
+                self.R_states.append(index)
+            elif has_left and has_right:
+                self.E_states.append(index)
+            else:
+                assert False, "it should be impossible to reach this point."
+
 
     # Transitions: these will be in all our systems
     def recombination(self, token):
@@ -229,16 +246,19 @@ def has_right_coalesced(state):
 def main():
     '''Test.'''
     state_space = Single()
-    states, transitions = state_space.compute_state_space()
-    print 'Single:', len(states), 'and', len(transitions), 'transitions'
+    state_space.compute_state_space()
+    print 'Single:', len(state_space.states),
+    print 'and', len(state_space.transitions), 'transitions'
 
     state_space = Isolation(range(2))
-    states, transitions = state_space.compute_state_space()
-    print 'Isolation:', len(states), 'and', len(transitions), 'transitions'
+    state_space.compute_state_space()
+    print 'Isolation:', len(state_space.states),
+    print 'and', len(state_space.transitions), 'transitions'
 
     state_space = Migration(range(2))
-    states, transitions = state_space.compute_state_space()
-    print 'Migration:', len(states), 'and', len(transitions), 'transitions'
+    state_space.compute_state_space()
+    print 'Migration:', len(state_space.states),
+    print 'and', len(state_space.transitions), 'transitions'
 
 
 if __name__ == "__main__":

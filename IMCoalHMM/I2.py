@@ -18,31 +18,12 @@ class Isolation2(Isolation):
 
         super(Isolation2, self).__init__([1, 2])
 
-        self.states, self.transitions = self.compute_state_space()
+        self.compute_state_space()
 
         i12_state = frozenset([(sample,
                                 (frozenset([sample]), frozenset([sample])))
                                 for sample in [1, 2]])
-
         self.i12_index = self.states[i12_state]
-
-        self.B_states = []
-        self.L_states = []
-        self.R_states = []
-        self.E_states = []
-        for state, index in self.states.items():
-            has_left = has_left_coalesced(state)
-            has_right = has_right_coalesced(state)
-            if not has_left and not has_right:
-                self.B_states.append(index)
-            elif has_left and not has_right:
-                self.L_states.append(index)
-            elif not has_left and has_right:
-                self.R_states.append(index)
-            elif has_left and has_right:
-                self.E_states.append(index)
-            else:
-                assert False, "it should be impossible to reach this point."
 
 
 def make_rates_table_isolation(C1, C2, R):

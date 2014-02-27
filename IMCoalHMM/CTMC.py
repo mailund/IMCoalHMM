@@ -40,10 +40,10 @@ class CTMC(object):
 
 def main():
     '''Test'''
-    from IM2 import IM2, make_rates_table
+    from IM2 import IM2, make_rates_table_migration
 
     state_space = IM2()
-    rates_table = make_rates_table(1, 1, 4e-4, 0.2, 0.2)
+    rates_table = make_rates_table_migration(1, 1, 4e-4, 0.2, 0.2)
 
     ctmc = CTMC(state_space, rates_table)
     P = ctmc.probability_matrix(1.0)
