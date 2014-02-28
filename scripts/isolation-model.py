@@ -16,11 +16,11 @@ and uniform coalescence and recombination rates."""
 
     parser = OptionParser(usage=usage, version="%prog 1.0")
 
-#    parser.add_option("-o", "--out",
-#                      dest="outfile",
-#                      type="string",
-#                      default="/dev/stdout",
-#                      help="Output file for the estimate (/dev/stdout)")
+    parser.add_option("-o", "--out",
+                      dest="outfile",
+                      type="string",
+                      default="/dev/stdout",
+                      help="Output file for the estimate (/dev/stdout)")
                       
 #    parser.add_option("--logfile",
 #                      dest="logfile",
@@ -70,9 +70,10 @@ and uniform coalescence and recombination rates."""
     maxL = logL(no_states, mle_split_time, mle_coal_rate, mle_recomb_rate)
 
     mle_theta = 2/mle_coal_rate
-
-    print '\t'.join(['split.time', 'theta', 'rho', 'logL'])
-    print '\t'.join(map(str,[mle_split_time, mle_theta, mle_recomb_rate, maxL]))
+    
+    with open(options.outfile, 'w') as outfile:
+        print >>outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
+        print >>outfile, '\t'.join(map(str,[mle_split_time, mle_theta, mle_recomb_rate, maxL]))
     
 
 if __name__ == '__main__':
