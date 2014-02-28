@@ -1,35 +1,39 @@
 
-from IMCoalHMM.IM2 import IM2, make_rates_table
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.isolation_model import IsolationModel
+from IMCoalHMM.likelihood import Likelihood
+from pyZipHMM import Forwarder
 
-state_space = IM2()
-rates = make_rates_table(1,0.5,4e-4,0.2,0.2)
-coal_system = CTMC(state_space.states, state_space.transitions, rates)
+model = IsolationModel()
+forwarder = Forwarder.fromDirectory('examples/example_data.ziphmm')
+logL = Likelihood(model, forwarder)
 
-# As a sanity check we can check that it is impossible to get from a L to a R state
-for left in state_space.L_states:
-	for right in state_space.R_states:
-		assert left != right
-		assert coal_system.Q[left,right] == 0
-		assert coal_system.Q[right,left] == 0
+no_states = 10
+Ne = 20000
+u = 1e-9
+g = 25
 
-def left_coalesced(P, initial):
-	'''Marginalize to get the probability that the left nucleotide has coalesced.'''
-	prob = P[initial,state_space.L_states].sum() + P[initial,state_space.E_states].sum()
-	return prob
+split_time = 5e6 * u            # 5 mya in substitutions
+coal_rate = 1.0/(2*Ne*u*g)      # 1/(theta/2)
+recomb_rate = 0.01/1e6 / (g*u)  # 1 cM/Mb in substitutions
+
 
 from scipy import linspace
-times = linspace(0, 10, num = 50)
-coal11, coal12, coal22 = [], [], []
-for t in times:
-	P = coal_system.probability_matrix(t)
-	coal11.append(left_coalesced(P, state_space.i11_index))
-	coal12.append(left_coalesced(P, state_space.i12_index))
-	coal22.append(left_coalesced(P, state_space.i22_index))
+from pylab import plot, show
 
-from pylab import plot, show, legend
-plot(times, coal11, label='11')
-plot(times, coal12, label='12')
-plot(times, coal22, label='22')
-legend()
+# log-likelihood of split times
+split_times = linspace(0.5*split_time, 1.5*split_time)
+logLs = [logL(no_states, t, coal_rate, recomb_rate) for t in split_times]
+plot(split_times, logLs)
+show()
+
+# log-likelihood of coalescence rates
+coal_rates = linspace(0.5*coal_rate, 10*coal_rate)
+logLs = [logL(no_states, split_time, cr, recomb_rate) for cr in coal_rates]
+plot(coal_rates, logLs)
+show()
+
+# log-likelihood of recombination rates
+recomb_rates = linspace(0.1*recomb_rate, 1.0*recomb_rate)
+logLs = [logL(no_states, split_time, coal_rate, rr) for rr in recomb_rates]
+plot(recomb_rates, logLs)
 show()

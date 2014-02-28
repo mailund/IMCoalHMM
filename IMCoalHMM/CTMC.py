@@ -1,46 +1,52 @@
+'''Code for contructing CTMCs and computing transition probabilities
+in them.'''
+
 from numpy import zeros
 from scipy import matrix
 from scipy.linalg import expm
 
 class CTMC(object):
-	'''Class representing the CTMC for the back-in-time coalescent.'''
-	
-	def __init__(self, states, transitions, rates_table):
-		'''Create the CTMC based on a state space and a mapping
-		from transition labels to rates.'''
-		
-		self.Q = matrix(zeros((len(states),len(states))))
-		
-		for src,trans,dst in transitions:
-			self.Q[src,dst] = rates_table[trans]
-			
-		for i in xrange(len(states)):
-			self.Q[i,i] = - self.Q[i,:].sum()
-			
-	def probability_matrix(self, delta_t):
-		'''Computes the transition probability matrix for a time period of delta_t.'''
-		return expm(self.Q * delta_t)
+    '''Class representing the CTMC for the back-in-time coalescent.'''
+
+    def __init__(self, state_space, rates_table):
+        '''Create the CTMC based on a state space and a mapping
+        from transition labels to rates.'''
+
+        # Remember this, just to decouple state space from CTMC
+        # in other parts of the code...
+        self.state_space = state_space
+
+        self.Q = matrix(zeros((len(state_space.states),
+                               len(state_space.states))))
+
+        for src, trans, dst in state_space.transitions:
+            self.Q[src, dst] = rates_table[trans]
+
+        for i in xrange(len(state_space.states)):
+            self.Q[i, i] = - self.Q[i, :].sum()
+            
+        self.P_cache = dict()
+
+    def probability_matrix(self, delta_t):
+        '''Computes the transition probability matrix for a
+        time period of delta_t.'''
+        if not delta_t in self.P_cache:
+            self.P_cache[delta_t] = expm(self.Q * delta_t)
+        return self.P_cache[delta_t]
+
+
+def main():
+    '''Test'''
+    from IM2 import IM2, make_rates_table_migration
+
+    state_space = IM2()
+    rates_table = make_rates_table_migration(1, 1, 4e-4, 0.2, 0.2)
+
+    ctmc = CTMC(state_space, rates_table)
+    P = ctmc.probability_matrix(1.0)
+
+    print P[0,]
 
 
 if __name__ == '__main__':
-	from statespace_generator import IM
-
-	species = ['H','C']
-	states, trans = IM(['H','C']).compute_state_space()
-	
-	coal_rates = {'H':1, 'C':0.5}
-	rec_rates = {'H':4e-4, 'C':4e-4}
-	mig_rates = {('H','C'):1,('C','H'):1}
-	rates_table = dict()
-	for s in species:
-		rates_table[('C',s,s)] = coal_rates[s]
-		rates_table[('R',s,s)] = rec_rates[s]
-		for ss in species:
-			if s != ss:
-				rates_table[('M',s,ss)] = mig_rates[(s,ss)]
-	
-	ctmc = CTMC(states, trans, rates_table)
-	P = ctmc.probability_matrix(1.0)
-
-	print P[0,:]
-	
+    main()

@@ -2,3 +2,12 @@ IMCoalHMM/CTMC.pyc
 IMCoalHMM/IM2.pyc
 IMCoalHMM/__init__.pyc
 IMCoalHMM/statespace_generator.pyc
+IMCoalHMM/I2.pyc
+IMCoalHMM/emissions.pyc
+IMCoalHMM/i_transitions.pyc
+examples/example_data.ziphmm/data_structure
+examples/example_data.ziphmm/nStates2seq/2.seq
+examples/example_data.ziphmm/original_sequence
+IMCoalHMM/break_points.pyc
+IMCoalHMM/isolation_model.pyc
+IMCoalHMM/likelihood.pyc
