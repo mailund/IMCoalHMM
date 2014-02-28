@@ -24,11 +24,15 @@ class CTMC(object):
 
         for i in xrange(len(state_space.states)):
             self.Q[i, i] = - self.Q[i, :].sum()
+            
+        self.P_cache = dict()
 
     def probability_matrix(self, delta_t):
         '''Computes the transition probability matrix for a
         time period of delta_t.'''
-        return expm(self.Q * delta_t)
+        if not delta_t in self.P_cache:
+            self.P_cache[delta_t] = expm(self.Q * delta_t)
+        return self.P_cache[delta_t]
 
 
 def main():
