@@ -1,4 +1,4 @@
-'''Code for constructing the HMM for an isolation model.
+'''Code for constructing and optimizing the HMM for an isolation model.
 '''
 
 from numpy import zeros
@@ -55,3 +55,20 @@ class IsolationModel(object):
 
         return pi, T, E
 
+
+class MinimizeWrapper(object):
+    '''Callable object wrapping the log likelihood computation for maximum
+    liklihood estimation.'''
+    
+    def __init__(self, logL, no_states):
+        '''Wrap the log likelihood computation with the non-variable parameter
+        which is the number of states.'''
+        self.logL = logL
+        self.no_states = no_states
+        
+    def __call__(self, parameters):
+        '''Compute the likelihood in a paramter point. It computes -logL since
+        the optimizer will minimize the function.'''
+        if min(parameters) <= 0:
+            return 1e18 # fixme: return infinity
+        return -self.logL(self.no_states, *parameters)
