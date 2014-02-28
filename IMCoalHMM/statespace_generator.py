@@ -3,6 +3,22 @@
 
 import exceptions
 
+
+def has_left_coalesced(state):
+    '''Predicate checking if a state is coalesced on the left.'''
+    for _, (left, _) in state:
+        if len(left) == 2:
+            return True
+    return False
+
+def has_right_coalesced(state):
+    '''Predicate checking if a state is coalesced on the right.'''
+    for _, (_, right) in state:
+        if len(right) == 2:
+            return True
+    return False
+
+
 class CoalSystem(object):
     '''Abstract class for the two nucleotide coalescence system.
 
@@ -154,7 +170,6 @@ class CoalSystem(object):
         if pop1 != pop2:
             return -1, -1, None # abort transition...
 
-
         left1, right1 = nuc1
         left2, right2 = nuc2
         left, right = left1.union(left2), right1.union(right2)
@@ -226,20 +241,6 @@ class Migration(CoalSystem):
                                  frozenset([sample])))
                         for sample in species])
 
-
-def has_left_coalesced(state):
-    '''Predicate checking if a state is coalesced on the left.'''
-    for _, (left, _) in state:
-        if len(left) == 2:
-            return True
-    return False
-
-def has_right_coalesced(state):
-    '''Predicate checking if a state is coalesced on the right.'''
-    for _, (_, right) in state:
-        if len(right) == 2:
-            return True
-    return False
 
 
 

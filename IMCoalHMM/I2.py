@@ -3,7 +3,6 @@
 '''
 
 from statespace_generator import Single, Isolation
-from statespace_generator import has_left_coalesced, has_right_coalesced
 
 class Isolation2(Isolation):
     '''Class for IM system with exactly two samples.'''

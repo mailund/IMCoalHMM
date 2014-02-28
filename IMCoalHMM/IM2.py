@@ -3,7 +3,6 @@
 '''
 
 from statespace_generator import Migration
-from statespace_generator import has_left_coalesced, has_right_coalesced
 
 class IM2(Migration):
     '''Class for IM system with exactly two samples.'''

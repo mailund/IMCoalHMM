@@ -8,28 +8,34 @@ from scipy import matrix
 from numpy.testing import assert_almost_equal
 
 def compute_transition_probabilities(isolation_ctmc,
+                                     projection,
                                      single_ctmc,
                                      break_points):
     '''Calculate the HMM transition probabilities from the CTMCs.
+
+    The isolation_ctmc covers the initial phase were it is not possible
+    to coalesce, then the projection matrix maps states from this CTMC
+    into the single_ctmc that models the panmictic ancestral population.
 
     The time break points are the times between intervals except that
     the first break point is the speciation event and nothing coalesces
     before this point, so there is one state per breakpoint, corresponding
     to the time intervals just after the break points.
 
-    Returns both the stationary probability pi and the transition
+    Returns both the stationary probability pi together with the transition
     probability T, since pi is autumatically calculated as part of
     the algorithm.
     '''
 
-    # FIXME: Here I'm only handling a single epoch and only a
-    # migration system. It is a bit more work, but not that hard
-    # to do, to generalize it.
-
-    no_states = len(break_points) + 1
-    initial = ctmc.i12_index # FIXME: generalize this
-
     # FIXME: the P matrices should be tabulated and reused of course
+
+    no_states = len(break_points)
+    initial = isolation.state_space.i12_index
+    Pr = projection # This just to have a shorthand for the matrix
+    P0 = isolation_ctmc.probability_matrix(break_poins[0]) * Pr
+
+    # FIXME: haven't looked at the stuff below yet!
+    
     J = matrix(zeros((no_states, no_states)))
 
     # == Filling in the diagonal for the J matrix: i == j ====
@@ -109,11 +115,30 @@ def main():
     '''Test'''
 
     from I2 import Isolation2, make_rates_table_isolation
+    from I2 import Single2,    make_rates_table_single
     from CTMC import CTMC
 
     isolation_state_space = Isolation2()
     isolation_rates = make_rates_table_isolation(1, 0.5, 4e-4)
     isolation_ctmc = CTMC(isolation_state_space, isolation_rates)
+
+    single_state_space = Single2()
+    single_rates = make_rates_table_single(1.5, 4e-4)
+    single_ctmc = CTMC(single_state_space, single_rates)
+
+
+    Pr = matrix(zeros((len(isolation_state_space.states),
+                       len(single_state_space.states))))
+            
+    def map_tokens(token):
+        pop, nucs = token
+        return 0, nucs
+
+    for state, isolation_index in isolation_state_space.states.items():
+        ancestral_state = frozenset(map(map_tokens, state))
+        ancestral_index = single_state_space.states[ancestral_state]
+        Pr[isolation_index, ancestral_index] = 1.0
+
 
 #    pi, T = compute_transition_probabilities(coal_system, [1, 2, 3])
 #    print pi
