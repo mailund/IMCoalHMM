@@ -4,7 +4,7 @@
 
 from statespace_generator import Migration
 
-class IM2(Migration):
+class Migration2(Migration):
     '''Class for IM system with exactly two samples.'''
 
     def __init__(self):
@@ -15,7 +15,7 @@ class IM2(Migration):
         (realistic) initial states, with both chromosomes in population 1
         or in 2 or one from each.'''
 
-        super(IM2, self).__init__([1, 2])
+        super(Migration2, self).__init__([1, 2])
         
 
         self.compute_state_space()
@@ -48,7 +48,7 @@ def make_rates_table_migration(C1, C2, R, M12, M21):
 
 def main():
     "Test"
-    system = IM2()
+    system = Migration2()
     print len(system.B_states)
     print len(system.L_states)
     print len(system.R_states)

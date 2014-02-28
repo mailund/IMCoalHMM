@@ -12,7 +12,6 @@ class Isolation2(Isolation):
         CoalHMM papers for what these are).'''
 
         super(Isolation2, self).__init__([1, 2])
-
         self.compute_state_space()
 
         i12_state = frozenset([(sample,
