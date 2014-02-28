@@ -72,12 +72,19 @@ and uniform coalescence and recombination rates."""
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
+
             if options.include_header:
-                print >>logfile, '\t'.join(['split.time', 'coal.rate', 'rho', 'logL'])
+                print >>logfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
+
+            def transform(params):
+                split, coal_rate, recomb_rate = params
+                return split, 2/coal_rate, recomb_rate
+
             mle_split_time, mle_coal_rate, mle_recomb_rate = \
                 maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
                                             (init_split, init_coal, init_recomb),
-                                            log_file = logfile)
+                                            log_file = logfile,
+                                            log_param_transform = transform)
     else:
         mle_split_time, mle_coal_rate, mle_recomb_rate = \
                 maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
