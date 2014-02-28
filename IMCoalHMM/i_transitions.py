@@ -111,21 +111,21 @@ def compute_transition_probabilities(isolation_ctmc,
 def main():
     '''Test'''
 
-    from IM2 import IM2, make_rates_table
+    from I2 import Isolation2, make_rates_table_isolation
     from CTMC import CTMC
 
-    state_space = IM2()
-    rates = make_rates_table(1, 0.5, 4e-4, 0.2, 0.2)
-    coal_system = CTMC(state_space, rates)
+    isolation_state_space = Isolation2()
+    isolation_rates = make_rates_table_isolation(1, 0.5, 4e-4)
+    isolation_ctmc = CTMC(isolation_state_space, isolation_rates)
 
-    pi, T = compute_transition_probabilities(coal_system, [1, 2, 3])
-    print pi
-    print
-    print '=>', pi.sum()
-    print
-    print T
-    print
-    print '=>', T.sum()
+#    pi, T = compute_transition_probabilities(coal_system, [1, 2, 3])
+#    print pi
+#    print
+#    print '=>', pi.sum()
+#    print
+#    print T
+#    print
+#    print '=>', T.sum()
 
 
 if __name__ == '__main__':

@@ -12,16 +12,9 @@ class CTMC(object):
         '''Create the CTMC based on a state space and a mapping
         from transition labels to rates.'''
 
-        # Remember these, just to decouple state space from CTMC
+        # Remember this, just to decouple state space from CTMC
         # in other parts of the code...
-        self.i11_index = state_space.i11_index
-        self.i12_index = state_space.i12_index
-        self.i22_index = state_space.i22_index
-
-        self.B_states = state_space.B_states
-        self.L_states = state_space.L_states
-        self.R_states = state_space.R_states
-        self.E_states = state_space.E_states
+        self.state_space = state_space
 
         self.Q = matrix(zeros((len(state_space.states),
                                len(state_space.states))))
