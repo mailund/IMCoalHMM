@@ -7,6 +7,7 @@ class Likelihood(object):
 
     def __init__(self, model, forwarder):
         '''Bind a model to sequence data in the form of a zipHMM Forwarder.'''
+        super(Likelihood, self).__init__()
         self.model = model
         self.forwarder = forwarder
     
@@ -16,7 +17,18 @@ class Likelihood(object):
         return self.forwarder.forward(pi, T, E)
 
 import scipy.optimize
-def maximum_likelihood_estimate(minimize_wrapper, initial_parameters,
+def maximum_likelihood_estimate(wrapper, initial_parameters,
                                 optimizer = scipy.optimize.fmin):
-    return optimizer(minimize_wrapper, initial_parameters)
+    '''Maximum likelihood estimation.
+    
+    This function requires a wrapper around the likelihood computation
+    that will be model specific, splitting the paramters to be optimized from those
+    that should not, such as number of states, epochs etc.
+    
+    It also requires an initial parameter point for the optimization, and a numerical
+    algorithm for optimisation (a default from scipy is fmin).
+    
+    The function returns the maximum likelihood parameters.
+    '''
+    return optimizer(wrapper, initial_parameters)
 

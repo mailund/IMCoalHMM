@@ -8,17 +8,17 @@ Ne = 20000
 u = 1e-9
 g = 25
 
-split_time = 5e6 * u            # 5 mya in substitutions
-coal_rate = 1.0/(2*Ne*u*g)      # 1/(theta/2) in substitutions
-recomb_rate = 0.01/1e6 / (g*u)  # 1 cM/Mb in substitutions
+init_split_time = 5e6 * u            # 5 mya in substitutions
+init_coal_rate = 1.0/(2*Ne*u*g)      # 1/(theta/2) in substitutions
+init_recomb_rate = 0.01/1e6 / (g*u)  # 1 cM/Mb in substitutions
 
 forwarder = Forwarder.fromDirectory('examples/example_data.ziphmm')
 logL = Likelihood(IsolationModel(), forwarder)
 
-split_time, coal_rate, recomb_rate = \
+mle_split_time, mle_coal_rate, mle_recomb_rate = \
     maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
-                                (split_time, coal_rate, recomb_rate))
-maxL = logL(no_states, split_time, coal_rate, recomb_rate)
+                                (init_split_time, init_coal_rate, init_recomb_rate))
+maxL = logL(no_states, mle_split_time, mle_coal_rate, mle_recomb_rate)
 
-print split_time, coal_rate, recomb_rate, maxL
+print mle_split_time, mle_coal_rate, mle_recomb_rate, maxL
 
