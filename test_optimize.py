@@ -18,10 +18,17 @@ recomb_rate = 0.01/1e6 / (g*u)  # 1 cM/Mb in substitutions
 
 from scipy.optimize import fmin
 
-def foobar(parameters):
-    if min(parameters) <= 0:
-        return 1e18
-    return -logL(no_states, parameters[0], parameters[1], parameters[2])
+class Minimizer(object):
+    def __init__(self, logL, no_states):
+        self.logL = logL
+        self.no_states = no_states
+        
+    def __call__(self, parameters):
+        if min(parameters) <= 0:
+            return 1e18 # fixme: return infinity
+        return -self.logL(self.no_states, *parameters)
 
+
+foobar = Minimizer(logL, 5)
 x = fmin(foobar, (split_time, coal_rate, recomb_rate))
 print x
