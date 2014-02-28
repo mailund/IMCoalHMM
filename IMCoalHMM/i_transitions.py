@@ -1,9 +1,6 @@
 '''
 Calculations of HMM transition probabilities for an isolation model.
 
-FIXME: This is only half-done and only implements the migration phase
-but does this from time zero an up... it shouldn't be too hard to fix,
-though.
 '''
 
 from numpy import zeros
