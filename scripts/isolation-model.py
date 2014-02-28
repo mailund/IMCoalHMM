@@ -16,6 +16,11 @@ and uniform coalescence and recombination rates."""
 
     parser = OptionParser(usage=usage, version="%prog 1.0")
 
+    parser.add_option("--header",
+                      dest="include_header",
+                      action="store_true",
+                      default=False,
+                      help="Include a header on the output")
     parser.add_option("-o", "--out",
                       dest="outfile",
                       type="string",
@@ -72,8 +77,12 @@ and uniform coalescence and recombination rates."""
     mle_theta = 2/mle_coal_rate
     
     with open(options.outfile, 'w') as outfile:
-        print >>outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
-        print >>outfile, '\t'.join(map(str,[mle_split_time, mle_theta, mle_recomb_rate, maxL]))
+        if options.include_header:
+            print >>outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
+        print >>outfile, '\t'.join(map(str,[mle_split_time, 
+                                            mle_theta,
+                                            mle_recomb_rate,
+                                            maxL]))
     
 
 if __name__ == '__main__':
