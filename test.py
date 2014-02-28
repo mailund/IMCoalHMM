@@ -1,9 +1,9 @@
 
-from IMCoalHMM.IM2 import IM2, make_rates_table
+from IMCoalHMM.IM2 import IM2, make_rates_table_migration
 from IMCoalHMM.CTMC import CTMC
 
 state_space = IM2()
-rates = make_rates_table(1,0.5,4e-4,0.2,0.2)
+rates = make_rates_table_migration(1,0.5,4e-4,0.2,0.2)
 coal_system = CTMC(state_space, rates)
 
 # As a sanity check we can check that it is impossible to get from a L to a R state
