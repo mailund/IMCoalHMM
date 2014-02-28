@@ -27,8 +27,6 @@ def compute_transition_probabilities(isolation_ctmc,
     the algorithm.
     '''
 
-    # FIXME: the P matrices should be tabulated and reused of course
-
     no_states = len(break_points)
     initial = isolation_ctmc.state_space.i12_index
     Pr = projection # This just to have a shorthand for the matrix

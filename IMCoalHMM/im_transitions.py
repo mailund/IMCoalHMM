@@ -32,7 +32,6 @@ def compute_transition_probabilities(ctmc, break_points):
     L_states = ctmc.state_space.L_states
     E_states = ctmc.state_space.E_states
 
-    # FIXME: the P matrices should be tabulated and reused of course
     J = matrix(zeros((no_states, no_states)))
 
     # == Filling in the diagonal for the J matrix: i == j ====
