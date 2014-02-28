@@ -15,3 +15,8 @@ class Likelihood(object):
         pi, T, E = self.model.build_HMM(*parameters)
         return self.forwarder.forward(pi, T, E)
 
+import scipy.optimize
+def maximum_likelihood_estimate(minimize_wrapper, initial_parameters,
+                                optimizer = scipy.optimize.fmin):
+    return optimizer(minimize_wrapper, initial_parameters)
+
