@@ -1,45 +1,39 @@
 
-from numpy import zeros
-from scipy import matrix
-
-from IMCoalHMM.I2 import Isolation2, make_rates_table_isolation
-from IMCoalHMM.I2 import Single2,    make_rates_table_single
-from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.i_transitions import compute_transition_probabilities
-from IMCoalHMM.emissions import emission_matrix
-
-# FIXME: this should really be moved to the library
-isolation_state_space = Isolation2()
-isolation_rates = make_rates_table_isolation(1, 0.5, 4e-4)
-isolation_ctmc = CTMC(isolation_state_space, isolation_rates)
-
-coal_rate = 1.5
-single_state_space = Single2()
-single_rates = make_rates_table_single(coal_rate, 4e-4)
-single_ctmc = CTMC(single_state_space, single_rates)
-
-Pr = matrix(zeros((len(isolation_state_space.states),
-                   len(single_state_space.states))))
-            
-def map_tokens(token):
-    pop, nucs = token
-    return 0, nucs
-
-for state, isolation_index in isolation_state_space.states.items():
-    ancestral_state = frozenset(map(map_tokens, state))
-    ancestral_index = single_state_space.states[ancestral_state]
-    Pr[isolation_index, ancestral_index] = 1.0
-
-break_points = [1,2,3,4]
-pi, T = compute_transition_probabilities(isolation_ctmc,
-                                         Pr,
-                                         single_ctmc,
-                                         break_points)
-
-E = emission_matrix(break_points, coal_rate)
-
+from IMCoalHMM.isolation_model import IsolationModel
+from IMCoalHMM.likelihood import Likelihood
 from pyZipHMM import Forwarder
 
+model = IsolationModel()
 forwarder = Forwarder.fromDirectory('examples/example_data.ziphmm')
-logL = forwarder.forward(pi, T, E)
-print logL
+logL = Likelihood(model, forwarder)
+
+no_states = 10
+Ne = 20000
+u = 1e-9
+g = 25
+
+split_time = 5e6 * u            # 5 mya in substitutions
+coal_rate = 1.0/(2*Ne*u*g)      # 1/(theta/2)
+recomb_rate = 0.01/1e6 / (g*u)  # 1 cM/Mb in substitutions
+
+
+from scipy import linspace
+from pylab import plot, show
+
+# log-likelihood of split times
+split_times = linspace(0.5*split_time, 1.5*split_time)
+logLs = [logL(no_states, t, coal_rate, recomb_rate) for t in split_times]
+plot(split_times, logLs)
+show()
+
+# log-likelihood of coalescence rates
+coal_rates = linspace(0.5*coal_rate, 10*coal_rate)
+logLs = [logL(no_states, split_time, cr, recomb_rate) for cr in coal_rates]
+plot(coal_rates, logLs)
+show()
+
+# log-likelihood of recombination rates
+recomb_rates = linspace(0.1*recomb_rate, 1.0*recomb_rate)
+logLs = [logL(no_states, split_time, coal_rate, rr) for rr in recomb_rates]
+plot(recomb_rates, logLs)
+show()
