@@ -30,73 +30,84 @@ def compute_transition_probabilities(isolation_ctmc,
     # FIXME: the P matrices should be tabulated and reused of course
 
     no_states = len(break_points)
-    initial = isolation.state_space.i12_index
+    initial = isolation_ctmc.state_space.i12_index
     Pr = projection # This just to have a shorthand for the matrix
-    P0 = isolation_ctmc.probability_matrix(break_poins[0]) * Pr
-
-    # FIXME: haven't looked at the stuff below yet!
+    B_states = single_ctmc.state_space.B_states
+    L_states = single_ctmc.state_space.L_states
+    E_states = single_ctmc.state_space.E_states
     
+    P0 = isolation_ctmc.probability_matrix(break_points[0]) * Pr
+
     J = matrix(zeros((no_states, no_states)))
 
-    # == Filling in the diagonal for the J matrix: i == j ====
-    P1 = ctmc.probability_matrix(break_points[0])
-    J[0, 0] = P1[initial, ctmc.E_states].sum()
+    # -- Filling in the diagonal for the J matrix: i == j ---------------
+    P1 = single_ctmc.probability_matrix(break_points[1]-break_points[0])
+    J[0, 0] = (P0 * P1)[initial, E_states].sum()
 
     for i in xrange(1, no_states-1):
-        P1 = ctmc.probability_matrix(break_points[i-1])
-        P2 = ctmc.probability_matrix(break_points[i]-break_points[i-1])
-        for b in ctmc.B_states:
-            for e in ctmc.E_states:
-                J[i, i] += P1[initial, b] * P2[b, e]
+        P1 = single_ctmc.probability_matrix(break_points[i]-break_points[0])
+        P2 = single_ctmc.probability_matrix(break_points[i+1]-break_points[i])
+        P01 = (P0 * P1)
+        prob = 0.0
+        for b in B_states:
+            for e in E_states:
+                prob += P01[initial, b] * P2[b, e]
+        J[i, i] = prob
 
-    P = ctmc.probability_matrix(break_points[-1])
-    J[no_states-1, no_states-1] = P[initial, ctmc.B_states].sum()
+    P = P0 * single_ctmc.probability_matrix(break_points[-1]-break_points[0])
+    J[no_states-1, no_states-1] = P[initial, B_states].sum()
 
-    # == handle i < j (and j < i by symmetri) =========
+
+    # -- handle i < j (and j < i by symmetri) ---------------------------
     # i == 0 and 0 < j < no_states-1
-    P1 = ctmc.probability_matrix(break_points[0]) # [0,i]
+    P1 = single_ctmc.probability_matrix(break_points[1]-break_points[0]) # [0,i]
+    P01 = P0 * P1
     for j in xrange(1, no_states-1):
         # 0 < j < no_states-1
-        P2 = ctmc.probability_matrix(break_points[j-1]-break_points[0]) # ]i,j[
-        P3 = ctmc.probability_matrix(break_points[j] - break_points[j-1]) # [j]
+        P2 = single_ctmc.probability_matrix(break_points[j]-break_points[1]) # ]i,j[
+        P3 = single_ctmc.probability_matrix(break_points[j+1] - break_points[j]) # [j]
         prob = 0.0
-        for l1 in ctmc.L_states:
-            for l2 in ctmc.L_states:
-                for e in ctmc.E_states:
-                    prob += P1[initial, l1] * P2[l1, l2] * P3[l2, e]
+        for l1 in L_states:
+            for l2 in L_states:
+                for e in E_states:
+                    prob += P01[initial, l1] * P2[l1, l2] * P3[l2, e]
         J[0, j] = J[j, 0] = prob
 
     # i == 0 and j == no_states-1
-    P2 = ctmc.probability_matrix(break_points[no_states-2]-break_points[0])
+    P2 = single_ctmc.probability_matrix(break_points[no_states-1]-break_points[1])
     prob = 0.0
-    for l1 in ctmc.L_states:
-        for l2 in ctmc.L_states:
-            prob += P1[initial, l1] * P2[l1, l2]
+    for l1 in L_states:
+        for l2 in L_states:
+            prob += P01[initial, l1] * P2[l1, l2]
     J[0, no_states-1] = J[no_states-1, 0] = prob
+
 
     # i > 0
     for i in xrange(1, no_states-1):
-        P1 = ctmc.probability_matrix(break_points[i-1]) # [0;i[
-        P2 = ctmc.probability_matrix(break_points[i]-break_points[i-1]) # [i]
+        P1 = single_ctmc.probability_matrix(break_points[i]-break_points[0]) # [0;i[
+        P2 = single_ctmc.probability_matrix(break_points[i+1]-break_points[i]) # [i]
+        P01 = P0 * P1
+
         # 0 < j < no_states - 1
         for j in xrange(i+1, no_states-1):
-            P3 = ctmc.probability_matrix(break_points[j-1]-break_points[i]) # ]i;j[
-            P4 = ctmc.probability_matrix(break_points[j]-break_points[j-1]) # [j]
+            P3 = single_ctmc.probability_matrix(break_points[j]-break_points[i+1]) # ]i;j[
+            P4 = single_ctmc.probability_matrix(break_points[j+1]-break_points[j]) # [j]
             prob = 0.0
-            for b in ctmc.B_states:
-                for l1 in ctmc.L_states:
-                    for l2 in ctmc.L_states:
-                        for e in ctmc.E_states:
-                            prob += P1[initial, b] * P2[b, l1] * P3[l1, l2] * P4[l2, e]
+            for b in B_states:
+                for l1 in L_states:
+                    for l2 in L_states:
+                        for e in E_states:
+                            prob += P01[initial, b] * P2[b, l1] * P3[l1, l2] * P4[l2, e]
             J[i, j] = J[j, i] = prob
 
+
         # j == no_states - 1
-        P3 = ctmc.probability_matrix(break_points[no_states-2]-break_points[i])
+        P3 = single_ctmc.probability_matrix(break_points[no_states-1]-break_points[i+1])
         prob = 0.0
-        for b in ctmc.B_states:
-            for l1 in ctmc.L_states:
-                for l2 in ctmc.L_states:
-                    prob += P1[initial, b] * P2[b, l1] * P3[l1, l2]
+        for b in B_states:
+            for l1 in L_states:
+                for l2 in L_states:
+                    prob += P01[initial, b] * P2[b, l1] * P3[l1, l2]
         J[i, no_states-1] = J[no_states-1, i] = prob
 
     assert_almost_equal(J.sum(), 1.0)
@@ -140,14 +151,17 @@ def main():
         Pr[isolation_index, ancestral_index] = 1.0
 
 
-#    pi, T = compute_transition_probabilities(coal_system, [1, 2, 3])
-#    print pi
-#    print
-#    print '=>', pi.sum()
-#    print
-#    print T
-#    print
-#    print '=>', T.sum()
+    pi, T = compute_transition_probabilities(isolation_ctmc,
+                                             Pr,
+                                             single_ctmc,
+                                             [1,2,3,4])
+    print pi
+    print
+    print '=>', pi.sum()
+    print
+    print T
+    print
+    print '=>', T.sum()
 
 
 if __name__ == '__main__':
