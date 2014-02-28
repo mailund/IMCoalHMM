@@ -27,11 +27,11 @@ and uniform coalescence and recombination rates."""
                       default="/dev/stdout",
                       help="Output file for the estimate (/dev/stdout)")
                       
-#    parser.add_option("--logfile",
-#                      dest="logfile",
-#                      type="string",
-#                      default="/dev/null",
-#                      help="Log for all points estimated in the optimization (/dev/null)")
+    parser.add_option("--logfile",
+                      dest="logfile",
+                      type="string",
+                      default=None,
+                      help="Log for all points estimated in the optimization")
                       
     parser.add_option("--states",
                       dest="states",
@@ -69,9 +69,20 @@ and uniform coalescence and recombination rates."""
     init_recomb = rho
     
     logL = Likelihood(IsolationModel(), forwarder)
-    mle_split_time, mle_coal_rate, mle_recomb_rate = \
-        maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
-                                    (init_split, init_coal, init_recomb))
+
+    if options.logfile:
+        with open(options.logfile, 'w') as logfile:
+            if options.include_header:
+                print >>logfile, '\t'.join(['split.time', 'coal.rate', 'rho', 'logL'])
+            mle_split_time, mle_coal_rate, mle_recomb_rate = \
+                maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
+                                            (init_split, init_coal, init_recomb),
+                                            log_file = logfile)
+    else:
+        mle_split_time, mle_coal_rate, mle_recomb_rate = \
+                maximum_likelihood_estimate(MinimizeWrapper(logL, no_states),
+                                            (init_split, init_coal, init_recomb))
+
     maxL = logL(no_states, mle_split_time, mle_coal_rate, mle_recomb_rate)
 
     mle_theta = 2/mle_coal_rate

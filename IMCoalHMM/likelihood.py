@@ -18,7 +18,8 @@ class Likelihood(object):
 
 import scipy.optimize
 def maximum_likelihood_estimate(wrapper, initial_parameters,
-                                optimizer = scipy.optimize.fmin):
+                                optimizer = scipy.optimize.fmin,
+                                log_file = None):
     '''Maximum likelihood estimation.
     
     This function requires a wrapper around the likelihood computation
@@ -30,5 +31,9 @@ def maximum_likelihood_estimate(wrapper, initial_parameters,
     
     The function returns the maximum likelihood parameters.
     '''
-    return optimizer(wrapper, initial_parameters, disp=False)
+    log_callback = None
+    if log_file:
+        def log_callback(parameters):
+            print >> log_file, '\t'.join(map(str, parameters))
+    return optimizer(wrapper, initial_parameters, callback=log_callback, disp=False)
 
