@@ -30,5 +30,5 @@ def maximum_likelihood_estimate(wrapper, initial_parameters,
     
     The function returns the maximum likelihood parameters.
     '''
-    return optimizer(wrapper, initial_parameters)
+    return optimizer(wrapper, initial_parameters, disp=False)
 
