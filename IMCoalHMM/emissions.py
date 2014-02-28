@@ -6,6 +6,7 @@ probability of 1 for missing data.
 '''
 
 from math import exp
+from pyZipHMM import Matrix
 
 def truncated_exp_midpoint(t1, t2, rate):
     '''Calculates the mean coalescence point between t1 and t2
@@ -27,6 +28,25 @@ def coalescence_points(break_points, rate):
         result.append(t)
     result.append(exp_midpoint(break_points[-1], rate))
     return result
+
+def jukes_cantor(a, b, dt):
+    '''Compute the Jukes-Cantor transition probability for switching from
+    "a" to "b" in time "dt".'''
+    if a == b:
+        return 0.25 + 0.75 * exp(-4.0/3*dt)
+    else:
+        return 0.25 - 0.25 * exp(-4.0/3*dt)
+
+def emission_matrix(break_points, rate):
+    '''Compute the emission matrix given the time break points and coalescence
+    rate.'''
+    coal_points = coalescence_points(break_points, rate)
+    E = Matrix(len(coal_points), 3)
+    for state in xrange(len(coal_points)):
+        E[state, 0] = jukes_cantor(0, 0, 2*coal_points[state])
+        E[state, 1] = jukes_cantor(0, 1, 2*coal_points[state])
+        E[state, 2] = 1.0 # Dummy for missing data
+    return E
 
 def main():
     '''Test'''

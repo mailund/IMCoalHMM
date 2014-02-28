@@ -1,35 +1,45 @@
 
-from IMCoalHMM.IM2 import IM2, make_rates_table_migration
+from numpy import zeros
+from scipy import matrix
+
+from IMCoalHMM.I2 import Isolation2, make_rates_table_isolation
+from IMCoalHMM.I2 import Single2,    make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.i_transitions import compute_transition_probabilities
+from IMCoalHMM.emissions import emission_matrix
 
-state_space = IM2()
-rates = make_rates_table_migration(1,0.5,4e-4,0.2,0.2)
-coal_system = CTMC(state_space, rates)
+# FIXME: this should really be moved to the library
+isolation_state_space = Isolation2()
+isolation_rates = make_rates_table_isolation(1, 0.5, 4e-4)
+isolation_ctmc = CTMC(isolation_state_space, isolation_rates)
 
-# As a sanity check we can check that it is impossible to get from a L to a R state
-for left in state_space.L_states:
-	for right in state_space.R_states:
-		assert left != right
-		assert coal_system.Q[left,right] == 0
-		assert coal_system.Q[right,left] == 0
+coal_rate = 1.5
+single_state_space = Single2()
+single_rates = make_rates_table_single(coal_rate, 4e-4)
+single_ctmc = CTMC(single_state_space, single_rates)
 
-def left_coalesced(P, initial):
-	'''Marginalize to get the probability that the left nucleotide has coalesced.'''
-	prob = P[initial,state_space.L_states].sum() + P[initial,state_space.E_states].sum()
-	return prob
+Pr = matrix(zeros((len(isolation_state_space.states),
+                   len(single_state_space.states))))
+            
+def map_tokens(token):
+    pop, nucs = token
+    return 0, nucs
 
-from scipy import linspace
-times = linspace(0, 10, num = 50)
-coal11, coal12, coal22 = [], [], []
-for t in times:
-	P = coal_system.probability_matrix(t)
-	coal11.append(left_coalesced(P, state_space.i11_index))
-	coal12.append(left_coalesced(P, state_space.i12_index))
-	coal22.append(left_coalesced(P, state_space.i22_index))
+for state, isolation_index in isolation_state_space.states.items():
+    ancestral_state = frozenset(map(map_tokens, state))
+    ancestral_index = single_state_space.states[ancestral_state]
+    Pr[isolation_index, ancestral_index] = 1.0
 
-from pylab import plot, show, legend
-plot(times, coal11, label='11')
-plot(times, coal12, label='12')
-plot(times, coal22, label='22')
-legend()
-show()
+break_points = [1,2,3,4]
+pi, T = compute_transition_probabilities(isolation_ctmc,
+                                         Pr,
+                                         single_ctmc,
+                                         break_points)
+
+E = emission_matrix(break_points, coal_rate)
+
+from pyZipHMM import Forwarder
+
+forwarder = Forwarder.fromDirectory('examples/example_data.ziphmm')
+logL = forwarder.forward(pi, T, E)
+print logL
