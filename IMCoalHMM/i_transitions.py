@@ -7,6 +7,8 @@ from numpy import zeros
 from scipy import matrix
 from numpy.testing import assert_almost_equal
 
+from pyZipHMM import Matrix
+
 def compute_transition_probabilities(isolation_ctmc,
                                      projection,
                                      single_ctmc,
@@ -110,12 +112,12 @@ def compute_transition_probabilities(isolation_ctmc,
 
     assert_almost_equal(J.sum(), 1.0)
 
-    # FIXME: Build a zipHMM matrix instead
-    T = matrix(zeros((no_states, no_states)))
-    pi = zeros(no_states)
+    pi = Matrix(no_states, 1)
+    T = Matrix(no_states, no_states)
     for row in xrange(no_states):
-        pi[row] = J[row,].sum()
-        T[row,] = J[row,] / pi[row]
+        pi[row, 0] = J[row,].sum()
+        for col in xrange(no_states):
+            T[row,col] = J[row,col] / pi[row, 0]
 
     return pi, T
 
@@ -153,14 +155,23 @@ def main():
                                              Pr,
                                              single_ctmc,
                                              [1,2,3,4])
-    print pi
-    print
-    print '=>', pi.sum()
-    print
-    print T
-    print
-    print '=>', T.sum()
+                                             
+    no_states = pi.getHeight()
+    assert no_states == 4
+    
+    pi_sum = 0.0
+    for row in xrange(no_states):
+        pi_sum += pi[row, 0]
+    assert_almost_equal(pi_sum, 1.0)
 
+    assert no_states == T.getWidth()
+    assert no_states == T.getHeight()
+    
+    T_sum = 0.0
+    for row in xrange(no_states):
+        for col in xrange(no_states):
+            T_sum += T[row,col]
+    assert_almost_equal(T_sum, no_states)
 
 if __name__ == '__main__':
     main()
