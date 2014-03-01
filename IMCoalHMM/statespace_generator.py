@@ -128,21 +128,21 @@ class CoalSystem(object):
         self.transitions = [(remapping[src], (trans, pop1, pop2), remapping[dest]) \
                              for src, (trans, pop1, pop2), dest in edges]
 
-        self.B_states = []
-        self.L_states = []
-        self.R_states = []
-        self.E_states = []
+        self.begin_states = []
+        self.left_states = []
+        self.right_states = []
+        self.end_states = []
         for state, index in self.states.items():
             has_left = has_left_coalesced(state)
             has_right = has_right_coalesced(state)
             if not has_left and not has_right:
-                self.B_states.append(index)
+                self.begin_states.append(index)
             elif has_left and not has_right:
-                self.L_states.append(index)
+                self.left_states.append(index)
             elif not has_left and has_right:
-                self.R_states.append(index)
+                self.right_states.append(index)
             elif has_left and has_right:
-                self.E_states.append(index)
+                self.end_states.append(index)
             else:
                 assert False, "it should be impossible to reach this point."
 

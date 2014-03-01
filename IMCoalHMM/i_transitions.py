@@ -3,162 +3,142 @@ Calculations of HMM transition probabilities for an isolation model.
 
 '''
 
-from numpy import zeros
-from scipy import matrix
+from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
+from transitions import CTMCSystem
 
-from pyZipHMM import Matrix
+def _compute_through(single, break_points):
+    '''Computes the matrices for moving through an interval'''
+    no_states = len(break_points)
+    
+    through = [single.probability_matrix(break_points[i+1] - break_points[i])
+               for i in xrange(no_states - 1)]
+    
+    # Construct the transition matrices for going through each interval
+    through = [single.probability_matrix(break_points[i+1] - break_points[i])
+               for i in xrange(no_states - 1)]
 
-def compute_transition_probabilities(isolation_ctmc,
-                                     projection,
-                                     single_ctmc,
-                                     break_points):
-    '''Calculate the HMM transition probabilities from the CTMCs.
+    # As a hack we set up a pseudo through matrix for the last interval that
+    # just puts all probability on ending in one of the end states. This
+    # simplifies the HMM transition probability code as it avoids a special case
+    # for the last interval.
+    pseudo_through = matrix(zeros((len(single.state_space.states),
+                                   len(single.state_space.states))))
+    pseudo_through[:, single.state_space.end_states[0]] = 1.0
+    through.append(pseudo_through)
+    
+    return through
 
-    The isolation_ctmc covers the initial phase were it is not possible
-    to coalesce, then the projection matrix maps states from this CTMC
-    into the single_ctmc that models the panmictic ancestral population.
 
-    The time break points are the times between intervals except that
-    the first break point is the speciation event and nothing coalesces
-    before this point, so there is one state per breakpoint, corresponding
-    to the time intervals just after the break points.
-
-    Returns both the stationary probability pi together with the transition
-    probability T, since pi is autumatically calculated as part of
-    the algorithm.
-    '''
+def _compute_upto(isolation, single, break_points, through):
+    '''Computes the probability matrices for moving from time zero up to,
+    but not through, interval i.'''
 
     no_states = len(break_points)
-    initial = isolation_ctmc.state_space.i12_index
-    Pr = projection # This just to have a shorthand for the matrix
-    B_states = single_ctmc.state_space.B_states
-    L_states = single_ctmc.state_space.L_states
-    E_states = single_ctmc.state_space.E_states
+
+    # Projection matrix needed to go from the isolation to the single
+    # state spaces
+    projection = matrix(zeros((len(isolation.state_space.states),
+                               len(single.state_space.states))))
+    for state, isolation_index in isolation.state_space.states.items():
+        ancestral_state = frozenset([(0, nucs) for (_, nucs) in state])
+        ancestral_index = single.state_space.states[ancestral_state]
+        projection[isolation_index, ancestral_index] = 1.0
+
+    # We handle the first state as a special case because of the isolation
+    # interval
+    upto = [None] * no_states
+    upto[0] = isolation.probability_matrix(break_points[0]) * projection
+    for i in xrange(1, no_states):
+        upto[i] = upto[i-1] * through[i-1]
+
+    return upto
+
+def _compute_between(single, break_points):
+    '''Computes the matrices for moving from the end of interval i
+    to the beginning of interval j.'''
+
+    no_states = len(break_points)
+    # Transitions going from the endpoint of interval i to the entry point
+    # of interval j
+    return dict(
+        ((i, j), single.probability_matrix(break_points[j] - break_points[i+1]))
+        for i in xrange(no_states - 1)
+        for j in xrange(i+1, no_states)
+    )
+
+
+class IsolationCTMCSystem(CTMCSystem):
+    '''Wrapper around CTMC transition matrices for the isolation model.'''
     
-    P0 = isolation_ctmc.probability_matrix(break_points[0]) * Pr
+    def __init__(self, isolation_ctmc, single_ctmc, break_points):
+        '''Construct all the matrices and cache them for the 
+        method calls.'''
+        
+        self.no_states_ = len(break_points)
+        self.initial_ = isolation_ctmc.state_space.i12_index
+        self.begin_states_ = single_ctmc.state_space.begin_states
+        self.left_states_ = single_ctmc.state_space.left_states
+        self.end_states_ = single_ctmc.state_space.end_states
+        
+        self.through_ = _compute_through(single_ctmc, break_points)
+        self.upto_ = _compute_upto(isolation_ctmc, single_ctmc, 
+                                   break_points, self.through_)
+        self.between_ = _compute_between(single_ctmc, break_points)
+        
+    @property
+    def no_states(self):
+        "The number of states the HMM should have."
+        return self.no_states_
+    
+    @property
+    def initial(self):
+        'The initial state index in the bottom-most matrix'
+        return self.initial_
+    
+    def begin_states(self, i):
+        'Begin states for interval i.'
+        return self.begin_states_
 
-    J = matrix(zeros((no_states, no_states)))
-
-    # -- Filling in the diagonal for the J matrix: i == j ---------------
-    P1 = single_ctmc.probability_matrix(break_points[1]-break_points[0])
-    J[0, 0] = (P0 * P1)[initial, E_states].sum()
-
-    for i in xrange(1, no_states-1):
-        P1 = single_ctmc.probability_matrix(break_points[i]-break_points[0])
-        P2 = single_ctmc.probability_matrix(break_points[i+1]-break_points[i])
-        P01 = (P0 * P1)
-        prob = 0.0
-        for b in B_states:
-            for e in E_states:
-                prob += P01[initial, b] * P2[b, e]
-        J[i, i] = prob
-
-    P = P0 * single_ctmc.probability_matrix(break_points[-1]-break_points[0])
-    J[no_states-1, no_states-1] = P[initial, B_states].sum()
-
-
-    # -- handle i < j (and j < i by symmetri) ---------------------------
-    # i == 0 and 0 < j < no_states-1
-    P1 = single_ctmc.probability_matrix(break_points[1]-break_points[0]) # [0,i]
-    P01 = P0 * P1
-    for j in xrange(1, no_states-1):
-        # 0 < j < no_states-1
-        P2 = single_ctmc.probability_matrix(break_points[j]-break_points[1]) # ]i,j[
-        P3 = single_ctmc.probability_matrix(break_points[j+1] - break_points[j]) # [j]
-        prob = 0.0
-        for l1 in L_states:
-            for l2 in L_states:
-                for e in E_states:
-                    prob += P01[initial, l1] * P2[l1, l2] * P3[l2, e]
-        J[0, j] = J[j, 0] = prob
-
-    # i == 0 and j == no_states-1
-    P2 = single_ctmc.probability_matrix(break_points[no_states-1]-break_points[1])
-    prob = 0.0
-    for l1 in L_states:
-        for l2 in L_states:
-            prob += P01[initial, l1] * P2[l1, l2]
-    J[0, no_states-1] = J[no_states-1, 0] = prob
-
-
-    # i > 0
-    for i in xrange(1, no_states-1):
-        P1 = single_ctmc.probability_matrix(break_points[i]-break_points[0]) # [0;i[
-        P2 = single_ctmc.probability_matrix(break_points[i+1]-break_points[i]) # [i]
-        P01 = P0 * P1
-
-        # 0 < j < no_states - 1
-        for j in xrange(i+1, no_states-1):
-            P3 = single_ctmc.probability_matrix(break_points[j]-break_points[i+1]) # ]i;j[
-            P4 = single_ctmc.probability_matrix(break_points[j+1]-break_points[j]) # [j]
-            prob = 0.0
-            for b in B_states:
-                for l1 in L_states:
-                    for l2 in L_states:
-                        for e in E_states:
-                            prob += P01[initial, b] * P2[b, l1] * P3[l1, l2] * P4[l2, e]
-            J[i, j] = J[j, i] = prob
-
-
-        # j == no_states - 1
-        P3 = single_ctmc.probability_matrix(break_points[no_states-1]-break_points[i+1])
-        prob = 0.0
-        for b in B_states:
-            for l1 in L_states:
-                for l2 in L_states:
-                    prob += P01[initial, b] * P2[b, l1] * P3[l1, l2]
-        J[i, no_states-1] = J[no_states-1, i] = prob
-
-    assert_almost_equal(J.sum(), 1.0)
-
-    pi = Matrix(no_states, 1)
-    T = Matrix(no_states, no_states)
-    for row in xrange(no_states):
-        pi[row, 0] = J[row,].sum()
-        for col in xrange(no_states):
-            T[row,col] = J[row,col] / pi[row, 0]
-
-    return pi, T
+    def left_states(self, i):
+        'Left states for interval i.'
+        return self.left_states_
+        
+    def end_states(self, i):
+        'End states for interval i.'
+        return self.end_states_
+    
+    def through(self, i):
+        'Returns a probability matrix for going through interval i'
+        return self.through_[i]
+    
+    def upto(self, i):
+        '''Returns a probability matrix for going up to, but not 
+        through, interval i'''
+        return self.upto_[i]
+        
+    def between(self, i, j):
+        '''Returns a probability matrix for going from the
+        end of interval i up to (but not through) interval j'''
+        return self.between_[(i, j)]        
 
 
 def main():
     '''Test'''
 
     from I2 import Isolation2, make_rates_table_isolation
-    from I2 import Single2,    make_rates_table_single
+    from I2 import Single2, make_rates_table_single
     from CTMC import CTMC
+    from transitions import compute_transition_probabilities
 
-    isolation_state_space = Isolation2()
-    isolation_rates = make_rates_table_isolation(1, 0.5, 4e-4)
-    isolation_ctmc = CTMC(isolation_state_space, isolation_rates)
+    isolation_ctmc = CTMC(Isolation2(), make_rates_table_isolation(1, 0.5, 4e-4))
+    single_ctmc = CTMC(Single2(), make_rates_table_single(1.5, 4e-4))
+    ctmc_system = IsolationCTMCSystem(isolation_ctmc, single_ctmc, [1, 2, 3, 4])
+    pi, T = compute_transition_probabilities(ctmc_system)
 
-    single_state_space = Single2()
-    single_rates = make_rates_table_single(1.5, 4e-4)
-    single_ctmc = CTMC(single_state_space, single_rates)
-
-
-    Pr = matrix(zeros((len(isolation_state_space.states),
-                       len(single_state_space.states))))
-            
-    def map_tokens(token):
-        pop, nucs = token
-        return 0, nucs
-
-    for state, isolation_index in isolation_state_space.states.items():
-        ancestral_state = frozenset(map(map_tokens, state))
-        ancestral_index = single_state_space.states[ancestral_state]
-        Pr[isolation_index, ancestral_index] = 1.0
-
-
-    pi, T = compute_transition_probabilities(isolation_ctmc,
-                                             Pr,
-                                             single_ctmc,
-                                             [1,2,3,4])
-                                             
     no_states = pi.getHeight()
     assert no_states == 4
-    
+
     pi_sum = 0.0
     for row in xrange(no_states):
         pi_sum += pi[row, 0]
@@ -166,12 +146,15 @@ def main():
 
     assert no_states == T.getWidth()
     assert no_states == T.getHeight()
-    
+
     T_sum = 0.0
     for row in xrange(no_states):
         for col in xrange(no_states):
-            T_sum += T[row,col]
+            T_sum += T[row, col]
     assert_almost_equal(T_sum, no_states)
+
+    print 'Done'
+
 
 if __name__ == '__main__':
     main()
