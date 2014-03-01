@@ -3,8 +3,7 @@ Calculations of HMM transition probabilities for an isolation model.
 
 '''
 
-from numpy import zeros
-from scipy import matrix
+from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
 
 from pyZipHMM import Matrix
@@ -83,28 +82,26 @@ def compute_transition_probabilities(isolation_ctmc,
 
     through, upto, between = setup_CTMC_matrices(isolation_ctmc, single_ctmc, break_points)
 
+
     J = matrix(zeros((no_states, no_states)))
 
     # -- Filling in the diagonal for the J matrix ------------------------
     J[0, 0] = upto[1][initial, E_states].sum()
     for i in xrange(1, no_states-1):
-        J[i, i] = sum(upto[i][initial, b] * through[i][b, e]
-                      for b in B_states for e in E_states)
+        # Computes the sum of upto[initial,b] * through[b,e] for b and e in begin and
+        # end states via matrix multiplication and summation
+        J[i, i] = (upto[i][initial,B_states] * through[i][ix_(B_states, E_states)]).sum()
     J[no_states-1, no_states-1] = upto[no_states-1][initial, B_states].sum()
-
 
     # -- handle i < j (and j < i by symmetri) ---------------------------
     for i in xrange(no_states-1):
         # 0 < j < no_states - 1
         for j in xrange(i+1, no_states):
-            prob = 0.0
-            for b in B_states:
-                for l1 in L_states:
-                    for l2 in L_states:
-                        for e in E_states:
-                            prob += upto[i][initial, b] * through[i][b, l1] \
-                                    * between[(i, j)][l1, l2] * through[j][l2, e]
-            J[i, j] = J[j, i] = prob
+            # Computes the sum of the path but using linear algebra
+            J[i, j] = J[j, i] = (upto[i][initial, B_states] 
+                                * through[i][ix_(B_states, L_states)]
+                                * between[(i, j)][ix_(L_states, L_states)]
+                                * through[j][ix_(L_states, E_states)]).sum()
 
     assert_almost_equal(J.sum(), 1.0)
 
