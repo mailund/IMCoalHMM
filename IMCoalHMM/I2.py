@@ -50,16 +50,16 @@ def make_rates_table_single(C, R):
 def main():
     "Test"
     isolation = Isolation2()
-    assert len(isolation.B_states) == 4
-    assert len(isolation.L_states) == 0
-    assert len(isolation.R_states) == 0
-    assert len(isolation.E_states) == 0
+    assert len(isolation.begin_states) == 4
+    assert len(isolation.left_states) == 0
+    assert len(isolation.right_states) == 0
+    assert len(isolation.end_states) == 0
 
     single = Single2()
-    assert len(single.B_states) == 7
-    assert len(single.L_states) == 3
-    assert len(single.R_states) == 3
-    assert len(single.E_states) == 2
+    assert len(single.begin_states) == 7
+    assert len(single.left_states) == 3
+    assert len(single.right_states) == 3
+    assert len(single.end_states) == 2
 
 
 if __name__ == '__main__':

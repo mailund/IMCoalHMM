@@ -24,7 +24,7 @@ def _compute_through(single, break_points):
     # for the last interval.
     pseudo_through = matrix(zeros((len(single.state_space.states),
                                    len(single.state_space.states))))
-    pseudo_through[:, single.state_space.E_states[0]] = 1.0
+    pseudo_through[:, single.state_space.end_states[0]] = 1.0
     through.append(pseudo_through)
     
     return through
@@ -77,9 +77,9 @@ class IsolationCTMCSystem(CTMCSystem):
         
         self.no_states_ = len(break_points)
         self.initial_ = isolation_ctmc.state_space.i12_index
-        self.begin_states_ = single_ctmc.state_space.B_states
-        self.left_states_ = single_ctmc.state_space.L_states
-        self.end_states_ = single_ctmc.state_space.E_states
+        self.begin_states_ = single_ctmc.state_space.begin_states
+        self.left_states_ = single_ctmc.state_space.left_states
+        self.end_states_ = single_ctmc.state_space.end_states
         
         self.through_ = _compute_through(single_ctmc, break_points)
         self.upto_ = _compute_upto(isolation_ctmc, single_ctmc, 
