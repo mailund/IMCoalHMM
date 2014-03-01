@@ -7,7 +7,8 @@ from scipy import matrix
 from I2 import Isolation2, make_rates_table_isolation
 from I2 import Single2,    make_rates_table_single
 from CTMC import CTMC
-from i_transitions import compute_transition_probabilities
+from i_transitions import IsolationCTMCSystem
+from transitions import compute_transition_probabilities
 from break_points import exp_break_points
 from emissions import emission_matrix
 
@@ -28,17 +29,16 @@ class IsolationModel(object):
         '''Construct CTMCs and compute HMM matrices given the split time
         and the rates.'''
 
-        isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, 
-                                                     recomb_rate)
+        isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
         single_ctmc = CTMC(self.single_state_space, single_rates)
-
+        
         break_points = exp_break_points(no_states, coal_rate, split_time)
 
-        pi, T = compute_transition_probabilities(isolation_ctmc,
-                                                 single_ctmc,
-                                                 break_points)
+        ctmc_system = IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
+
+        pi, T = compute_transition_probabilities(ctmc_system)
         E = emission_matrix(break_points, coal_rate)
 
         return pi, T, E
