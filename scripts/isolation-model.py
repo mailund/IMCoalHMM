@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''Script for estimating parameters in an isolation model.
 '''
 
@@ -74,7 +76,7 @@ and uniform coalescence and recombination rates."""
         with open(options.logfile, 'w') as logfile:
 
             if options.include_header:
-                print >>logfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
+                print >>logfile, '\t'.join(['split.time', 'theta', 'rho'])
 
             def transform(params):
                 split, coal_rate, recomb_rate = params

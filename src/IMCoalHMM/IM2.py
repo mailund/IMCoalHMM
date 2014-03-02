@@ -2,7 +2,7 @@
 
 '''
 
-from statespace_generator import Migration
+from IMCoalHMM.statespace_generator import Migration
 
 class Migration2(Migration):
     '''Class for IM system with exactly two samples.'''
@@ -49,10 +49,10 @@ def make_rates_table_migration(C1, C2, R, M12, M21):
 def main():
     "Test"
     system = Migration2()
-    print len(system.B_states)
-    print len(system.L_states)
-    print len(system.R_states)
-    print len(system.E_states)
+    print len(system.begin_states)
+    print len(system.left_states)
+    print len(system.right_states)
+    print len(system.end_states)
 
 
 if __name__ == '__main__':
