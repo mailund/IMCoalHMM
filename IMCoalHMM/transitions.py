@@ -19,12 +19,12 @@ class CTMCSystem(object):
     def no_states(self):
         "The number of states the HMM should have."
         raise exceptions.NotImplementedError()
-    
+
     @property
     def initial(self):
         'The initial state index in the bottom-most matrix'
         raise exceptions.NotImplementedError()
-    
+
     def begin_states(self, i):
         'Begin states for interval i.'
         raise exceptions.NotImplementedError()
@@ -32,26 +32,26 @@ class CTMCSystem(object):
     def left_states(self, i):
         'Left states for interval i.'
         raise exceptions.NotImplementedError()
-        
+
     def end_states(self, i):
         'End states for interval i.'
         raise exceptions.NotImplementedError()
-    
+
     def through(self, i):
         'Returns a probability matrix for going through interval i'
         raise exceptions.NotImplementedError()
-    
+
     def upto(self, i):
-        '''Returns a probability matrix for going up to, but not 
+        '''Returns a probability matrix for going up to, but not
         through, interval i'''
         raise exceptions.NotImplementedError()
-        
+
     def between(self, i, j):
         '''Returns a probability matrix for going from the
         end of interval i up to (but not through) interval j'''
         raise exceptions.NotImplementedError()
-        
-        
+
+
 def compute_transition_probabilities(ctmc):
     '''Calculate the HMM transition probabilities from the CTMCs.
 
@@ -65,12 +65,12 @@ def compute_transition_probabilities(ctmc):
     # Joint genealogy probabilities
     J = matrix(zeros((no_states, no_states)))
 
-    # -- Filling in the diagonal for the J matrix ------------------------
+    # -- Filling in the diagonal (i == j) for the J matrix ----------------
     J[0, 0] = ctmc.upto(1)[ctmc.initial, ctmc.end_states(0)].sum()
     for i in xrange(1, no_states-1):
         J[i, i] = (ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)]
                   * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.end_states(i))]).sum()
-    J[no_states-1, no_states-1] = ctmc.upto(no_states-1)[ctmc.initial, 
+    J[no_states-1, no_states-1] = ctmc.upto(no_states-1)[ctmc.initial,
                                                          ctmc.begin_states(no_states-1)].sum()
 
     # -- handle i < j (and j < i by symmetry) ---------------------------
@@ -79,14 +79,12 @@ def compute_transition_probabilities(ctmc):
     # might be needed unless it can be handled by careful choice of indices
     # when picking states from "ctmc"
     for i in xrange(no_states-1):
+        up_through_i = ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)] * \
+                       ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i))]
         for j in xrange(i+1, no_states):
-            J[i, j] = J[j, i] = (ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)]
-                                * ctmc.through(i)[ix_(ctmc.begin_states(i), 
-                                                      ctmc.left_states(i))]
-                                * ctmc.between(i, j)[ix_(ctmc.left_states(i),
-                                                         ctmc.left_states(j))]
-                                * ctmc.through(j)[ix_(ctmc.left_states(j),
-                                                      ctmc.end_states(j))]).sum()
+            between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i), ctmc.left_states(j))]
+            through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j))]
+            J[i, j] = J[j, i] = (up_through_i * between_i_and_j * through_j).sum()
 
     assert_almost_equal(J.sum(), 1.0)
 

@@ -3,17 +3,17 @@ Calculations of HMM transition probabilities for an isolation model.
 
 '''
 
-from numpy import zeros, matrix, ix_
+from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
-from transitions import CTMCSystem
+from IMCoalHMM.transitions import CTMCSystem
 
 def _compute_through(single, break_points):
     '''Computes the matrices for moving through an interval'''
     no_states = len(break_points)
-    
+
     through = [single.probability_matrix(break_points[i+1] - break_points[i])
                for i in xrange(no_states - 1)]
-    
+
     # Construct the transition matrices for going through each interval
     through = [single.probability_matrix(break_points[i+1] - break_points[i])
                for i in xrange(no_states - 1)]
@@ -26,7 +26,7 @@ def _compute_through(single, break_points):
                                    len(single.state_space.states))))
     pseudo_through[:, single.state_space.end_states[0]] = 1.0
     through.append(pseudo_through)
-    
+
     return through
 
 
@@ -70,32 +70,31 @@ def _compute_between(single, break_points):
 
 class IsolationCTMCSystem(CTMCSystem):
     '''Wrapper around CTMC transition matrices for the isolation model.'''
-    
+
     def __init__(self, isolation_ctmc, single_ctmc, break_points):
-        '''Construct all the matrices and cache them for the 
+        '''Construct all the matrices and cache them for the
         method calls.'''
-        
+
         self.no_states_ = len(break_points)
         self.initial_ = isolation_ctmc.state_space.i12_index
         self.begin_states_ = single_ctmc.state_space.begin_states
         self.left_states_ = single_ctmc.state_space.left_states
         self.end_states_ = single_ctmc.state_space.end_states
-        
+
         self.through_ = _compute_through(single_ctmc, break_points)
-        self.upto_ = _compute_upto(isolation_ctmc, single_ctmc, 
-                                   break_points, self.through_)
+        self.upto_ = _compute_upto(isolation_ctmc, single_ctmc, break_points, self.through_)
         self.between_ = _compute_between(single_ctmc, break_points)
-        
+
     @property
     def no_states(self):
         "The number of states the HMM should have."
         return self.no_states_
-    
+
     @property
     def initial(self):
         'The initial state index in the bottom-most matrix'
         return self.initial_
-    
+
     def begin_states(self, i):
         'Begin states for interval i.'
         return self.begin_states_
@@ -103,33 +102,33 @@ class IsolationCTMCSystem(CTMCSystem):
     def left_states(self, i):
         'Left states for interval i.'
         return self.left_states_
-        
+
     def end_states(self, i):
         'End states for interval i.'
         return self.end_states_
-    
+
     def through(self, i):
         'Returns a probability matrix for going through interval i'
         return self.through_[i]
-    
+
     def upto(self, i):
-        '''Returns a probability matrix for going up to, but not 
+        '''Returns a probability matrix for going up to, but not
         through, interval i'''
         return self.upto_[i]
-        
+
     def between(self, i, j):
         '''Returns a probability matrix for going from the
         end of interval i up to (but not through) interval j'''
-        return self.between_[(i, j)]        
+        return self.between_[(i, j)]
 
 
 def main():
     '''Test'''
 
-    from I2 import Isolation2, make_rates_table_isolation
-    from I2 import Single2, make_rates_table_single
-    from CTMC import CTMC
-    from transitions import compute_transition_probabilities
+    from IMCoalHMM.I2 import Isolation2, make_rates_table_isolation
+    from IMCoalHMM.I2 import Single2, make_rates_table_single
+    from IMCoalHMM.CTMC import CTMC
+    from IMCoalHMM.transitions import compute_transition_probabilities
 
     isolation_ctmc = CTMC(Isolation2(), make_rates_table_isolation(1, 0.5, 4e-4))
     single_ctmc = CTMC(Single2(), make_rates_table_single(1.5, 4e-4))
