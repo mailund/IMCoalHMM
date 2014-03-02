@@ -2,6 +2,9 @@
 import ez_setup
 ez_setup.use_setuptools()
 
+def read(fname):
+    return open(os.path.join(os.path.dirname(__file__), fname)).read()
+
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
@@ -18,9 +21,10 @@ setup(
     # metadata for upload to PyPI
     author = "Thomas Mailund",
     author_email = "mailund@birc.au.dk",
-    description = "Package for building and analysing pair-wise CoalHMMs.",
     license = "GPLv2",
     keywords = "demography coalescence bioinformatics genetics",
     url = "https://github.com/mailund/IMCoalHMM",
+    description = "Package for building and analysing pair-wise CoalHMMs.",
+    long_description = read('README.md'),
 
 )
