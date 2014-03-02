@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''Script for estimating parameters in an isolation model.
 '''
 

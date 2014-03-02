@@ -2,7 +2,7 @@
 
 '''
 
-from statespace_generator import Migration
+from IMCoalHMM.statespace_generator import Migration
 
 class Migration2(Migration):
     '''Class for IM system with exactly two samples.'''
