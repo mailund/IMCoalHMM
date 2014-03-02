@@ -16,7 +16,10 @@ setup(
                'scripts/isolation-model.py',
               ],
 
-    install_requires = ['numpy', 'scipy', 'pyZipHMM'],
+    install_requires = ['numpy', 
+                        'scipy',
+                        #'pyZipHMM', -- FIXME: there isn't a package for this!
+                        ],
 
     # metadata for upload to PyPI
     author = "Thomas Mailund",
