@@ -11,9 +11,6 @@ def _compute_through(single, break_points):
     '''Computes the matrices for moving through an interval'''
     no_states = len(break_points)
 
-    through = [single.probability_matrix(break_points[i+1] - break_points[i])
-               for i in xrange(no_states - 1)]
-
     # Construct the transition matrices for going through each interval
     through = [single.probability_matrix(break_points[i+1] - break_points[i])
                for i in xrange(no_states - 1)]
