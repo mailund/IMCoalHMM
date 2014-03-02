@@ -37,9 +37,9 @@ may want to split the alignment first if it's very large.
                       dest="verbose",
                       action="store_true",
                       default=False,
-                      help="Print some stuff")
+                      help="Print status information during processing")
 
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
     if len(args) != 3:
         parser.error("Needs input file, input format and output file")
@@ -47,7 +47,16 @@ may want to split the alignment first if it's very large.
     in_format = args.pop(0)
     output_dirname = args.pop(0) 
 
-    assert os.path.exists(in_filename), "Must use an existing input file"
+    if not os.path.exists(in_filename):
+        print 'The input file', in_filename, 'does not exists.'
+        sys.exit(1)
+
+    if os.path.exists(output_dirname):
+        print 'The output directory', output_dirname, 'already exists.'
+        print 'If you want to replace it, please explicitly remove the current'
+        print 'version first.'
+        sys.exit(1)
+        
     if in_filename.endswith('.gz'):
         if options.verbose:
             print "Assuming '%s' is a gzipped file." % in_filename
@@ -66,22 +75,28 @@ may want to split the alignment first if it's very large.
         names = options.names.split(',')
     else:
         names = list(alignments.keys())
-    assert len(names) == 2, "Must be a pairwise alignment."
+        
+    if len(names) != 2:
+        print 'There must be exactly two species names specified!'
+        sys.exit(1)
+
     if options.verbose:
         print "Assuming pairwise alignment between '%s' and '%s'" % (names[0],names[1])
     srcs = [alignments[name].seq for name in names]
+
+    os.mkdir(output_dirname)
 
     clean = set('ACGT')
     A = srcs[0]
     B = srcs[1]
     assert len(A) == len(B)
     L = len(A)
-    fd, foutname = tempfile.mkstemp()
+    outname = os.path.join(output_dirname, 'original_sequence')
     if options.verbose:
-        print "Writing temp file readable by zipHMM to '%s'..." % (foutname),
+        print "Writing file readable by ZipHMM to '%s'..." % (outname),
         sys.stdout.flush()
     seen = set()
-    with os.fdopen(fd, 'w', 64*1024) as f:
+    with open(outname, 'w', 64*1024) as f:
         for i in xrange(L):
             s1,s2 = A[i].upper(), B[i].upper()
             seen.add(s1)
@@ -97,20 +112,17 @@ may want to split the alignment first if it's very large.
     if len(seen - set('ACGTN-')) > 1:
         print >>sys.stderr, "I didn't understand the following symbols form the input sequence: %s" % (''.join(list(seen - set('ACGTN-'))))
     if options.verbose:
-        print "zipHMM  is preprocessing...",
+        print "ZipHMM is preprocessing...",
         sys.stdout.flush()
-    f = Forwarder.fromSequence(seqFilename = foutname,
+    f = Forwarder.fromSequence(seqFilename = outname,
                                alphabetSize = 3, minNoEvals = 500)
     if options.verbose:
         print "done"
 
     if options.verbose:
-        print "Writing zipHMM data to '%s'..." % (output_dirname),
+        print "Writing ZipHMM data to '%s'..." % (output_dirname),
         sys.stdout.flush()
-    if not os.path.exists(output_dirname):
-        os.makedirs(output_dirname)
     f.writeToDirectory(output_dirname)
-    os.rename(foutname, os.path.join(output_dirname, 'original_sequence'))
     if options.verbose:
         print "done"
 
