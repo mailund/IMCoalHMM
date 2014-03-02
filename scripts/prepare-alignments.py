@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os, os.path, sys
 import gzip
 import tempfile
