@@ -221,8 +221,8 @@ def main():
 
     model = VariableCoalescenceRateIsolationModel()
     split_time = 1.1
-    intervals = [2,2,2,2]
-    coal_rates = [1.0, 0.5, 2.0, 1.0]
+    intervals = [4] + [2]*25 + [4, 6]
+    coal_rates = [1.0] * 28
     recomb_rate = 4e-4
     pi, T, E = model.build_HMM(split_time, intervals, coal_rates, recomb_rate)
 
