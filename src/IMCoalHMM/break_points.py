@@ -12,9 +12,9 @@ def exp_break_points(no_intervals, coal_rate, offset=0.0):
     points = expon.ppf([float(i)/no_intervals for i in xrange(no_intervals)])
     return points/coal_rate + offset
 
-def psmc_break_points(n = 64, Tmax = 15, offset = 0.0):
+def psmc_break_points(n = 64, Tmax = 15, mu = 1e-9, offset = 0.0):
     break_points = [offset] + \
-                   [offset + 0.1 * (exp(float(i)/n * log(1+10*Tmax)) - 1.0)
+                   [offset + 0.1 * (exp(float(i)/n * log(1+10*Tmax*mu)) - 1.0)
                     for i in xrange(1,n)]
     return break_points
     
