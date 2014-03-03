@@ -195,23 +195,34 @@ class VariableCoalescenceRateIsolationModel(object):
 
 
 ## Wrapper for maximum likelihood optimization ###############################
-# FIXME: I haven't updated this to the variable rates yet! It is just
-# the copy from isolation_model.py
 class MinimizeWrapper(object):
     '''Callable object wrapping the log likelihood computation for maximum
     liklihood estimation.'''
     
-    def __init__(self, logL):
+    def __init__(self, logL, intervals, est_split = False):
         '''Wrap the log likelihood computation with the non-variable parameter
         which is the number of states.'''
         self.logL = logL
+        self.intervals = intervals
+        self.est_split = est_split
         
     def __call__(self, parameters):
         '''Compute the likelihood in a paramter point. It computes -logL since
         the optimizer will minimize the function.'''
         if min(parameters) <= 0:
             return 1e18 # fixme: return infinity
-        return -self.logL(*parameters)
+
+        if self.est_split:
+            # we are trying to estimate a split time as well
+            split_time = parameters[0]
+            coal_rates = parameters[1:-1]
+            recomb_rate = parameters[-1]
+        else:
+            split_time = 0.0
+            coal_rates = parameters[0:-1]
+            recomb_rate = parameters[-1]
+
+        return -self.logL(split_time, self.intervals, coal_rates, recomb_rate)
 
 
 
