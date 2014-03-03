@@ -10,7 +10,7 @@ from IMCoalHMM.isolation_model import Single2, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.transitions import compute_transition_probabilities
-from IMCoalHMM.break_points import exp_break_points
+from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import emission_matrix
 
 
@@ -147,13 +147,14 @@ class VariableCoalescenceRateIsolationModel(object):
         self.single_state_space = Single2()
         
 
-    def build_HMM(self, split_time, coal_rates, recomb_rate):
+    def build_HMM(self, break_points, coal_rates, recomb_rate):
         '''Construct CTMCs and compute HMM matrices given the split time
         and the rates.
         
-        The split_time parameter is for setting a period where it is impossible
-        for the two samples to coalesce (an isolation model). If it is
-        set to 0.0 the system will work as Li & Durbin (2011)'s PSMC.
+        The split time parameter, found as break_points[0] is for
+        setting a period where it is impossible for the two samples to
+        coalesce (an isolation model). If it is set to 0.0 the system 
+        will work as Li & Durbin (2011)'s PSMC.
         
         The coal_rates list should contain a coalescence rate for each interval
         in the model (except for the time up to split_time). It determins
@@ -177,9 +178,6 @@ class VariableCoalescenceRateIsolationModel(object):
             single_rates = make_rates_table_single(coal_rate, recomb_rate)
             single_ctmc = CTMC(self.single_state_space, single_rates)
             single_ctmcs.append(single_ctmc)
-        
-        # FIXME: need different code to set this one!
-        break_points = exp_break_points(len(coal_rates), coal_rates[0], split_time)
 
         ctmc_system = VariableCoalRateCTMCSystem(isolation_ctmc, 
                                                  single_ctmcs, break_points)
@@ -189,22 +187,23 @@ class VariableCoalescenceRateIsolationModel(object):
 
 
 ## Wrapper for maximum likelihood optimization ###############################
+# FIXME: I haven't updated this to the variable rates yet! It is just
+# the copy from isolation_model.py
 class MinimizeWrapper(object):
     '''Callable object wrapping the log likelihood computation for maximum
     liklihood estimation.'''
     
-    def __init__(self, logL, no_states):
+    def __init__(self, logL):
         '''Wrap the log likelihood computation with the non-variable parameter
         which is the number of states.'''
         self.logL = logL
-        self.no_states = no_states
         
     def __call__(self, parameters):
         '''Compute the likelihood in a paramter point. It computes -logL since
         the optimizer will minimize the function.'''
         if min(parameters) <= 0:
             return 1e18 # fixme: return infinity
-        return -self.logL(self.no_states, *parameters)
+        return -self.logL(*parameters)
 
 
 
@@ -214,9 +213,10 @@ def main():
 
     model = VariableCoalescenceRateIsolationModel()
     split_time = 1.1
-    coal_rates = [1.0, 1.0, 1.0, 1.0]
+    coal_rates = [1.0, 0.5, 2.0, 1.0]
+    break_points = psmc_break_points(n = len(coal_rates), offset = split_time)
     recomb_rate = 4e-4
-    pi, T, E = model.build_HMM(split_time, coal_rates, recomb_rate)
+    pi, T, E = model.build_HMM(break_points, coal_rates, recomb_rate)
 
     no_states = pi.getHeight()
     assert no_states == len(coal_rates)
