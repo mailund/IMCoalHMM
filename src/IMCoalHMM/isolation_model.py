@@ -173,7 +173,7 @@ class IsolationModel(object):
     def __init__(self):
         '''Construct the model.
         
-        This builds the state spaces for the CTMCs but the matrices for the
+        This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters.'''
         super(IsolationModel, self).__init__()
         self.isolation_state_space = Isolation2()
@@ -184,13 +184,15 @@ class IsolationModel(object):
         '''Construct CTMCs and compute HMM matrices given the split time
         and the rates.'''
 
+        # We assume here that the coalescence rate is the same in the two
+        # separate populations as it is in the ancestral. This is not necessarily
+        # true but it worked okay in simulations in Mailund et al. (2011).
         isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
         single_ctmc = CTMC(self.single_state_space, single_rates)
         
         break_points = exp_break_points(no_states, coal_rate, split_time)
-
         ctmc_system = IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
 
         pi, T = compute_transition_probabilities(ctmc_system)
@@ -223,10 +225,8 @@ class MinimizeWrapper(object):
 def main():
     '''Test'''
 
-    isolation_ctmc = CTMC(Isolation2(), make_rates_table_isolation(1, 0.5, 4e-4))
-    single_ctmc = CTMC(Single2(), make_rates_table_single(1.5, 4e-4))
-    ctmc_system = IsolationCTMCSystem(isolation_ctmc, single_ctmc, [1, 2, 3, 4])
-    pi, T = compute_transition_probabilities(ctmc_system)
+    model = IsolationModel()
+    pi, T, E = model.build_HMM(4, 1.0, 0.5, 4e-4)
 
     no_states = pi.getHeight()
     assert no_states == 4
