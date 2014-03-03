@@ -2,5 +2,7 @@
 examples/example_data.ziphmm/data_structure
 examples/example_data.ziphmm/nStates2seq/2.seq
 examples/example_data.ziphmm/original_sequence
+src/IMCoalHMM.egg-info/*
 build/*
+dist/*
 setuptools-*
