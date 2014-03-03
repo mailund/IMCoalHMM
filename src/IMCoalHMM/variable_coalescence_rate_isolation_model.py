@@ -147,14 +147,17 @@ class VariableCoalescenceRateIsolationModel(object):
         self.single_state_space = Single2()
         
 
-    def build_HMM(self, break_points, coal_rates, recomb_rate):
+    def build_HMM(self, split_time, intervals, coal_rates, recomb_rate):
         '''Construct CTMCs and compute HMM matrices given the split time
         and the rates.
         
-        The split time parameter, found as break_points[0] is for
-        setting a period where it is impossible for the two samples to
-        coalesce (an isolation model). If it is set to 0.0 the system 
-        will work as Li & Durbin (2011)'s PSMC.
+        The split time parameter is for setting a period where it is
+        impossible for the two samples to coalesce (an isolation model).
+        If it is set to 0.0 the system will work as Li & Durbin (2011)'s PSMC.
+        
+        The intervals list specifies how many intervals we should use for
+        each coalescence rate. It is the sum over this list that will
+        be the number of states.
         
         The coal_rates list should contain a coalescence rate for each interval
         in the model (except for the time up to split_time). It determins
@@ -174,15 +177,20 @@ class VariableCoalescenceRateIsolationModel(object):
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
         
         single_ctmcs = []
-        for coal_rate in coal_rates:
+        for epoch, coal_rate in enumerate(coal_rates):
             single_rates = make_rates_table_single(coal_rate, recomb_rate)
             single_ctmc = CTMC(self.single_state_space, single_rates)
-            single_ctmcs.append(single_ctmc)
+            for _ in xrange(intervals[epoch]):
+                single_ctmcs.append(single_ctmc)
 
+        no_states = len(single_ctmcs)
+        break_points = psmc_break_points(n = no_states, offset = split_time)
+        
         ctmc_system = VariableCoalRateCTMCSystem(isolation_ctmc, 
                                                  single_ctmcs, break_points)
         pi, T = compute_transition_probabilities(ctmc_system)
         E = emission_matrix(break_points, coal_rate)
+        
         return pi, T, E
 
 
@@ -213,13 +221,13 @@ def main():
 
     model = VariableCoalescenceRateIsolationModel()
     split_time = 1.1
+    intervals = [2,2,2,2]
     coal_rates = [1.0, 0.5, 2.0, 1.0]
-    break_points = psmc_break_points(n = len(coal_rates), offset = split_time)
     recomb_rate = 4e-4
-    pi, T, E = model.build_HMM(break_points, coal_rates, recomb_rate)
+    pi, T, E = model.build_HMM(split_time, intervals, coal_rates, recomb_rate)
 
     no_states = pi.getHeight()
-    assert no_states == len(coal_rates)
+    assert no_states == sum(intervals)
 
     pi_sum = 0.0
     for row in xrange(no_states):
