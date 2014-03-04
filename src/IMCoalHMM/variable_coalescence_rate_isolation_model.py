@@ -129,10 +129,6 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
 
 
 ## Class that can construct HMMs ######################################
-from IMCoalHMM.transitions import compute_transition_probabilities
-from IMCoalHMM.break_points import exp_break_points
-from IMCoalHMM.emissions import emission_matrix
-
 class VariableCoalescenceRateIsolationModel(object):
     '''Class wrapping the code that generates an isolation model HMM
     with variable coalescence rates in the different intervals.'''
