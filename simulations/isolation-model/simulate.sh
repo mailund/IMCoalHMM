@@ -31,7 +31,7 @@ for sim in `eval echo {1..${no_sims}}`; do
     seqfile=${simdir}/alignment.phylip
     ziphmmfile=${simdir}/alignment.ziphmm
     
-    ms 2 1 -T -r ${coal_rho} ${seg_length} -I 2 1 1 -ej ${coal_tau} 2 1 | tail +4 | grep -v // > ${treefile}
+    ms 2 1 -T -r ${coal_rho} ${seg_length} -I 2 1 1 0.0 -ej ${coal_tau} 2 1 | tail +4 | grep -v // > ${treefile}
     seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 
     prepare-alignments.py ${seqfile} phylip ${ziphmmfile}

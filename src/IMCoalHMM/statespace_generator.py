@@ -1,18 +1,17 @@
-'''Code for constructing the state space of a coalescent system.
-'''
-
-import exceptions
+"""Code for constructing the state space of a coalescent system.
+"""
 
 
 def has_left_coalesced(state):
-    '''Predicate checking if a state is coalesced on the left.'''
+    """Predicate checking if a state is coalesced on the left."""
     for _, (left, _) in state:
         if len(left) == 2:
             return True
     return False
 
+
 def has_right_coalesced(state):
-    '''Predicate checking if a state is coalesced on the right.'''
+    """Predicate checking if a state is coalesced on the right."""
     for _, (_, right) in state:
         if len(right) == 2:
             return True
@@ -20,7 +19,7 @@ def has_right_coalesced(state):
 
 
 class CoalSystem(object):
-    '''Abstract class for the two nucleotide coalescence system.
+    """Abstract class for the two nucleotide coalescence system.
 
     Implements the basic state space exploration functionality, but
     leaves it to sub-classes to specify the actual system.
@@ -45,7 +44,7 @@ class CoalSystem(object):
     non-deterministically produce different post sets; the lists
     should contain all those posts sets.
 
-    The one exeception is if the transition returns None.  This is
+    The one exception is if the transition returns None.  This is
     interpreted as a guard violation and the transition update is
     aborted.
 
@@ -54,29 +53,36 @@ class CoalSystem(object):
     transitions will be computed.  If the state space exploration
     encounters a state not in the provided list, it is considered an
     error and the state space exploration will be aborted.
-    '''
+    """
 
     def __init__(self):
         self.transitions = []
         self.state_numbers = None
-        
-        self.init = None # Should be set by a sub-class!
+        self.states = None  # Set in compute_state_space
+
+        self.init = None  # Should be set by a sub-class!
+
+        # These are filled in by computer_state_space when
+        # the concrete state space has been build.
+        self.begin_states = []
+        self.left_states = []
+        self.right_states = []
+        self.end_states = []
 
     def successors(self, state):
-        '''Calculate all successors of "state".
+        """Calculate all successors of "state".
 
         Generates all successors of "state" and lets you iterate over the
         edges from "state" to tis successors.  Each generated value is a
         pair of transition type and state, where transition type is either
         "C" for a coalescence event or "R" for a recombination event.
-        '''
+        """
 
         tokens = list(state)
 
         for ttype, tfunc in self.transitions[0]:
             for token in tokens:
                 pre = frozenset([token])
-                tproduct = tfunc(token)
                 for pop_a, pop_b, post in tfunc(token):
                     new_state = state.difference(pre).union(post)
                     yield ttype, pop_a, pop_b, new_state
@@ -87,18 +93,17 @@ class CoalSystem(object):
 
                     pre = frozenset([tokens[i], tokens[j]])
                     pop_a, pop_b, tproduct = tfunc(tokens[i], tokens[j])
-                    if tproduct == None:
+                    if tproduct is None:
                         continue
                     post = tproduct
                     new_state = state.difference(pre).union(post)
                     yield ttype, pop_a, pop_b, new_state
 
     def compute_state_space(self):
-        '''Computes the CTMC system.'''
-        seen = set([self.init])
+        """Computes the CTMC system."""
+        seen = {self.init}
         unprocessed = [self.init]
-        self.state_numbers = {}
-        self.state_numbers[self.init] = 0
+        self.state_numbers = {self.init: 0}
         edges = []
 
         while unprocessed:
@@ -115,8 +120,8 @@ class CoalSystem(object):
                     seen.add(dest)
 
                 edges.append((state_no,
-                             (trans, pop1, pop2),
-                             self.state_numbers[dest]))
+                              (trans, pop1, pop2),
+                              self.state_numbers[dest]))
 
         remapping = {}
         mapped_state_numbers = {}
@@ -124,14 +129,11 @@ class CoalSystem(object):
             remapping[state_no] = len(remapping)
         for state, state_no in self.state_numbers.iteritems():
             mapped_state_numbers[state] = remapping[state_no]
-        self.states = mapped_state_numbers
-        self.transitions = [(remapping[src], (trans, pop1, pop2), remapping[dest]) \
-                             for src, (trans, pop1, pop2), dest in edges]
 
-        self.begin_states = []
-        self.left_states = []
-        self.right_states = []
-        self.end_states = []
+        self.states = mapped_state_numbers
+        self.transitions = [(remapping[src], (trans, pop1, pop2), remapping[dest])
+                            for src, (trans, pop1, pop2), dest in edges]
+
         for state, index in self.states.items():
             has_left = has_left_coalesced(state)
             has_right = has_right_coalesced(state)
@@ -146,14 +148,14 @@ class CoalSystem(object):
             else:
                 assert False, "it should be impossible to reach this point."
 
-
     # Transitions: these will be in all our systems
-    def recombination(self, token):
-        '''Compute the tokens we get from a recombination on "token".
+    @staticmethod
+    def recombination(token):
+        """Compute the tokens we get from a recombination on "token".
 
         Returns None if the recombination would just return
         "token" again, so we avoid returning "empty" tokens.
-        '''
+        """
         pop, nucs = token
         left, right = nucs
         if not (left and right):
@@ -162,67 +164,66 @@ class CoalSystem(object):
         return [(pop, pop, frozenset([(pop, (left, frozenset())),
                                       (pop, (frozenset(), right))]))]
 
-
-    def coalesce(self, token1, token2):
-        '''Construct a new token by coalescening "token1" and "token2".'''
+    @staticmethod
+    def coalesce(token1, token2):
+        """Construct a new token by coalescening "token1" and "token2"."""
         pop1, nuc1 = token1
         pop2, nuc2 = token2
         if pop1 != pop2:
-            return -1, -1, None # abort transition...
+            return -1, -1, None  # abort transition...
 
         left1, right1 = nuc1
         left2, right2 = nuc2
         left, right = left1.union(left2), right1.union(right2)
         return pop1, pop2, frozenset([(pop1, (left, right))])
 
+
 class Single(CoalSystem):
-    '''The basic two-nucleotide coalescence system in a single
-    population.'''
+    """The basic two-nucleotide coalescence system in a single
+    population."""
 
     def __init__(self):
         super(Single, self).__init__()
 
         self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]
-                            ]
+                            [('C', self.coalesce)]]
 
         samples = [1, 2]
         self.init = frozenset([(0,
                                 (frozenset([sample]),
                                  frozenset([sample])))
-                        for sample in samples])
+                               for sample in samples])
+
 
 class Isolation(CoalSystem):
-    '''The basic two-nucleotide coalescence system with two
+    """The basic two-nucleotide coalescence system with two
     populations with no migration allowed between them.
-    
+
     This isn't really that useful unless it is followed by a
     migration system or the two populations are merged into a
     single population later.
-    '''
+    """
 
     def __init__(self, species):
         super(Isolation, self).__init__()
 
         self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]
-                            ]
+                            [('C', self.coalesce)]]
 
         self.init = frozenset([(sample,
                                 (frozenset([sample]),
                                  frozenset([sample])))
-                        for sample in species])
+                               for sample in species])
 
 
 class Migration(CoalSystem):
-    '''The basic two-nucleotide coalescence system with two
-    populations and migration allowed between them.'''
+    """The basic two-nucleotide coalescence system with two
+    populations and migration allowed between them."""
 
     def migrate(self, token):
-        '''Move nucleotides from one population to another'''
+        """Move nucleotides from one population to another"""
         pop, nuc = token
-        res = [(pop, pop2, frozenset([(pop2, nuc)])) \
-                for pop2 in self.legal_migrations[pop]]
+        res = [(pop, pop2, frozenset([(pop2, nuc)])) for pop2 in self.legal_migrations[pop]]
         return res
 
     def __init__(self, species):
@@ -235,17 +236,15 @@ class Migration(CoalSystem):
 
         self.transitions = [[('R', self.recombination),
                              ('M', self.migrate)],
-        					[('C', self.coalesce)]]
+                            [('C', self.coalesce)]]
         self.init = frozenset([(sample,
                                 (frozenset([sample]),
                                  frozenset([sample])))
-                        for sample in species])
-
-
+                               for sample in species])
 
 
 def main():
-    '''Test.'''
+    """Test."""
     state_space = Single()
     state_space.compute_state_space()
     print 'Single:', len(state_space.states),

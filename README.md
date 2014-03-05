@@ -15,6 +15,7 @@ The script _prepare-alignments.py_ is used to translate a pairwise alignment int
 
 The script _isolation-model.py_ implements the isolation model from Mailund _et al._ (2011): [Estimating Divergence Time and Ancestral Effective Population Size of Bornean and Sumatran Orangutan Subspecies Using a Coalescent Hidden Markov Model](http://www.plosgenetics.org/article/info%3Adoi%2F10.1371%2Fjournal.pgen.1001319). The script will estimate the split time, the effective population size and the recombination rate, all measured in number of substitutions, in a model assuming a clean split between two species.
 
+The script _initial-migration-model.py_ implements the isolation model from Mailund _et al._ (2012): [A New Isolation with Migration Model along Complete Genomes Infers Very Different Divergence Processes among Closely Related Great Ape Species](http://www.plosgenetics.org/article/info%3Adoi%2F10.1371%2Fjournal.pgen.1003125). The script estimates, in a model with an original population split followed by a period of gene-flow, how long the populations have been without gene-flow and how long the period with gene-flow was, together with the ancestral effective population size and recombination rate.
 
 Requirements
 ------------
