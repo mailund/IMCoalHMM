@@ -1,3 +1,3 @@
-'''IMCoalHMM -- A library for pairwise isolation-with-migration CoalHMMs.
+"""IMCoalHMM -- A library for pairwise isolation-with-migration CoalHMMs.
 
-'''
+"""
