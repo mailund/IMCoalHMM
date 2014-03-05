@@ -58,7 +58,7 @@ and uniform coalescence and recombination rates."""
 
     # get options
     split = options.split
-    theta = options.split
+    theta = options.theta
     rho = options.rho
     
     forwarder = Forwarder.fromDirectory(args[0])
