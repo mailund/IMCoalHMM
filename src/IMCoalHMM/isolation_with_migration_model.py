@@ -263,18 +263,19 @@ class MinimizeWrapper(object):
     '''Callable object wrapping the log likelihood computation for maximum
     liklihood estimation.'''
     
-    def __init__(self, logL, no_states):
+    def __init__(self, logL, no_migration_states, no_ancestral_states):
         '''Wrap the log likelihood computation with the non-variable parameter
         which is the number of states.'''
         self.logL = logL
-        self.no_states = no_states
+        self.no_migration_states = no_migration_states
+        self.no_ancestral_states = no_ancestral_states
         
     def __call__(self, parameters):
         '''Compute the likelihood in a paramter point. It computes -logL since
         the optimizer will minimize the function.'''
         if min(parameters) <= 0:
             return 1e18 # fixme: return infinity
-        return -self.logL(self.no_states, *parameters)
+        return -self.logL(self.no_migration_states, self.no_ancestral_states, *parameters)
 
 
 
