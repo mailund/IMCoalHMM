@@ -1,5 +1,9 @@
 
-data <- rbind(read.table('estimates.split-1mya.mig-0.5mya.mig-0.3.txt',header=TRUE),
+data <- rbind(read.table('estimates.split-1mya.mig-0.5mya.mig-0.1.txt',header=TRUE),
+              read.table('estimates.split-1mya.mig-0.5mya.mig-0.3.txt',header=TRUE),
+              read.table('estimates.split-1mya.mig-0.5mya.mig-0.5.txt',header=TRUE),
+              read.table('estimates.split-1mya.mig-0.5mya.mig-1.0.txt',header=TRUE),
+              read.table('estimates.split-1mya.mig-0.5mya.mig-2.0.txt',header=TRUE),
               read.table('estimates.split-2mya.mig-0.5mya.mig-0.1.txt',header=TRUE),
               read.table('estimates.split-2mya.mig-0.5mya.mig-0.3.txt',header=TRUE),
               read.table('estimates.split-2mya.mig-0.5mya.mig-0.5.txt',header=TRUE),
