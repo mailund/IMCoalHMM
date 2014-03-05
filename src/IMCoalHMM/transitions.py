@@ -69,21 +69,18 @@ def compute_transition_probabilities(ctmc):
     J[0, 0] = ctmc.upto(1)[ctmc.initial, ctmc.end_states(0)].sum()
     for i in xrange(1, no_states-1):
         J[i, i] = (ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)]
-                  * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.end_states(i))]).sum()
+                  * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.end_states(i+1))]).sum()
+                  
     J[no_states-1, no_states-1] = ctmc.upto(no_states-1)[ctmc.initial,
                                                          ctmc.begin_states(no_states-1)].sum()
 
     # -- handle i < j (and j < i by symmetry) ---------------------------
-    # FIXME: I don't know how to insert a projection if the state space
-    # changes along one of the dimensions we sum over here, but something
-    # might be needed unless it can be handled by careful choice of indices
-    # when picking states from "ctmc"
     for i in xrange(no_states-1):
         up_through_i = ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)] * \
-                       ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i))]
+                       ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i+1))]
         for j in xrange(i+1, no_states):
-            between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i), ctmc.left_states(j))]
-            through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j))]
+            between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i+1), ctmc.left_states(j))]
+            through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j+1))]
             J[i, j] = J[j, i] = (up_through_i * between_i_and_j * through_j).sum()
 
     assert_almost_equal(J.sum(), 1.0)
