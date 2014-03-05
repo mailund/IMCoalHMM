@@ -26,6 +26,7 @@ def _compute_through(ctmcs, break_points):
     # just puts all probability on ending in one of the end states. This
     # simplifies the HMM transition probability code as it avoids a special case
     # for the last interval.
+    # noinspection PyCallingNonCallable
     pseudo_through = matrix(zeros((len(ctmcs[-1].state_space.states),
                                    len(ctmcs[-1].state_space.states))))
     pseudo_through[:, ctmcs[-1].state_space.end_states[0]] = 1.0
@@ -42,6 +43,7 @@ def _compute_upto(isolation, ctmcs, break_points, through):
 
     # Projection matrix needed to go from the isolation to the single
     # state spaces.
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(isolation.state_space.states),
                                len(ctmcs[0].state_space.states))))
     for state, isolation_index in isolation.state_space.states.items():
@@ -68,6 +70,7 @@ def _compute_between(ctmcs, through):
     # Transitions going from the endpoint of interval i to the entry point
     # of interval j
     for i in xrange(no_states - 1):
+        # noinspection PyCallingNonCallable
         between[(i, i + 1)] = matrix(identity(len(ctmcs[0].state_space.states)))
         for j in xrange(i + 2, no_states):
             between[(i, j)] = between[(i, j - 1)] * through[j - 1]

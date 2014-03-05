@@ -33,6 +33,7 @@ except ImportError:
 DEFAULT_VERSION = "2.2"
 DEFAULT_URL = "https://pypi.python.org/packages/source/s/setuptools/"
 
+
 def _python_cmd(*args):
     """
     Return True if the command succeeded.
