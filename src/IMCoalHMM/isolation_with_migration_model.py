@@ -220,8 +220,8 @@ class IsolationMigrationModel(object):
         self.single_state_space = Single2()
 
     def build_hidden_markov_model(self, no_mig_states, no_ancestral_states,
-                  isolation_time, migration_time,
-                  coal_rate, recomb_rate, mig_rate):
+                                  isolation_time, migration_time,
+                                  coal_rate, recomb_rate, mig_rate):
         """Construct CTMCs and compute HMM matrices given the split times
         and the rates."""
 
@@ -286,9 +286,9 @@ def main():
     mig_rate = 0.1
 
     model = IsolationMigrationModel()
-    pi, T, E = model.build_hidden_markov_model(no_mig_states, no_ancestral_states,
-                               isolation_time, migration_time,
-                               coal_rate, recomb_rate, mig_rate)
+    pi, transition_probs, emission_probs = model.build_hidden_markov_model(no_mig_states, no_ancestral_states,
+                                                                           isolation_time, migration_time,
+                                                                           coal_rate, recomb_rate, mig_rate)
 
     no_states = pi.getHeight()
     assert no_states == no_mig_states + no_ancestral_states
@@ -298,13 +298,13 @@ def main():
         pi_sum += pi[row, 0]
     assert_almost_equal(pi_sum, 1.0)
 
-    assert no_states == T.getWidth()
-    assert no_states == T.getHeight()
+    assert no_states == transition_probs.getWidth()
+    assert no_states == transition_probs.getHeight()
 
     transitions_sum = 0.0
     for row in xrange(no_states):
         for col in xrange(no_states):
-            transitions_sum += T[row, col]
+            transitions_sum += transition_probs[row, col]
     assert_almost_equal(transitions_sum, no_states)
 
     print 'Done'

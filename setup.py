@@ -2,7 +2,10 @@ import ez_setup
 ez_setup.use_setuptools()
 
 import os
+
+
 def read(fname):
+    """For reading in the README file."""
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 from setuptools import setup, find_packages

@@ -124,20 +124,20 @@ def compute_transition_probabilities(ctmc):
 
     # -- Filling in the diagonal (i == j) for the J matrix ----------------
     joint[0, 0] = ctmc.upto(1)[ctmc.initial, ctmc.end_states(0)].sum()
-    for i in xrange(1, no_states-1):
+    for i in xrange(1, no_states - 1):
         joint[i, i] = (ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)]
-                  * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.end_states(i+1))]).sum()
-                  
-    joint[no_states-1, no_states-1] = ctmc.upto(no_states-1)[ctmc.initial,
-                                                         ctmc.begin_states(no_states-1)].sum()
+                       * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.end_states(i + 1))]).sum()
+
+    joint[no_states - 1, no_states - 1] = ctmc.upto(no_states - 1)[ctmc.initial,
+                                                                   ctmc.begin_states(no_states - 1)].sum()
 
     # -- handle i < j (and j < i by symmetry) ---------------------------
-    for i in xrange(no_states-1):
+    for i in xrange(no_states - 1):
         up_through_i = ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)] * \
-                       ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i+1))]
-        for j in xrange(i+1, no_states):
-            between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i+1), ctmc.left_states(j))]
-            through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j+1))]
+                       ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i + 1))]
+        for j in xrange(i + 1, no_states):
+            between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i + 1), ctmc.left_states(j))]
+            through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j + 1))]
             joint[i, j] = joint[j, i] = (up_through_i * between_i_and_j * through_j).sum()
 
     assert_almost_equal(joint.sum(), 1.0)
@@ -145,7 +145,7 @@ def compute_transition_probabilities(ctmc):
     initial_prob_vector = Matrix(no_states, 1)
     transition_matrix = Matrix(no_states, no_states)
     for i in xrange(no_states):
-        initial_prob_vector[i, 0] = joint[i,].sum()
+        initial_prob_vector[i, 0] = joint[i, ].sum()
         for j in xrange(no_states):
             transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i, 0]
 
