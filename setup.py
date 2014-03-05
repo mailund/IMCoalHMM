@@ -14,6 +14,7 @@ setup(
     
     scripts = ['scripts/prepare-alignments.py',
                'scripts/isolation-model.py',
+               'scripts/initial-migration-model.py',
                'scripts/psmc-isolation-model.py',
               ],
 
