@@ -71,6 +71,7 @@ def _compute_through(single, break_points):
     # just puts all probability on ending in one of the end states. This
     # simplifies the HMM transition probability code as it avoids a special case
     # for the last interval.
+    # noinspection PyCallingNonCallable
     pseudo_through = matrix(zeros((len(single.state_space.states),
                                    len(single.state_space.states))))
     pseudo_through[:, single.state_space.end_states[0]] = 1.0
@@ -87,6 +88,7 @@ def _compute_upto(isolation, single, break_points, through):
 
     # Projection matrix needed to go from the isolation to the single
     # state spaces
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(isolation.state_space.states),
                                len(single.state_space.states))))
     for state, isolation_index in isolation.state_space.states.items():
