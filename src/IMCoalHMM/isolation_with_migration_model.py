@@ -64,6 +64,7 @@ def _compute_through(migration, migration_break_points,
 
     # Projection matrix needed to go from the migration to the single
     # state spaces
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(migration.state_space.states),
                                len(ancestral.state_space.states))))
     for state, isolation_index in migration.state_space.states.items():
@@ -78,8 +79,7 @@ def _compute_through(migration, migration_break_points,
     # the migration phase
     migration_through = [migration.probability_matrix(migration_break_points[i + 1] - migration_break_points[i])
                          for i in xrange(no_migration_states - 1)]
-    last_migration = migration.probability_matrix(ancestral_break_points[0] - migration_break_points[-1]) \
-                     * projection
+    last_migration = migration.probability_matrix(ancestral_break_points[0] - migration_break_points[-1]) * projection
     migration_through.append(last_migration)
 
     ancestral_through = [ancestral.probability_matrix(ancestral_break_points[i + 1] - ancestral_break_points[i])
@@ -89,6 +89,7 @@ def _compute_through(migration, migration_break_points,
     # just puts all probability on ending in one of the end states. This
     # simplifies the HMM transition probability code as it avoids a special case
     # for the last interval.
+    # noinspection PyCallingNonCallable
     pseudo_through = matrix(zeros((len(ancestral.state_space.states),
                                    len(ancestral.state_space.states))))
     pseudo_through[:, ancestral.state_space.end_states[0]] = 1.0
@@ -105,6 +106,7 @@ def _compute_upto(isolation, migration, break_points, through):
 
     # Projection matrix needed to go from the isolation to the migration
     # state spaces
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(isolation.state_space.states),
                                len(migration.state_space.states))))
     for state, isolation_index in isolation.state_space.states.items():
@@ -130,6 +132,7 @@ def _compute_between(through):
     # Transitions going from the endpoint of interval i to the entry point
     # of interval j
     for i in xrange(no_states - 1):
+        # noinspection PyCallingNonCallable
         between[(i, i + 1)] = matrix(identity(through[i].shape[1]))
         for j in xrange(i + 2, no_states):
             between[(i, j)] = between[(i, j - 1)] * through[j - 1]

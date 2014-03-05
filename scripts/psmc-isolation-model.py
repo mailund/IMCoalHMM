@@ -98,8 +98,6 @@ and uniform coalescence and recombination rates."""
         with open(options.outfile, 'w') as outfile:
             print >> outfile, '\t'.join(map(str, mle_parameters))
 
-
-
     else:  # Not estimating split time
         minimizer = MinimizeWrapper(log_likelihood, intervals, False)
         initial_params = (init_coal,) * 28 + (init_recomb,)
