@@ -4,9 +4,75 @@ General code for calculations of HMM transition probabilities.
 """
 
 from abc import ABCMeta, abstractmethod
-from numpy import zeros, matrix, ix_
+from numpy import zeros, identity, matrix, ix_
 from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
+
+def projection_matrix(from_state_space, to_state_space, state_map):
+    """
+    Build a projection matrix for moving from one state space to another.
+
+    :param from_state_space: The state space we move from.
+    :type from_state_space: IMCoalHMM.CoalSystem
+    :param to_state_space: The state space we move into
+    :type to_state_space: IMCoalHMM.CoalSystem
+    :param state_map: A function mapping states from one state space to another.
+
+    :returns: a projection matrix
+    :rtype: matrix
+    """
+    # noinspection PyCallingNonCallable
+    projection = matrix(zeros((len(from_state_space.states),
+                               len(to_state_space.states))))
+    for from_state, from_index in from_state_space.states.items():
+        to_state = state_map(from_state)
+        to_index = to_state_space.states[to_state]
+        projection[from_index, to_index] = 1.0
+    return projection
+
+def compute_upto(upto_0, through):
+    """Computes the probability matrices for moving from time zero up to,
+    but not through, interval i.
+
+    :param upto_0: The probability matrix for moving up to the first break point.
+        This is a basis case for the upto list that is returned.
+    :type upto_0: matrix
+    :param through: The probability matrices for moving through each interval.
+    :type through: list[matrix]
+
+    :returns: The list of transition probability matrices for moving up to
+        each interval.
+    :rtype: list[matrix]
+    """
+    no_states = len(through)
+    upto = [None] * no_states
+    upto[0] = upto_0
+    for i in xrange(1, no_states):
+        upto[i] = upto[i - 1] * through[i - 1]
+    return upto
+
+
+def compute_between(through):
+    """Computes the matrices for moving from the end of interval i
+    to the beginning of interval j.
+
+    :param through: The probability matrices for moving through each interval.
+    :type through: list[matrix]
+
+    :returns: A table of transition probability matrices for moving between any two
+        intervals i < j.
+    :rtype: dict[(int,int), matrix]
+    """
+    no_states = len(through)
+    between = dict()
+    # Transitions going from the endpoint of interval i to the entry point
+    # of interval j
+    for i in xrange(no_states - 1):
+        # noinspection PyCallingNonCallable
+        between[(i, i + 1)] = matrix(identity(through[i].shape[1]))
+        for j in xrange(i + 2, no_states):
+            between[(i, j)] = between[(i, j - 1)] * through[j - 1]
+    return between
 
 
 class CTMCSystem(object):
@@ -131,7 +197,7 @@ class CTMCSystem(object):
          of interval i to the beginning of interval j: ]i, j[
         :rtype: matrix
         """
-        return self.between_[(i,j)]
+        return self.between_[(i, j)]
 
 
 def compute_transition_probabilities(ctmc):

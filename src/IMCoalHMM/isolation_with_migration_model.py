@@ -1,11 +1,11 @@
 """Code for constructing and optimizing the HMM for an isolation model.
 """
 
-from numpy import zeros, matrix, identity
+from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.transitions import CTMCSystem
+from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
@@ -20,15 +20,9 @@ def _compute_through(migration, migration_break_points,
                      ancestral, ancestral_break_points):
     """Computes the matrices for moving through an interval"""
 
-    # Projection matrix needed to go from the migration to the single
-    # state spaces
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(migration.state_space.states),
-                               len(ancestral.state_space.states))))
-    for state, isolation_index in migration.state_space.states.items():
-        ancestral_state = frozenset([(0, nucs) for (_, nucs) in state])
-        ancestral_index = ancestral.state_space.states[ancestral_state]
-        projection[isolation_index, ancestral_index] = 1.0
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(migration.state_space, ancestral.state_space, state_map)
 
     no_migration_states = len(migration_break_points)
     no_ancestral_states = len(ancestral_break_points)
@@ -56,45 +50,12 @@ def _compute_through(migration, migration_break_points,
     return migration_through + ancestral_through
 
 
-def _compute_upto(isolation, migration, break_points, through):
-    """Computes the probability matrices for moving from time zero up to,
-    but not through, interval i."""
-
-    no_states = len(break_points)
-
-    # Projection matrix needed to go from the isolation to the migration
-    # state spaces
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(isolation.state_space.states),
-                               len(migration.state_space.states))))
-    for state, isolation_index in isolation.state_space.states.items():
-        migration_index = migration.state_space.states[state]
-        projection[isolation_index, migration_index] = 1.0
-
-    # We handle the first state as a special case because of the isolation
-    # interval
-    upto = [None] * no_states
-    upto[0] = isolation.probability_matrix(break_points[0]) * projection
-    for i in xrange(1, no_states):
-        upto[i] = upto[i - 1] * through[i - 1]
-
-    return upto
-
-
-def _compute_between(through):
-    """Computes the matrices for moving from the end of interval i
-    to the beginning of interval j."""
-
-    no_states = len(through)
-    between = dict()
-    # Transitions going from the endpoint of interval i to the entry point
-    # of interval j
-    for i in xrange(no_states - 1):
-        # noinspection PyCallingNonCallable
-        between[(i, i + 1)] = matrix(identity(through[i].shape[1]))
-        for j in xrange(i + 2, no_states):
-            between[(i, j)] = between[(i, j - 1)] * through[j - 1]
-    return between
+def _compute_upto0(isolation, migration, break_points):
+    """Computes the probability matrices for moving to time zero."""
+    # the states in the isolation state space are the same in the migration
+    state_map = lambda x: x
+    projection = projection_matrix(isolation.state_space, migration.state_space, state_map)
+    return isolation.probability_matrix(break_points[0]) * projection
 
 
 class IsolationMigrationCTMCSystem(CTMCSystem):
@@ -128,8 +89,8 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
 
         self.through_ = _compute_through(migration_ctmc, migration_break_points,
                                          ancestral_ctmc, ancestral_break_points)
-        self.upto_ = _compute_upto(isolation_ctmc, migration_ctmc, break_points, self.through_)
-        self.between_ = _compute_between(self.through_)
+        self.upto_ = compute_upto(_compute_upto0(isolation_ctmc, migration_ctmc, break_points), self.through_)
+        self.between_ = compute_between(self.through_)
 
     def get_state_space(self, i):
         """Return the right state space for the interval."""
