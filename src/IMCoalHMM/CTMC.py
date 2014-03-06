@@ -24,6 +24,7 @@ class CTMC(object):
         # in other parts of the code...
         self.state_space = state_space
 
+        # noinspection PyCallingNonCallable
         self.rate_matrix = matrix(zeros((len(state_space.states),
                                          len(state_space.states))))
 

@@ -64,6 +64,7 @@ def _compute_through(migration, migration_break_points,
 
     # Projection matrix needed to go from the migration to the single
     # state spaces
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(migration.state_space.states),
                                len(ancestral.state_space.states))))
     for state, isolation_index in migration.state_space.states.items():
@@ -78,8 +79,7 @@ def _compute_through(migration, migration_break_points,
     # the migration phase
     migration_through = [migration.probability_matrix(migration_break_points[i + 1] - migration_break_points[i])
                          for i in xrange(no_migration_states - 1)]
-    last_migration = migration.probability_matrix(ancestral_break_points[0] - migration_break_points[-1]) \
-                     * projection
+    last_migration = migration.probability_matrix(ancestral_break_points[0] - migration_break_points[-1]) * projection
     migration_through.append(last_migration)
 
     ancestral_through = [ancestral.probability_matrix(ancestral_break_points[i + 1] - ancestral_break_points[i])
@@ -89,6 +89,7 @@ def _compute_through(migration, migration_break_points,
     # just puts all probability on ending in one of the end states. This
     # simplifies the HMM transition probability code as it avoids a special case
     # for the last interval.
+    # noinspection PyCallingNonCallable
     pseudo_through = matrix(zeros((len(ancestral.state_space.states),
                                    len(ancestral.state_space.states))))
     pseudo_through[:, ancestral.state_space.end_states[0]] = 1.0
@@ -105,6 +106,7 @@ def _compute_upto(isolation, migration, break_points, through):
 
     # Projection matrix needed to go from the isolation to the migration
     # state spaces
+    # noinspection PyCallingNonCallable
     projection = matrix(zeros((len(isolation.state_space.states),
                                len(migration.state_space.states))))
     for state, isolation_index in isolation.state_space.states.items():
@@ -130,6 +132,7 @@ def _compute_between(through):
     # Transitions going from the endpoint of interval i to the entry point
     # of interval j
     for i in xrange(no_states - 1):
+        # noinspection PyCallingNonCallable
         between[(i, i + 1)] = matrix(identity(through[i].shape[1]))
         for j in xrange(i + 2, no_states):
             between[(i, j)] = between[(i, j - 1)] * through[j - 1]
@@ -220,8 +223,8 @@ class IsolationMigrationModel(object):
         self.single_state_space = Single2()
 
     def build_hidden_markov_model(self, no_mig_states, no_ancestral_states,
-                  isolation_time, migration_time,
-                  coal_rate, recomb_rate, mig_rate):
+                                  isolation_time, migration_time,
+                                  coal_rate, recomb_rate, mig_rate):
         """Construct CTMCs and compute HMM matrices given the split times
         and the rates."""
 
@@ -286,9 +289,9 @@ def main():
     mig_rate = 0.1
 
     model = IsolationMigrationModel()
-    pi, T, E = model.build_hidden_markov_model(no_mig_states, no_ancestral_states,
-                               isolation_time, migration_time,
-                               coal_rate, recomb_rate, mig_rate)
+    pi, transition_probs, emission_probs = model.build_hidden_markov_model(no_mig_states, no_ancestral_states,
+                                                                           isolation_time, migration_time,
+                                                                           coal_rate, recomb_rate, mig_rate)
 
     no_states = pi.getHeight()
     assert no_states == no_mig_states + no_ancestral_states
@@ -298,13 +301,13 @@ def main():
         pi_sum += pi[row, 0]
     assert_almost_equal(pi_sum, 1.0)
 
-    assert no_states == T.getWidth()
-    assert no_states == T.getHeight()
+    assert no_states == transition_probs.getWidth()
+    assert no_states == transition_probs.getHeight()
 
     transitions_sum = 0.0
     for row in xrange(no_states):
         for col in xrange(no_states):
-            transitions_sum += T[row, col]
+            transitions_sum += transition_probs[row, col]
     assert_almost_equal(transitions_sum, no_states)
 
     print 'Done'

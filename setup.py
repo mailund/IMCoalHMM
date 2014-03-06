@@ -2,13 +2,16 @@ import ez_setup
 ez_setup.use_setuptools()
 
 import os
+
+
 def read(fname):
+    """For reading in the README file."""
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
-    version = "0.2",
+    version = "0.2.1",
     packages = find_packages(where='src'),
     package_dir = {'': 'src'},
     
