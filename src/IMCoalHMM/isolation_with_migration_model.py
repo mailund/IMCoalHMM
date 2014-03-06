@@ -162,9 +162,8 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
         self.no_migration_states = len(migration_break_points)
         self.no_ancestral_states = len(ancestral_break_points)
         no_states = self.no_migration_states + self.no_ancestral_states
-        super(IsolationMigrationCTMCSystem, self).__init__(no_states)
+        super(IsolationMigrationCTMCSystem, self).__init__(no_states, isolation_ctmc.state_space.i12_index)
 
-        self.initial_ = isolation_ctmc.state_space.i12_index
         self.state_spaces = [migration_ctmc.state_space, ancestral_ctmc.state_space]
 
         break_points = list(migration_break_points) + list(ancestral_break_points)
@@ -174,18 +173,9 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
         self.upto_ = _compute_upto(isolation_ctmc, migration_ctmc, break_points, self.through_)
         self.between_ = _compute_between(self.through_)
 
-    def _is_ancestral(self, i):
-        """Is index i in the ancestral populations?"""
-        return self.no_migration_states <= i
-
-    @property
-    def initial(self):
-        """The initial state index in the bottom-most matrix"""
-        return self.initial_
-
     def get_state_space(self, i):
         """Return the right state space for the interval."""
-        return self.state_spaces[self._is_ancestral(i)]
+        return self.state_spaces[self.no_migration_states <= i]
 
 
 ## Class that can construct HMMs ######################################

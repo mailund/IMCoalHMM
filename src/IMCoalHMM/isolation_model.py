@@ -135,10 +135,10 @@ class IsolationCTMCSystem(CTMCSystem):
         :type break_points: list[int]
         """
 
-        super(IsolationCTMCSystem, self).__init__(no_hmm_states=len(break_points))
-        self.ancestral_ctmc = ancestral_ctmc
-        self.initial_ = isolation_ctmc.state_space.i12_index
+        super(IsolationCTMCSystem, self).__init__(no_hmm_states=len(break_points),
+                                                  initial_ctmc_state=isolation_ctmc.state_space.i12_index)
 
+        self.ancestral_ctmc = ancestral_ctmc
         self.through_ = _compute_through(ancestral_ctmc, break_points)
         self.upto_ = _compute_upto(isolation_ctmc, ancestral_ctmc, break_points, self.through_)
         self.between_ = _compute_between(ancestral_ctmc, break_points)
@@ -150,15 +150,6 @@ class IsolationCTMCSystem(CTMCSystem):
         :rtype: Single2
         """
         return self.ancestral_ctmc.state_space
-
-    @property
-    def initial(self):
-        """The initial state index in the bottom-most matrix.
-
-        :returns: the state space index of the initial state.
-        :rtype: int
-        """
-        return self.initial_
 
 
 ## Class that can construct HMMs ######################################

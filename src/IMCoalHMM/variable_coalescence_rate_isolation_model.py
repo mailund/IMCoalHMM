@@ -91,9 +91,9 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
         :type break_points: list[int]
         """
 
-        super(VariableCoalRateCTMCSystem, self).__init__(no_hmm_states=len(ancestral_ctmcs))
+        super(VariableCoalRateCTMCSystem, self).__init__(no_hmm_states=len(ancestral_ctmcs),
+                                                         initial_ctmc_state=isolation_ctmc.state_space.i12_index)
 
-        self.initial_ = isolation_ctmc.state_space.i12_index
         # Even though we have different CTMCs they have the same state space
         self.state_space = ancestral_ctmcs[0].state_space
 
@@ -101,11 +101,6 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
         self.upto_ = _compute_upto(isolation_ctmc, ancestral_ctmcs,
                                    break_points, self.through_)
         self.between_ = _compute_between(ancestral_ctmcs, self.through_)
-
-    @property
-    def initial(self):
-        """The initial state index in the bottom-most matrix"""
-        return self.initial_
 
     def get_state_space(self, _):
         """Return the state space for interval i, but it is always the same."""

@@ -16,37 +16,21 @@ class CTMCSystem(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, no_hmm_states):
+    def __init__(self, no_hmm_states, initial_ctmc_state):
         """Create system.
 
         :param no_hmm_states: The number of states the HMM should have.
         :type no_hmm_states: int
+        :param initial_ctmc_state: The index of the initial state used in the first CTMC.
+        :type initial_ctmc_state: int
         """
         self.no_hmm_states = no_hmm_states
+        self.initial_ctmc_state = initial_ctmc_state
 
         # These should be filled in by the sub-class's __init__ method
         self.through_ = []
         self.upto_ = []
         self.between_ = {}
-
-    @property
-    def no_states(self):
-        """The number of states the HMM should have.
-
-        :returns: The number of HMM states.
-        :rtype: int
-        """
-        return self.no_hmm_states
-
-    @property
-    @abstractmethod
-    def initial(self):
-        """The initial state index in the bottom-most matrix.
-
-        :returns: the state space index of the initial state.
-        :rtype: int
-        """
-        return None
 
     @abstractmethod
     def get_state_space(self, i):
@@ -58,6 +42,24 @@ class CTMCSystem(object):
         :rtype: IMCoalHMM.CoalSystem
         """
         return None
+
+    @property
+    def no_states(self):
+        """The number of states the HMM should have.
+
+        :returns: The number of HMM states.
+        :rtype: int
+        """
+        return self.no_hmm_states
+
+    @property
+    def initial(self):
+        """The initial state index in the bottom-most matrix.
+
+        :returns: the state space index of the initial state.
+        :rtype: int
+        """
+        return self.initial_ctmc_state
 
     def begin_states(self, i):
         """Begin states for interval i.
