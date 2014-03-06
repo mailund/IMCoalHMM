@@ -6,7 +6,7 @@ from numpy import zeros, identity, matrix
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.transitions import CTMCSystem
+from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
@@ -34,11 +34,9 @@ def _compute_through(ctmcs, break_points):
     return through
 
 
-def _compute_upto(isolation, ctmcs, break_points, through):
+def _compute_upto0(isolation, ctmcs, break_points):
     """Computes the probability matrices for moving from time zero up to,
     but not through, interval i."""
-
-    no_states = len(break_points)
 
     # Projection matrix needed to go from the isolation to the single
     # state spaces.
@@ -50,30 +48,7 @@ def _compute_upto(isolation, ctmcs, break_points, through):
         ancestral_index = ctmcs[0].state_space.states[ancestral_state]
         projection[isolation_index, ancestral_index] = 1.0
 
-    # We handle the first state as a special case because of the isolation
-    # interval
-    upto = [None] * no_states
-    upto[0] = isolation.probability_matrix(break_points[0]) * projection
-    for i in xrange(1, no_states):
-        upto[i] = upto[i - 1] * through[i - 1]
-
-    return upto
-
-
-def _compute_between(ctmcs, through):
-    """Computes the matrices for moving from the end of interval i
-    to the beginning of interval j."""
-
-    no_states = len(ctmcs)
-    between = dict()
-    # Transitions going from the endpoint of interval i to the entry point
-    # of interval j
-    for i in xrange(no_states - 1):
-        # noinspection PyCallingNonCallable
-        between[(i, i + 1)] = matrix(identity(len(ctmcs[0].state_space.states)))
-        for j in xrange(i + 2, no_states):
-            between[(i, j)] = between[(i, j - 1)] * through[j - 1]
-    return between
+    return isolation.probability_matrix(break_points[0]) * projection
 
 
 class VariableCoalRateCTMCSystem(CTMCSystem):
@@ -98,9 +73,8 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
         self.state_space = ancestral_ctmcs[0].state_space
 
         self.through_ = _compute_through(ancestral_ctmcs, break_points)
-        self.upto_ = _compute_upto(isolation_ctmc, ancestral_ctmcs,
-                                   break_points, self.through_)
-        self.between_ = _compute_between(ancestral_ctmcs, self.through_)
+        self.upto_ = compute_upto(_compute_upto0(isolation_ctmc, ancestral_ctmcs, break_points), self.through_)
+        self.between_ = compute_between(self.through_)
 
     def get_state_space(self, _):
         """Return the state space for interval i, but it is always the same."""
