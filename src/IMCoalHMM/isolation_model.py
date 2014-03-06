@@ -4,7 +4,7 @@
 from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
-from IMCoalHMM.statespace_generator import Single, Isolation
+from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.emissions import coalescence_points
@@ -13,14 +13,52 @@ from IMCoalHMM.model import Model
 
 
 ## State space code ############################################
-class Isolation2(Isolation):
+class Single(CoalSystem):
+    """Class for a merged ancestral population"""
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are)."""
+
+        super(Single, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        samples = [1, 2]
+        self.init = frozenset([(0,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in samples])
+
+        self.compute_state_space()
+
+
+def make_rates_table_single(coal_rate, recomb_rate):
+    """Builds the rates table from the CTMC for the two-samples system."""
+    table = dict()
+    table[('C', 0, 0)] = coal_rate
+    table[('R', 0, 0)] = recomb_rate
+    return table
+
+
+class Isolation(CoalSystem):
     """Class for IM system with exactly two samples."""
 
     def __init__(self):
         """Constructs the state space and collect B, L, R and E states (see the
         CoalHMM papers for what these are)."""
 
-        super(Isolation2, self).__init__([1, 2])
+        super(Isolation, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in [1, 2]])
+
         self.compute_state_space()
 
         i12_state = frozenset([(sample,
@@ -36,25 +74,6 @@ def make_rates_table_isolation(coal_rate_1, coal_rate_2, recomb_rate):
     table[('C', 2, 2)] = coal_rate_2
     table[('R', 1, 1)] = recomb_rate
     table[('R', 2, 2)] = recomb_rate
-    return table
-
-
-class Single2(Single):
-    """Class for a merged ancestral population"""
-
-    def __init__(self):
-        """Constructs the state space and collect B, L, R and E states (see the
-        CoalHMM papers for what these are)."""
-
-        super(Single2, self).__init__()
-        self.compute_state_space()
-
-
-def make_rates_table_single(coal_rate, recomb_rate):
-    """Builds the rates table from the CTMC for the two-samples system."""
-    table = dict()
-    table[('C', 0, 0)] = coal_rate
-    table[('R', 0, 0)] = recomb_rate
     return table
 
 
@@ -147,7 +166,7 @@ class IsolationCTMCSystem(CTMCSystem):
         """Return the state space for interval i. In this case it is always the
         ancestral state space.
 
-        :rtype: Single2
+        :rtype: Single
         """
         return self.ancestral_ctmc.state_space
 
@@ -163,8 +182,8 @@ class IsolationModel(Model):
         HMM since those will depend on the rate parameters."""
         super(IsolationModel, self).__init__()
         self.no_hmm_states = no_hmm_states
-        self.isolation_state_space = Isolation2()
-        self.single_state_space = Single2()
+        self.isolation_state_space = Isolation()
+        self.single_state_space = Single()
 
     def emission_points(self, split_time, coal_rate, _):
         """Points to emit from."""

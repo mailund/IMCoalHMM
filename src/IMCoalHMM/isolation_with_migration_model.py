@@ -4,20 +4,26 @@
 from numpy import zeros, matrix, identity
 from numpy.testing import assert_almost_equal
 
-from IMCoalHMM.statespace_generator import Migration
+from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
 
-from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
-from IMCoalHMM.isolation_model import Single2, make_rates_table_single
+from IMCoalHMM.isolation_model import Isolation, make_rates_table_isolation
+from IMCoalHMM.isolation_model import Single, make_rates_table_single
 
 
 ## State space code ############################################
-class Migration2(Migration):
+class Migration(CoalSystem):
     """Class for IM system with exactly two samples."""
+
+    def migrate(self, token):
+        """Move nucleotides from one population to another"""
+        pop, nuc = token
+        res = [(pop, pop2, frozenset([(pop2, nuc)])) for pop2 in self.legal_migrations[pop]]
+        return res
 
     def __init__(self):
         """Constructs the state space and collect B, L, R and E states (see the
@@ -27,7 +33,21 @@ class Migration2(Migration):
         (realistic) initial states, with both chromosomes in population 1
         or in 2 or one from each."""
 
-        super(Migration2, self).__init__([1, 2])
+        super(Migration, self).__init__()
+
+        self.legal_migrations = dict()
+        species = [1, 2]
+        for sample in species:
+            self.legal_migrations[sample] = \
+                frozenset([other for other in species if sample != other])
+
+        self.transitions = [[('R', self.recombination),
+                             ('M', self.migrate)],
+                            [('C', self.coalesce)]]
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in species])
 
         self.compute_state_space()
 
@@ -188,9 +208,9 @@ class IsolationMigrationModel(Model):
         This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters."""
         super(IsolationMigrationModel, self).__init__()
-        self.isolation_state_space = Isolation2()
-        self.migration_state_space = Migration2()
-        self.single_state_space = Single2()
+        self.isolation_state_space = Isolation()
+        self.migration_state_space = Migration()
+        self.single_state_space = Single()
         self.no_mig_states = no_mig_states
         self.no_ancestral_states = no_ancestral_states
 
