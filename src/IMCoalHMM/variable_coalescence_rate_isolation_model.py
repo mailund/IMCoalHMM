@@ -3,8 +3,8 @@
 
 from numpy import zeros, identity, matrix
 
-from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
-from IMCoalHMM.isolation_model import Single2, make_rates_table_single
+from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
+from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.break_points import psmc_break_points
@@ -118,8 +118,8 @@ class VariableCoalescenceRateIsolationModel(Model):
         This builds the state spaces for the CTMCs but the matrices for the
         HMM since those will depend on the rate parameters."""
         super(VariableCoalescenceRateIsolationModel, self).__init__()
-        self.isolation_state_space = Isolation2()
-        self.single_state_space = Single2()
+        self.isolation_state_space = Isolation()
+        self.single_state_space = Single()
         self.intervals = intervals
         self.est_split = est_split
 
@@ -177,14 +177,14 @@ class VariableCoalescenceRateIsolationModel(Model):
         isolation_rates = make_rates_table_isolation(coal_rates[0], coal_rates[0], recomb_rate)
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
 
-        single_ctmcs = []
+        ancestral_ctmcs = []
         for epoch, coal_rate in enumerate(coal_rates):
             single_rates = make_rates_table_single(coal_rate, recomb_rate)
             single_ctmc = CTMC(self.single_state_space, single_rates)
             for _ in xrange(self.intervals[epoch]):
-                single_ctmcs.append(single_ctmc)
+                ancestral_ctmcs.append(single_ctmc)
 
-        no_states = len(single_ctmcs)
+        no_states = len(ancestral_ctmcs)
         break_points = psmc_break_points(no_states, offset=split_time)
 
-        return VariableCoalRateCTMCSystem(isolation_ctmc, single_ctmcs, break_points)
+        return VariableCoalRateCTMCSystem(isolation_ctmc, ancestral_ctmcs, break_points)

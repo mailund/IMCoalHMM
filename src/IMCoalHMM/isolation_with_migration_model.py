@@ -4,57 +4,15 @@
 from numpy import zeros, matrix, identity
 from numpy.testing import assert_almost_equal
 
-from IMCoalHMM.statespace_generator import Migration
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
 
-from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
-from IMCoalHMM.isolation_model import Single2, make_rates_table_single
-
-
-## State space code ############################################
-class Migration2(Migration):
-    """Class for IM system with exactly two samples."""
-
-    def __init__(self):
-        """Constructs the state space and collect B, L, R and E states (see the
-        CoalHMM papers for what these are).
-
-        Also collects the indices in the state space for the three
-        (realistic) initial states, with both chromosomes in population 1
-        or in 2 or one from each."""
-
-        super(Migration2, self).__init__([1, 2])
-
-        self.compute_state_space()
-
-        i11_state = frozenset([(1, (frozenset([sample]), frozenset([sample])))
-                               for sample in [1, 2]])
-        i22_state = frozenset([(2, (frozenset([sample]), frozenset([sample])))
-                               for sample in [1, 2]])
-        i12_state = frozenset([(sample, (frozenset([sample]), frozenset([sample])))
-                               for sample in [1, 2]])
-
-        self.i11_index = self.states[i11_state]
-        self.i12_index = self.states[i12_state]
-        self.i22_index = self.states[i22_state]
-
-
-def make_rates_table_migration(coal_rate_1, coal_rate_2, recomb_rate,
-                               migration_rate_12, migration_rate_21):
-    """Builds the rates table from the CTMC for the two-samples system.
-    """
-    table = dict()
-    table[('C', 1, 1)] = coal_rate_1
-    table[('C', 2, 2)] = coal_rate_2
-    table[('R', 1, 1)] = recomb_rate
-    table[('R', 2, 2)] = recomb_rate
-    table[('M', 1, 2)] = migration_rate_12
-    table[('M', 2, 1)] = migration_rate_21
-    return table
+from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
+from IMCoalHMM.state_spaces import Single, make_rates_table_single
+from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -188,9 +146,9 @@ class IsolationMigrationModel(Model):
         This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters."""
         super(IsolationMigrationModel, self).__init__()
-        self.isolation_state_space = Isolation2()
-        self.migration_state_space = Migration2()
-        self.single_state_space = Single2()
+        self.isolation_state_space = Isolation()
+        self.migration_state_space = Migration()
+        self.single_state_space = Single()
         self.no_mig_states = no_mig_states
         self.no_ancestral_states = no_ancestral_states
 
