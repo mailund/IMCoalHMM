@@ -2,15 +2,14 @@
 """
 
 from numpy import zeros, identity, matrix
-from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
 from IMCoalHMM.isolation_model import Single2, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
-from IMCoalHMM.transitions import compute_transition_probabilities
 from IMCoalHMM.break_points import psmc_break_points
-from IMCoalHMM.emissions import emission_matrix
+from IMCoalHMM.emissions import coalescence_points
+from IMCoalHMM.model import Model
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -134,11 +133,11 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
 
 
 ## Class that can construct HMMs ######################################
-class VariableCoalescenceRateIsolationModel(object):
+class VariableCoalescenceRateIsolationModel(Model):
     """Class wrapping the code that generates an isolation model HMM
     with variable coalescence rates in the different intervals."""
 
-    def __init__(self):
+    def __init__(self, intervals, est_split=False):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -146,8 +145,26 @@ class VariableCoalescenceRateIsolationModel(object):
         super(VariableCoalescenceRateIsolationModel, self).__init__()
         self.isolation_state_space = Isolation2()
         self.single_state_space = Single2()
+        self.intervals = intervals
+        self.est_split = est_split
 
-    def build_hidden_markov_model(self, split_time, intervals, coal_rates, recomb_rate):
+    def emission_points(self, *parameters):
+        """Time points to emit from."""
+        if self.est_split:
+            # we are trying to estimate a split time as well
+            split_time = parameters[0]
+            coal_rates = parameters[1:-1]
+        else:
+            split_time = 0.0
+            coal_rates = parameters[0:-1]
+
+        no_states = sum(self.intervals)
+        break_points = psmc_break_points(no_states, offset=split_time)
+
+        # FIXME: I don't know how to choose a good rate here
+        return coalescence_points(break_points, coal_rates[0])
+
+    def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the split time
         and the rates.
 
@@ -167,52 +184,6 @@ class VariableCoalescenceRateIsolationModel(object):
         this is left to functionality outside the model.
         """
 
-        # We assume here that the coalescence rate is the same in the two
-        # separate populations as in the ancestral just before teh split.
-        # This is not necessarily true but it worked okay in simulations
-        # in Mailund et al. (2011).
-
-        isolation_rates = make_rates_table_isolation(coal_rates[0], coal_rates[0],
-                                                     recomb_rate)
-        isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
-
-        single_ctmcs = []
-        for epoch, coal_rate in enumerate(coal_rates):
-            single_rates = make_rates_table_single(coal_rate, recomb_rate)
-            single_ctmc = CTMC(self.single_state_space, single_rates)
-            for _ in xrange(intervals[epoch]):
-                single_ctmcs.append(single_ctmc)
-
-        no_states = len(single_ctmcs)
-        break_points = psmc_break_points(no_states, offset=split_time)
-
-        ctmc_system = VariableCoalRateCTMCSystem(isolation_ctmc,
-                                                 single_ctmcs, break_points)
-        pi, trans_probs = compute_transition_probabilities(ctmc_system)
-        # FIXME: I don't know how to choose a good rate here
-        emission_probs = emission_matrix(break_points, coal_rates[0])
-
-        return pi, trans_probs, emission_probs
-
-
-## Wrapper for maximum likelihood optimization ###############################
-class MinimizeWrapper(object):
-    """Callable object wrapping the log likelihood computation for maximum
-    likelihood estimation."""
-
-    def __init__(self, log_likelihood, intervals, est_split=False):
-        """Wrap the log likelihood computation with the non-variable parameter
-        which is the number of states."""
-        self.log_likelihood = log_likelihood
-        self.intervals = intervals
-        self.est_split = est_split
-
-    def __call__(self, parameters):
-        """Compute the likelihood in a paramter point. It computes -logL since
-        the optimizer will minimize the function."""
-        if min(parameters) <= 0:
-            return 1e18  # fixme: return infinity
-
         if self.est_split:
             # we are trying to estimate a split time as well
             split_time = parameters[0]
@@ -223,39 +194,22 @@ class MinimizeWrapper(object):
             coal_rates = parameters[0:-1]
             recomb_rate = parameters[-1]
 
-        return -self.log_likelihood(split_time, self.intervals, coal_rates, recomb_rate)
+        # We assume here that the coalescence rate is the same in the two
+        # separate populations as in the ancestral just before teh split.
+        # This is not necessarily true but it worked okay in simulations
+        # in Mailund et al. (2011).
 
+        isolation_rates = make_rates_table_isolation(coal_rates[0], coal_rates[0], recomb_rate)
+        isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
 
-def main():
-    """Test"""
+        single_ctmcs = []
+        for epoch, coal_rate in enumerate(coal_rates):
+            single_rates = make_rates_table_single(coal_rate, recomb_rate)
+            single_ctmc = CTMC(self.single_state_space, single_rates)
+            for _ in xrange(self.intervals[epoch]):
+                single_ctmcs.append(single_ctmc)
 
-    model = VariableCoalescenceRateIsolationModel()
-    split_time = 1.1
-    intervals = [4] + [2] * 25 + [4, 6]
-    coal_rates = [1.0] * 28
-    recomb_rate = 4e-4
-    pi, trans_probs, emission_probs = \
-        model.build_hidden_markov_model(split_time, intervals, coal_rates, recomb_rate)
+        no_states = len(single_ctmcs)
+        break_points = psmc_break_points(no_states, offset=split_time)
 
-    no_states = pi.getHeight()
-    assert no_states == sum(intervals)
-
-    pi_sum = 0.0
-    for row in xrange(no_states):
-        pi_sum += pi[row, 0]
-    assert_almost_equal(pi_sum, 1.0)
-
-    assert no_states == trans_probs.getWidth()
-    assert no_states == trans_probs.getHeight()
-
-    trans_probs_sum = 0.0
-    for row in xrange(no_states):
-        for col in xrange(no_states):
-            trans_probs_sum += trans_probs[row, col]
-    assert_almost_equal(trans_probs_sum, no_states)
-
-    print 'Done'
-
-
-if __name__ == '__main__':
-    main()
+        return VariableCoalRateCTMCSystem(isolation_ctmc, single_ctmcs, break_points)

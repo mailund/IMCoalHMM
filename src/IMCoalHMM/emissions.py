@@ -77,14 +77,12 @@ def jukes_cantor(a, b, dt):
         return 0.25 - 0.25 * exp(-4.0 / 3 * dt)
 
 
-def emission_matrix(break_points, rate):
+def emission_matrix(coal_points):
     """Compute the emission matrix given the time break points and coalescence
     rate.
 
-    :param break_points: List of break points between the intervals/states.
-    :param rate: Coalescence rate used to compute the interval midpoints.
+    :param coal_points: List coalescence points to emit from.
     """
-    coal_points = coalescence_points(break_points, rate)
     emission_probabilities = Matrix(len(coal_points), 3)
     for state in xrange(len(coal_points)):
         emission_probabilities[state, 0] = jukes_cantor(0, 0, 2 * coal_points[state])
