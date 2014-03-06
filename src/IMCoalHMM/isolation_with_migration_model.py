@@ -145,20 +145,27 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
     def __init__(self, isolation_ctmc, migration_ctmc, ancestral_ctmc,
                  migration_break_points, ancestral_break_points):
         """Construct all the matrices and cache them for the
-        method calls."""
+        method calls.
+
+        :param isolation_ctmc: CTMC for the isolation phase.
+        :type isolation_ctmc: CTMC
+        :param migration_ctmc: CTMC for the migration phase.
+        :type migration_ctmc: CTMC
+        :param ancestral_ctmc: CTMC for the ancestral population.
+        :type ancestral_ctmc: CTMC
+        :param migration_break_points: List of break points in the migration phase.
+        :type migration_break_points: list[int]
+        :param ancestral_break_points: List of break pionts in the ancestral population.
+        :type ancestral_break_points: list[int]
+        """
 
         self.no_migration_states = len(migration_break_points)
         self.no_ancestral_states = len(ancestral_break_points)
-        self.no_states_ = self.no_migration_states + self.no_ancestral_states
+        no_states = self.no_migration_states + self.no_ancestral_states
+        super(IsolationMigrationCTMCSystem, self).__init__(no_states)
 
         self.initial_ = isolation_ctmc.state_space.i12_index
-
-        self.begin_states_ = [migration_ctmc.state_space.begin_states,
-                              ancestral_ctmc.state_space.begin_states]
-        self.left_states_ = [migration_ctmc.state_space.left_states,
-                             ancestral_ctmc.state_space.left_states]
-        self.end_states_ = [migration_ctmc.state_space.end_states,
-                            ancestral_ctmc.state_space.end_states]
+        self.state_spaces = [migration_ctmc.state_space, ancestral_ctmc.state_space]
 
         break_points = list(migration_break_points) + list(ancestral_break_points)
 
@@ -172,40 +179,13 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
         return self.no_migration_states <= i
 
     @property
-    def no_states(self):
-        """The number of states the HMM should have."""
-        return self.no_states_
-
-    @property
     def initial(self):
         """The initial state index in the bottom-most matrix"""
         return self.initial_
 
-    def begin_states(self, i):
-        """Begin states for interval i."""
-        return self.begin_states_[self._is_ancestral(i)]
-
-    def left_states(self, i):
-        """Left states for interval i."""
-        return self.left_states_[self._is_ancestral(i)]
-
-    def end_states(self, i):
-        """End states for interval i."""
-        return self.end_states_[self._is_ancestral(i)]
-
-    def through(self, i):
-        """Returns a probability matrix for going through interval i"""
-        return self.through_[i]
-
-    def upto(self, i):
-        """Returns a probability matrix for going up to, but not
-        through, interval i"""
-        return self.upto_[i]
-
-    def between(self, i, j):
-        """Returns a probability matrix for going from the
-        end of interval i up to (but not through) interval j"""
-        return self.between_[(i, j)]
+    def get_state_space(self, i):
+        """Return the right state space for the interval."""
+        return self.state_spaces[self._is_ancestral(i)]
 
 
 ## Class that can construct HMMs ######################################

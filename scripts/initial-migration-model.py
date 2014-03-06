@@ -6,6 +6,7 @@
 from optparse import OptionParser
 
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
+from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
 

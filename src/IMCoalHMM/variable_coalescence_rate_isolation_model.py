@@ -79,57 +79,37 @@ def _compute_between(ctmcs, through):
 class VariableCoalRateCTMCSystem(CTMCSystem):
     """Wrapper around CTMC transition matrices for the isolation model."""
 
-    def __init__(self, isolation_ctmc, single_ctmcs, break_points):
+    def __init__(self, isolation_ctmc, ancestral_ctmcs, break_points):
         """Construct all the matrices and cache them for the
-        method calls."""
+        method calls.
 
-        self.no_states_ = len(single_ctmcs)
+        :param isolation_ctmc: CTMC for the initial isolation phase.
+        :type isolation_ctmc: CTMC
+        :param ancestral_ctmcs: CTMCs for the ancestral population.
+        :type ancestral_ctmcs: list[CTMC]
+        :param break_points: List of break points.
+        :type break_points: list[int]
+        """
+
+        super(VariableCoalRateCTMCSystem, self).__init__(no_hmm_states=len(ancestral_ctmcs))
+
         self.initial_ = isolation_ctmc.state_space.i12_index
         # Even though we have different CTMCs they have the same state space
-        self.begin_states_ = single_ctmcs[0].state_space.begin_states
-        self.left_states_ = single_ctmcs[0].state_space.left_states
-        self.end_states_ = single_ctmcs[0].state_space.end_states
+        self.state_space = ancestral_ctmcs[0].state_space
 
-        self.through_ = _compute_through(single_ctmcs, break_points)
-        self.upto_ = _compute_upto(isolation_ctmc, single_ctmcs,
+        self.through_ = _compute_through(ancestral_ctmcs, break_points)
+        self.upto_ = _compute_upto(isolation_ctmc, ancestral_ctmcs,
                                    break_points, self.through_)
-        self.between_ = _compute_between(single_ctmcs, self.through_)
-
-    @property
-    def no_states(self):
-        """The number of states the HMM should have."""
-        return self.no_states_
+        self.between_ = _compute_between(ancestral_ctmcs, self.through_)
 
     @property
     def initial(self):
         """The initial state index in the bottom-most matrix"""
         return self.initial_
 
-    def begin_states(self, i):
-        """Begin states for interval i."""
-        return self.begin_states_
-
-    def left_states(self, i):
-        """Left states for interval i."""
-        return self.left_states_
-
-    def end_states(self, i):
-        """End states for interval i."""
-        return self.end_states_
-
-    def through(self, i):
-        """Returns a probability matrix for going through interval i."""
-        return self.through_[i]
-
-    def upto(self, i):
-        """Returns a probability matrix for going up to, but not
-        through, interval i"""
-        return self.upto_[i]
-
-    def between(self, i, j):
-        """Returns a probability matrix for going from the
-        end of interval i up to (but not through) interval j"""
-        return self.between_[(i, j)]
+    def get_state_space(self, _):
+        """Return the state space for interval i, but it is always the same."""
+        return self.state_space
 
 
 ## Class that can construct HMMs ######################################

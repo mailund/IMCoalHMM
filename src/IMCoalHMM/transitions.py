@@ -3,7 +3,7 @@ General code for calculations of HMM transition probabilities.
 
 """
 
-import exceptions
+from abc import ABCMeta, abstractmethod
 from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
@@ -14,6 +14,20 @@ class CTMCSystem(object):
     HMM transition probability calculations with the matrices and
     indices it needs, hiding away the underlying demographic model.
     """
+    __metaclass__ = ABCMeta
+
+    def __init__(self, no_hmm_states):
+        """Create system.
+
+        :param no_hmm_states: The number of states the HMM should have.
+        :type no_hmm_states: int
+        """
+        self.no_hmm_states = no_hmm_states
+
+        # These should be filled in by the sub-class's __init__ method
+        self.through_ = []
+        self.upto_ = []
+        self.between_ = {}
 
     @property
     def no_states(self):
@@ -22,16 +36,28 @@ class CTMCSystem(object):
         :returns: The number of HMM states.
         :rtype: int
         """
-        raise exceptions.NotImplementedError()
+        return self.no_hmm_states
 
     @property
+    @abstractmethod
     def initial(self):
         """The initial state index in the bottom-most matrix.
 
         :returns: the state space index of the initial state.
         :rtype: int
         """
-        raise exceptions.NotImplementedError()
+        return None
+
+    @abstractmethod
+    def get_state_space(self, i):
+        """Return the state space used in interval i.
+
+        :param i: Interval index.
+        :type i: int
+        :returns: The state space for interval i.
+        :rtype: IMCoalHMM.CoalSystem
+        """
+        return None
 
     def begin_states(self, i):
         """Begin states for interval i.
@@ -42,7 +68,7 @@ class CTMCSystem(object):
         :returns: List of the begin states for the state space in interval i.
         :rtype: list
         """
-        raise exceptions.NotImplementedError()
+        return self.get_state_space(i).begin_states
 
     def left_states(self, i):
         """Left states for interval i.
@@ -53,7 +79,7 @@ class CTMCSystem(object):
         :returns: List of the left states for the state space in interval i.
         :rtype: list
         """
-        raise exceptions.NotImplementedError()
+        return self.get_state_space(i).left_states
 
     def end_states(self, i):
         """End states for interval i.
@@ -64,7 +90,7 @@ class CTMCSystem(object):
         :returns: List of the end states for the state space in interval i.
         :rtype: list
         """
-        raise exceptions.NotImplementedError()
+        return self.get_state_space(i).end_states
 
     def through(self, i):
         """Returns a probability matrix for going through interval i.
@@ -75,7 +101,7 @@ class CTMCSystem(object):
         :returns: Probability transition matrix for moving through interval i. [i]
         :rtype: matrix
         """
-        raise exceptions.NotImplementedError()
+        return self.through_[i]
 
     def upto(self, i):
         """Returns a probability matrix for going up to, but not
@@ -88,7 +114,7 @@ class CTMCSystem(object):
          up to, but not through, interval i. [0, i[
         :rtype: matrix
         """
-        raise exceptions.NotImplementedError()
+        return self.upto_[i]
 
     def between(self, i, j):
         """Returns a probability matrix for going from the
@@ -103,7 +129,7 @@ class CTMCSystem(object):
          of interval i to the beginning of interval j: ]i, j[
         :rtype: matrix
         """
-        raise exceptions.NotImplementedError()
+        return self.between_[(i,j)]
 
 
 def compute_transition_probabilities(ctmc):
