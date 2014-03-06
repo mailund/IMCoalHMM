@@ -7,10 +7,9 @@ from numpy.testing import assert_almost_equal
 from IMCoalHMM.statespace_generator import Single, Isolation
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
-from IMCoalHMM.transitions import compute_transition_probabilities
+from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points
-from IMCoalHMM.emissions import emission_matrix
-
+from IMCoalHMM.model import Model
 
 ## State space code ############################################
 class Isolation2(Isolation):
@@ -229,22 +228,26 @@ class IsolationCTMCSystem(CTMCSystem):
 
 
 ## Class that can construct HMMs ######################################
-class IsolationModel(object):
+class IsolationModel(Model):
     """Class wrapping the code that generates an isolation model HMM."""
 
-    def __init__(self):
+    def __init__(self, no_hmm_states):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters."""
         super(IsolationModel, self).__init__()
+        self.no_hmm_states = no_hmm_states
         self.isolation_state_space = Isolation2()
         self.single_state_space = Single2()
 
-    def build_hidden_markov_model(self, no_states, split_time, coal_rate, recomb_rate):
-        """Construct CTMCs and compute HMM matrices given the split time
-        and the rates."""
+    def emission_points(self, split_time, coal_rate, _):
+        """Points to emit from."""
+        break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        return coalescence_points(break_points, coal_rate)
 
+    def build_ctmc_system(self, split_time, coal_rate, recomb_rate):
+        """Construct CTMC system."""
         # We assume here that the coalescence rate is the same in the two
         # separate populations as it is in the ancestral. This is not necessarily
         # true but it worked okay in simulations in Mailund et al. (2011).
@@ -252,14 +255,8 @@ class IsolationModel(object):
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
         single_ctmc = CTMC(self.single_state_space, single_rates)
-
-        break_points = exp_break_points(no_states, coal_rate, split_time)
-        ctmc_system = IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
-
-        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
-        emission_probs = emission_matrix(break_points, coal_rate)
-
-        return initial_probs, transition_probs, emission_probs
+        break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        return IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
 
 
 ## Wrapper for maximum likelihood optimization ###############################
@@ -284,8 +281,8 @@ class MinimizeWrapper(object):
 def main():
     """Test"""
 
-    model = IsolationModel()
-    pi, trans_probs, emis_probs = model.build_hidden_markov_model(4, 1.0, 0.5, 4e-4)
+    model = IsolationModel(4)
+    pi, trans_probs, emis_probs = model.build_hidden_markov_model(1.0, 0.5, 4e-4)
 
     no_states = pi.getHeight()
     assert no_states == 4

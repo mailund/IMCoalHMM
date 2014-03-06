@@ -2,12 +2,14 @@
 likelihoods.
 """
 
+import scipy.optimize
+
 
 class Likelihood(object):
     """Combining model and data."""
 
     def __init__(self, model, forwarders):
-        """Bind a model to sequence data in the form of a zipHMM Forwarder.
+        """Bind a model to sequence data in the form of ZipHMM Forwarders.
 
         :param model: Any demographic model that can build a hidden Markov model.
         :param forwarders: ZipHMM forwarder or forwarders for computing the HMM likelihood.
@@ -27,9 +29,6 @@ class Likelihood(object):
         """Compute the log-likelihood at a set of parameters."""
         init_probs, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)
         return sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders)
-
-
-import scipy.optimize
 
 
 def maximum_likelihood_estimate(wrapper, initial_parameters,
