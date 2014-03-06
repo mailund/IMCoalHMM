@@ -36,8 +36,7 @@ def _compute_through(single, break_points):
 
 
 def _compute_upto0(isolation, single, break_points):
-    """Computes the probability matrices for moving from time zero up to,
-    but not through, interval i."""
+    """Computes the probability matrices for moving to time zero."""
 
     # Projection matrix needed to go from the isolation to the single
     # state spaces
