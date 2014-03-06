@@ -10,7 +10,8 @@ class Likelihood(object):
         """Bind a model to sequence data in the form of a zipHMM Forwarder.
 
         :param model: Any demographic model that can build a hidden Markov model.
-        :param forwarders:
+        :param forwarders: ZipHMM forwarder or forwarders for computing the HMM likelihood.
+        :type forwarders: pyZipHMM.Forwarder | list[pyZipHMM.Forwarder]
         """
         # FIXME: have a superclass for models?
 
