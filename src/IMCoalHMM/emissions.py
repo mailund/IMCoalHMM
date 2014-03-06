@@ -82,7 +82,6 @@ def emission_matrix(coal_points):
     rate.
 
     :param coal_points: List coalescence points to emit from.
-    :param rate: Coalescence rate used to compute the interval midpoints.
     """
     emission_probabilities = Matrix(len(coal_points), 3)
     for state in xrange(len(coal_points)):

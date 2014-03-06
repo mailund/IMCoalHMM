@@ -2,7 +2,6 @@
 """
 
 from numpy import zeros, identity, matrix
-from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
 from IMCoalHMM.isolation_model import Single2, make_rates_table_single
