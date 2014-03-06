@@ -12,11 +12,10 @@ class Likelihood(object):
         """Bind a model to sequence data in the form of ZipHMM Forwarders.
 
         :param model: Any demographic model that can build a hidden Markov model.
+        :type model: IMCoalHMM.model.Model
         :param forwarders: ZipHMM forwarder or forwarders for computing the HMM likelihood.
         :type forwarders: pyZipHMM.Forwarder | list[pyZipHMM.Forwarder]
         """
-        # FIXME: have a superclass for models?
-
         super(Likelihood, self).__init__()
         self.model = model
 
@@ -27,11 +26,14 @@ class Likelihood(object):
 
     def __call__(self, *parameters):
         """Compute the log-likelihood at a set of parameters."""
+        if not self.model.valid_parameters(parameters):
+            return -1e18  # FIXME: -infinity!
+
         init_probs, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)
         return sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders)
 
 
-def maximum_likelihood_estimate(wrapper, initial_parameters,
+def maximum_likelihood_estimate(log_likelihood, initial_parameters,
                                 optimizer=scipy.optimize.fmin,
                                 log_file=None,
                                 log_param_transform=lambda x: x):
@@ -48,7 +50,8 @@ def maximum_likelihood_estimate(wrapper, initial_parameters,
     It also requires an initial parameter point for the optimization, and a numerical
     algorithm for optimisation (a default from scipy is fmin).
 
-    :param wrapper: The wrapper needed for computing the likelihood.
+    :param log_likelihood: The Likelihood wrapper needed for computing the likelihood.
+    :type log_likelihood: Likelihood
     :param initial_parameters: The initial set of parameters. Model specific.
     :param optimizer: The algorithm used for numerical optimization.
     :param log_file: Progress will be logged to this file/stream.
@@ -63,4 +66,7 @@ def maximum_likelihood_estimate(wrapper, initial_parameters,
             log_params = [str(param) for param in log_param_transform(parameters)]
             print >> log_file, '\t'.join(log_params)
 
-    return optimizer(wrapper, initial_parameters, callback=log_callback, disp=False)
+    def minimize_wrapper(parameters):
+        return -log_likelihood(parameters)
+
+    return optimizer(minimize_wrapper, initial_parameters, callback=log_callback, disp=False)

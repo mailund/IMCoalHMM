@@ -23,10 +23,13 @@ class Model(object):
         """Build the time points to emit from using the model-specific parameters."""
         pass
 
-    def build_hidden_markov_model(self, *parameters):
+    def valid_parameters(self, parameters):
+        """Predicate testing if a given parameter point is valid for the model."""
+        return all(min(parameters) > 0)  # This is the default test, useful for most models.
+
+    def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         emission_probs = emission_matrix(self.emission_points(*parameters))
-
         return initial_probs, transition_probs, emission_probs

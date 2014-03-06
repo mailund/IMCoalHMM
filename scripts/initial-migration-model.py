@@ -90,8 +90,7 @@ and uniform coalescence and recombination rates."""
     init_recomb = rho
     init_migration = options.migration_rate
 
-    log_likelihood = Likelihood(IsolationMigrationModel(), forwarders)
-    minimizer = MinimizeWrapper(log_likelihood, no_migration_states, no_ancestral_states)
+    log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_recomb, init_migration)
 
     if options.logfile:
@@ -102,14 +101,14 @@ and uniform coalescence and recombination rates."""
                                              'theta', 'rho', 'migration'])
 
             mle_parameters = \
-                maximum_likelihood_estimate(minimizer, initial_parameters,
+                maximum_likelihood_estimate(log_likelihood, initial_parameters,
                                             log_file=logfile,
                                             log_param_transform=transform)
     else:
         mle_parameters = \
-            maximum_likelihood_estimate(minimizer, initial_parameters)
+            maximum_likelihood_estimate(log_likelihood, initial_parameters)
 
-    max_log_likelihood = -minimizer(mle_parameters)
+    max_log_likelihood = log_likelihood(mle_parameters)
     with open(options.outfile, 'w') as outfile:
         if options.include_header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
