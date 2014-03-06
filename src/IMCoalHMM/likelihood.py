@@ -6,16 +6,26 @@ likelihoods.
 class Likelihood(object):
     """Combining model and data."""
 
-    def __init__(self, model, forwarder):
-        """Bind a model to sequence data in the form of a zipHMM Forwarder."""
+    def __init__(self, model, forwarders):
+        """Bind a model to sequence data in the form of a zipHMM Forwarder.
+
+        :param model: Any demographic model that can build a hidden Markov model.
+        :param forwarders:
+        """
+        # FIXME: have a superclass for models?
+
         super(Likelihood, self).__init__()
         self.model = model
-        self.forwarder = forwarder
+
+        if hasattr(forwarders, '__iter__'):
+            self.forwarders = forwarders
+        else:
+            self.forwarders = [forwarders]
 
     def __call__(self, *parameters):
         """Compute the log-likelihood at a set of parameters."""
-        pi, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)
-        return self.forwarder.forward(pi, trans_probs, emission_probs)
+        init_probs, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)
+        return sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders)
 
 
 import scipy.optimize
