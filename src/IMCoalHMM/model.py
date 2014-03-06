@@ -24,7 +24,12 @@ class Model(object):
         pass
 
     def valid_parameters(self, parameters):
-        """Predicate testing if a given parameter point is valid for the model."""
+        """Predicate testing if a given parameter point is valid for the model.
+        :param parameters: Model specific parameters
+        :type parameters: scipy.array
+        :returns: True if all parameters are valid, otherwise False
+        :rtype: bool
+        """
         return all(min(parameters) > 0)  # This is the default test, useful for most models.
 
     def build_hidden_markov_model(self, parameters):

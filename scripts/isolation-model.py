@@ -14,6 +14,7 @@ def transform(params):
     split_time, coal_rate, recomb_rate = params
     return split_time, 2 / coal_rate, recomb_rate
 
+
 def main():
     """
     Run the main script.

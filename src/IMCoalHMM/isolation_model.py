@@ -11,6 +11,7 @@ from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points
 from IMCoalHMM.model import Model
 
+
 ## State space code ############################################
 class Isolation2(Isolation):
     """Class for IM system with exactly two samples."""

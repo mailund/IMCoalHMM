@@ -154,12 +154,12 @@ class VariableCoalescenceRateIsolationModel(Model):
         if self.est_split:
             # we are trying to estimate a split time as well
             split_time = parameters[0]
-            coal_rates = parameters[1:-1][0]
+            coal_rates = parameters[1:-1]
         else:
             split_time = 0.0
-            coal_rates = parameters[0:-1][0]
+            coal_rates = parameters[0:-1]
 
-        no_states = len(coal_rates)
+        no_states = sum(self.intervals)
         break_points = psmc_break_points(no_states, offset=split_time)
 
         # FIXME: I don't know how to choose a good rate here
@@ -188,11 +188,11 @@ class VariableCoalescenceRateIsolationModel(Model):
         if self.est_split:
             # we are trying to estimate a split time as well
             split_time = parameters[0]
-            coal_rates = parameters[1:-1][0]
+            coal_rates = parameters[1:-1]
             recomb_rate = parameters[-1]
         else:
             split_time = 0.0
-            coal_rates = parameters[0:-1][0]
+            coal_rates = parameters[0:-1]
             recomb_rate = parameters[-1]
 
         # We assume here that the coalescence rate is the same in the two
@@ -214,38 +214,3 @@ class VariableCoalescenceRateIsolationModel(Model):
         break_points = psmc_break_points(no_states, offset=split_time)
 
         return VariableCoalRateCTMCSystem(isolation_ctmc, single_ctmcs, break_points)
-
-
-def main():
-    """Test"""
-
-    split_time = 1.1
-    intervals = [4] + [2] * 25 + [4, 6]
-    coal_rates = [1.0] * 28
-    recomb_rate = 4e-4
-    model = VariableCoalescenceRateIsolationModel(intervals, True)
-    parameters = split_time, coal_rates, recomb_rate
-    pi, trans_probs, emission_probs = model.build_hidden_markov_model(parameters)
-
-    no_states = pi.getHeight()
-    assert no_states == sum(intervals)
-
-    pi_sum = 0.0
-    for row in xrange(no_states):
-        pi_sum += pi[row, 0]
-    assert_almost_equal(pi_sum, 1.0)
-
-    assert no_states == trans_probs.getWidth()
-    assert no_states == trans_probs.getHeight()
-
-    trans_probs_sum = 0.0
-    for row in xrange(no_states):
-        for col in xrange(no_states):
-            trans_probs_sum += trans_probs[row, col]
-    assert_almost_equal(trans_probs_sum, no_states)
-
-    print 'Done'
-
-
-if __name__ == '__main__':
-    main()
