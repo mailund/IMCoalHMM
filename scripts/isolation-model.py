@@ -14,7 +14,7 @@ def main():
     """
     Run the main script.
     """
-    usage = """%prog [options] <forwarder dir>
+    usage = """%prog [options] <forwarder dirs>
 
 This program estimates the parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
@@ -50,15 +50,15 @@ and uniform coalescence and recombination rates."""
         ('rho', 'recombination rate in substitutions', 0.4),
     ]
 
-    for (cname, desc, default) in optimized_params:
+    for cname, desc, default in optimized_params:
         parser.add_option("--%s" % cname,
                           dest=cname,
                           type="float",
                           default=default,
                           help="Initial guess at the %s (%g)" % (desc, default))
 
-    (options, args) = parser.parse_args()
-    if len(args) != 1:
+    options, args = parser.parse_args()
+    if len(args) < 1:
         parser.error("Input alignment not provided!")
 
     # get options
@@ -67,13 +67,13 @@ and uniform coalescence and recombination rates."""
     theta = options.theta
     rho = options.rho
 
-    forwarder = Forwarder.fromDirectory(args[0])
+    forwarders = [Forwarder.fromDirectory(arg) for arg in args]
 
     init_split = split
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
-    log_likelihood = Likelihood(IsolationModel(), forwarder)
+    log_likelihood = Likelihood(IsolationModel(), forwarders)
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
