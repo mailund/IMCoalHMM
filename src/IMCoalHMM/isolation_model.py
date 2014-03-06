@@ -263,7 +263,7 @@ def main():
     """Test"""
 
     model = IsolationModel(4)
-    pi, trans_probs, emis_probs = model.build_hidden_markov_model(1.0, 0.5, 4e-4)
+    pi, trans_probs, emis_probs = model.build_hidden_markov_model((1.0, 0.5, 4e-4))
 
     no_states = pi.getHeight()
     assert no_states == 4

@@ -260,26 +260,6 @@ class IsolationMigrationModel(Model):
                                             migration_break_points, ancestral_break_points)
 
 
-## Wrapper for maximum likelihood optimization ###############################
-class MinimizeWrapper(object):
-    """Callable object wrapping the log likelihood computation for maximum
-    liklihood estimation."""
-
-    def __init__(self, log_likelihood, no_migration_states, no_ancestral_states):
-        """Wrap the log likelihood computation with the non-variable parameter
-        which is the number of states."""
-        self.log_likelihood = log_likelihood
-        self.no_migration_states = no_migration_states
-        self.no_ancestral_states = no_ancestral_states
-
-    def __call__(self, parameters):
-        """Compute the likelihood in a paramter point. It computes -logL since
-        the optimizer will minimize the function."""
-        if min(parameters) <= 0:
-            return 1e18  # fixme: return infinity
-        return -self.log_likelihood(self.no_migration_states, self.no_ancestral_states, *parameters)
-
-
 def main():
     """Test"""
 
@@ -292,8 +272,8 @@ def main():
     mig_rate = 0.1
 
     model = IsolationMigrationModel(no_mig_states, no_ancestral_states)
-    pi, transition_probs, emission_probs = model.build_hidden_markov_model(isolation_time, migration_time,
-                                                                           coal_rate, recomb_rate, mig_rate)
+    parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
+    pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
 
     no_states = pi.getHeight()
     assert no_states == no_mig_states + no_ancestral_states
