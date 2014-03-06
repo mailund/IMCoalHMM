@@ -6,7 +6,7 @@ from numpy import zeros, identity, matrix
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
+from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
@@ -34,20 +34,12 @@ def _compute_through(ctmcs, break_points):
     return through
 
 
-def _compute_upto0(isolation, ctmcs, break_points):
+def _compute_upto0(isolation, ancestral, break_points):
     """Computes the probability matrices for moving from time zero up to,
     but not through, interval i."""
-
-    # Projection matrix needed to go from the isolation to the single
-    # state spaces.
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(isolation.state_space.states),
-                               len(ctmcs[0].state_space.states))))
-    for state, isolation_index in isolation.state_space.states.items():
-        ancestral_state = frozenset([(0, nucs) for (_, nucs) in state])
-        ancestral_index = ctmcs[0].state_space.states[ancestral_state]
-        projection[isolation_index, ancestral_index] = 1.0
-
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(isolation.state_space, ancestral[0].state_space, state_map)
     return isolation.probability_matrix(break_points[0]) * projection
 
 

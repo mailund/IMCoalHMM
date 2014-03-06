@@ -5,7 +5,7 @@ from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
+from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
@@ -20,15 +20,9 @@ def _compute_through(migration, migration_break_points,
                      ancestral, ancestral_break_points):
     """Computes the matrices for moving through an interval"""
 
-    # Projection matrix needed to go from the migration to the single
-    # state spaces
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(migration.state_space.states),
-                               len(ancestral.state_space.states))))
-    for state, isolation_index in migration.state_space.states.items():
-        ancestral_state = frozenset([(0, nucs) for (_, nucs) in state])
-        ancestral_index = ancestral.state_space.states[ancestral_state]
-        projection[isolation_index, ancestral_index] = 1.0
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(migration.state_space, ancestral.state_space, state_map)
 
     no_migration_states = len(migration_break_points)
     no_ancestral_states = len(ancestral_break_points)
@@ -58,16 +52,9 @@ def _compute_through(migration, migration_break_points,
 
 def _compute_upto0(isolation, migration, break_points):
     """Computes the probability matrices for moving to time zero."""
-
-    # Projection matrix needed to go from the isolation to the migration
-    # state spaces
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(isolation.state_space.states),
-                               len(migration.state_space.states))))
-    for state, isolation_index in isolation.state_space.states.items():
-        migration_index = migration.state_space.states[state]
-        projection[isolation_index, migration_index] = 1.0
-
+    # the states in the isolation state space are the same in the migration
+    state_map = lambda x: x
+    projection = projection_matrix(isolation.state_space, migration.state_space, state_map)
     return isolation.probability_matrix(break_points[0]) * projection
 
 

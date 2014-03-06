@@ -8,6 +8,27 @@ from numpy import zeros, identity, matrix, ix_
 from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
 
+def projection_matrix(from_state_space, to_state_space, state_map):
+    """
+    Build a projection matrix for moving from one state space to another.
+
+    :param from_state_space: The state space we move from.
+    :type from_state_space: IMCoalHMM.CoalSystem
+    :param to_state_space: The state space we move into
+    :type to_state_space: IMCoalHMM.CoalSystem
+    :param state_map: A function mapping states from one state space to another.
+
+    :returns: a projection matrix
+    :rtype: matrix
+    """
+    # noinspection PyCallingNonCallable
+    projection = matrix(zeros((len(from_state_space.states),
+                               len(to_state_space.states))))
+    for from_state, from_index in from_state_space.states.items():
+        to_state = state_map(from_state)
+        to_index = to_state_space.states[to_state]
+        projection[from_index, to_index] = 1.0
+    return projection
 
 def compute_upto(upto_0, through):
     """Computes the probability matrices for moving from time zero up to,
@@ -176,7 +197,7 @@ class CTMCSystem(object):
          of interval i to the beginning of interval j: ]i, j[
         :rtype: matrix
         """
-        return self.between_[(i,j)]
+        return self.between_[(i, j)]
 
 
 def compute_transition_probabilities(ctmc):
