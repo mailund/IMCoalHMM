@@ -4,77 +4,13 @@
 from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
-from IMCoalHMM.statespace_generator import CoalSystem
+from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
+from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points
 from IMCoalHMM.model import Model
-
-
-## State space code ############################################
-class Single(CoalSystem):
-    """Class for a merged ancestral population"""
-
-    def __init__(self):
-        """Constructs the state space and collect B, L, R and E states (see the
-        CoalHMM papers for what these are)."""
-
-        super(Single, self).__init__()
-
-        self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]]
-
-        samples = [1, 2]
-        self.init = frozenset([(0,
-                                (frozenset([sample]),
-                                 frozenset([sample])))
-                               for sample in samples])
-
-        self.compute_state_space()
-
-
-def make_rates_table_single(coal_rate, recomb_rate):
-    """Builds the rates table from the CTMC for the two-samples system."""
-    table = dict()
-    table[('C', 0, 0)] = coal_rate
-    table[('R', 0, 0)] = recomb_rate
-    return table
-
-
-class Isolation(CoalSystem):
-    """Class for IM system with exactly two samples."""
-
-    def __init__(self):
-        """Constructs the state space and collect B, L, R and E states (see the
-        CoalHMM papers for what these are)."""
-
-        super(Isolation, self).__init__()
-
-        self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]]
-
-        self.init = frozenset([(sample,
-                                (frozenset([sample]),
-                                 frozenset([sample])))
-                               for sample in [1, 2]])
-
-        self.compute_state_space()
-
-        i12_state = frozenset([(sample,
-                                (frozenset([sample]), frozenset([sample])))
-                               for sample in [1, 2]])
-        self.i12_index = self.states[i12_state]
-
-
-def make_rates_table_isolation(coal_rate_1, coal_rate_2, recomb_rate):
-    """Builds the rates table from the CTMC for the two-samples system."""
-    table = dict()
-    table[('C', 1, 1)] = coal_rate_1
-    table[('C', 2, 2)] = coal_rate_2
-    table[('R', 1, 1)] = recomb_rate
-    table[('R', 2, 2)] = recomb_rate
-    return table
 
 
 ## Code for computing HMM transition probabilities ####################

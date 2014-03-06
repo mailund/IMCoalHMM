@@ -3,8 +3,8 @@
 
 from numpy import zeros, identity, matrix
 
-from IMCoalHMM.isolation_model import Isolation, make_rates_table_isolation
-from IMCoalHMM.isolation_model import Single, make_rates_table_single
+from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
+from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
 from IMCoalHMM.break_points import psmc_break_points
