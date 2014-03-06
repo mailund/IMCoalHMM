@@ -5,9 +5,14 @@
 
 from optparse import OptionParser
 
-from IMCoalHMM.isolation_model import IsolationModel, MinimizeWrapper
+from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from pyZipHMM import Forwarder
+
+
+def transform(params):
+    split_time, coal_rate, recomb_rate = params
+    return split_time, 2 / coal_rate, recomb_rate
 
 
 def main():
@@ -73,7 +78,7 @@ and uniform coalescence and recombination rates."""
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
-    log_likelihood = Likelihood(IsolationModel(), forwarders)
+    log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
@@ -81,31 +86,20 @@ and uniform coalescence and recombination rates."""
             if options.include_header:
                 print >> logfile, '\t'.join(['split.time', 'theta', 'rho'])
 
-            def transform(params):
-                split_time, coal_rate, recomb_rate = params
-                return split_time, 2 / coal_rate, recomb_rate
-
-            mle_split_time, mle_coal_rate, mle_recomb_rate = \
-                maximum_likelihood_estimate(MinimizeWrapper(log_likelihood, no_states),
-                                            (init_split, init_coal, init_recomb),
-                                            log_file=logfile,
-                                            log_param_transform=transform)
+            mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                         (init_split, init_coal, init_recomb),
+                                                         log_file=logfile,
+                                                         log_param_transform=transform)
     else:
-        mle_split_time, mle_coal_rate, mle_recomb_rate = \
-            maximum_likelihood_estimate(MinimizeWrapper(log_likelihood, no_states),
-                                        (init_split, init_coal, init_recomb))
+        mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                     (init_split, init_coal, init_recomb))
 
-    max_log_likelihood = log_likelihood(no_states, mle_split_time, mle_coal_rate, mle_recomb_rate)
-
-    mle_theta = 2 / mle_coal_rate
+    max_log_likelihood = log_likelihood(mle_parameters)
 
     with open(options.outfile, 'w') as outfile:
         if options.include_header:
             print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
-        print >> outfile, '\t'.join(map(str, [mle_split_time,
-                                              mle_theta,
-                                              mle_recomb_rate,
-                                              max_log_likelihood]))
+        print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
 
 
 if __name__ == '__main__':

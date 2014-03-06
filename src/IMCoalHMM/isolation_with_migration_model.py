@@ -7,9 +7,9 @@ from numpy.testing import assert_almost_equal
 from IMCoalHMM.statespace_generator import Migration
 from IMCoalHMM.CTMC import CTMC
 from IMCoalHMM.transitions import CTMCSystem
-from IMCoalHMM.transitions import compute_transition_probabilities
+from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
-from IMCoalHMM.emissions import emission_matrix
+from IMCoalHMM.model import Model
 
 from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
 from IMCoalHMM.isolation_model import Single2, make_rates_table_single
@@ -209,10 +209,10 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
 
 
 ## Class that can construct HMMs ######################################
-class IsolationMigrationModel(object):
+class IsolationMigrationModel(Model):
     """Class wrapping the code that generates an isolation model HMM."""
 
-    def __init__(self):
+    def __init__(self, no_mig_states, no_ancestral_states):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but not the matrices for the
@@ -221,10 +221,19 @@ class IsolationMigrationModel(object):
         self.isolation_state_space = Isolation2()
         self.migration_state_space = Migration2()
         self.single_state_space = Single2()
+        self.no_mig_states = no_mig_states
+        self.no_ancestral_states = no_ancestral_states
 
-    def build_hidden_markov_model(self, no_mig_states, no_ancestral_states,
-                                  isolation_time, migration_time,
-                                  coal_rate, recomb_rate, mig_rate):
+    def emission_points(self, isolation_time, migration_time, coal_rate, recomb_rate, mig_rate):
+        """Compute model specific coalescence points."""
+        tau1 = isolation_time
+        tau2 = isolation_time + migration_time
+        migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
+        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
+        break_points = list(migration_break_points) + list(ancestral_break_points)
+        return coalescence_points(break_points, coal_rate)
+
+    def build_ctmc_system(self, isolation_time, migration_time, coal_rate, recomb_rate, mig_rate):
         """Construct CTMCs and compute HMM matrices given the split times
         and the rates."""
 
@@ -244,37 +253,11 @@ class IsolationMigrationModel(object):
 
         tau1 = isolation_time
         tau2 = isolation_time + migration_time
-        migration_break_points = uniform_break_points(no_mig_states, tau1, tau2)
-        ancestral_break_points = exp_break_points(no_ancestral_states, coal_rate, tau2)
-        break_points = list(migration_break_points) + list(ancestral_break_points)
+        migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
+        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
 
-        ctmc_system = IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
-                                                   migration_break_points, ancestral_break_points)
-
-        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
-        emission_probs = emission_matrix(break_points, coal_rate)
-
-        return initial_probs, transition_probs, emission_probs
-
-
-## Wrapper for maximum likelihood optimization ###############################
-class MinimizeWrapper(object):
-    """Callable object wrapping the log likelihood computation for maximum
-    liklihood estimation."""
-
-    def __init__(self, log_likelihood, no_migration_states, no_ancestral_states):
-        """Wrap the log likelihood computation with the non-variable parameter
-        which is the number of states."""
-        self.log_likelihood = log_likelihood
-        self.no_migration_states = no_migration_states
-        self.no_ancestral_states = no_ancestral_states
-
-    def __call__(self, parameters):
-        """Compute the likelihood in a paramter point. It computes -logL since
-        the optimizer will minimize the function."""
-        if min(parameters) <= 0:
-            return 1e18  # fixme: return infinity
-        return -self.log_likelihood(self.no_migration_states, self.no_ancestral_states, *parameters)
+        return IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
+                                            migration_break_points, ancestral_break_points)
 
 
 def main():
@@ -288,10 +271,9 @@ def main():
     recomb_rate = 0.4
     mig_rate = 0.1
 
-    model = IsolationMigrationModel()
-    pi, transition_probs, emission_probs = model.build_hidden_markov_model(no_mig_states, no_ancestral_states,
-                                                                           isolation_time, migration_time,
-                                                                           coal_rate, recomb_rate, mig_rate)
+    model = IsolationMigrationModel(no_mig_states, no_ancestral_states)
+    parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
+    pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
 
     no_states = pi.getHeight()
     assert no_states == no_mig_states + no_ancestral_states
