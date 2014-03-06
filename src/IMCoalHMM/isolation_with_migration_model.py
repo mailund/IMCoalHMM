@@ -74,7 +74,7 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
         :type ancestral_ctmc: CTMC
         :param migration_break_points: List of break points in the migration phase.
         :type migration_break_points: list[int]
-        :param ancestral_break_points: List of break pionts in the ancestral population.
+        :param ancestral_break_points: List of break points in the ancestral population.
         :type ancestral_break_points: list[int]
         """
 
