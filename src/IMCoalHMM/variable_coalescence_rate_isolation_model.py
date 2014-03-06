@@ -1,7 +1,7 @@
 """Code for constructing and optimizing the HMM for an isolation model.
 """
 
-from numpy import zeros, identity, matrix
+from numpy import zeros, matrix
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
