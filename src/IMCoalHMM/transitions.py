@@ -8,6 +8,7 @@ from numpy import zeros, identity, matrix, ix_
 from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
 
+
 def projection_matrix(from_state_space, to_state_space, state_map):
     """
     Build a projection matrix for moving from one state space to another.
@@ -29,6 +30,7 @@ def projection_matrix(from_state_space, to_state_space, state_map):
         to_index = to_state_space.states[to_state]
         projection[from_index, to_index] = 1.0
     return projection
+
 
 def compute_upto(upto_0, through):
     """Computes the probability matrices for moving from time zero up to,
@@ -229,7 +231,7 @@ def compute_transition_probabilities(ctmc):
     # -- handle i < j (and j < i by symmetry) ---------------------------
     for i in xrange(no_states - 1):
         up_through_i = ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)] \
-            * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i + 1))]
+                       * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i + 1))]
         for j in xrange(i + 1, no_states):
             between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i + 1), ctmc.left_states(j))]
             through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j + 1))]
