@@ -176,25 +176,3 @@ class CoalSystem(object):
         left2, right2 = nuc2
         left, right = left1.union(left2), right1.union(right2)
         return pop1, pop2, frozenset([(pop1, (left, right))])
-
-
-def main():
-    """Test."""
-    state_space = Single()
-    state_space.compute_state_space()
-    print 'Single:', len(state_space.states),
-    print 'and', len(state_space.transitions), 'transitions'
-
-    state_space = Isolation(range(2))
-    state_space.compute_state_space()
-    print 'Isolation:', len(state_space.states),
-    print 'and', len(state_space.transitions), 'transitions'
-
-    state_space = Migration(range(2))
-    state_space.compute_state_space()
-    print 'Migration:', len(state_space.states),
-    print 'and', len(state_space.transitions), 'transitions'
-
-
-if __name__ == "__main__":
-    main()
