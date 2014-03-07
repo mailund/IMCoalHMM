@@ -19,6 +19,7 @@ setup(
                'scripts/isolation-model.py',
                'scripts/initial-migration-model.py',
                'scripts/psmc-isolation-model.py',
+               'scripts/variable-migration-model.py',
               ],
 
     install_requires = ['numpy', 
