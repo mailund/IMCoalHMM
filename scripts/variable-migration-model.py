@@ -43,11 +43,21 @@ recombination rate."""
                             default=default,
                             help="Initial guess at the %s (%g)" % (description, default))
 
-    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+    parser.add_argument('-a11', '--alignments11', nargs='+',
+                        help='Alignments of two sequences from the first population')
+    parser.add_argument('-a12', '--alignments12', nargs='+',
+                        help='Alignments of two sequences, one from each population')
+    parser.add_argument('-a22', '--alignments22', nargs='+',
+                        help='Alignments of two sequences from the second population')
 
     options = parser.parse_args()
-    if len(options.alignments) != 3:  # FIXME: How do I specify more alignments and split them in three?
-        parser.error("Input alignment not provided!")
+
+    if len(options.alignments11) < 1:
+        parser.error("Input alignment for the 11 system not provided!")
+    if len(options.alignments12) < 1:
+        parser.error("Input alignment for the 12 system not provided!")
+    if len(options.alignments22) < 1:
+        parser.error("Input alignment for the 22 system not provided!")
 
     # get options
     theta = options.theta
@@ -75,9 +85,9 @@ recombination rate."""
 
     # load alignments
     # FIXME: pick the three types of alignments
-    forwarders_11 = [Forwarder.fromDirectory(options.alignments[0])]
-    forwarders_12 = [Forwarder.fromDirectory(options.alignments[1])]
-    forwarders_22 = [Forwarder.fromDirectory(options.alignments[2])]
+    forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
+    forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
+    forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
 
     model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
     model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals)
