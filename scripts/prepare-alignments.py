@@ -4,14 +4,14 @@ import os
 import os.path
 import sys
 import gzip
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 from pyZipHMM import Forwarder
 from Bio import SeqIO
 
 
 def main():
-    usage = """%prog [options] <input> <input format> <output dir>
+    usage = """%(prog)s [options] <input> <input format> <output dir>
 
 This program reads in an input sequence in any format supported by BioPython
 and writes out a preprocessed file ready for use with zipHMM.
@@ -27,48 +27,45 @@ Warning: This program uses SeqIO.to_dict to read in the entire alignment, you
 may want to split the alignment first if it's very large.
 """
 
-    parser = OptionParser(usage=usage, version="%prog 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
-    parser.add_option("--names",
-                      dest="names",
-                      type="string",
-                      default=None,
-                      help="A comma-separated list of names to use from the source file")
-    parser.add_option("-v", "--verbose",
-                      dest="verbose",
-                      action="store_true",
-                      default=False,
-                      help="Print status information during processing")
+    parser.add_argument("--names",
+                        type=str,
+                        default=None,
+                        help="A comma-separated list of names to use from the source file")
+    parser.add_argument("--verbose",
+                        action="store_true",
+                        default=False,
+                        help="Print status information during processing")
 
-    options, args = parser.parse_args()
+    # positional arguments
+    parser.add_argument("in_filename", type=str, help="Input file")
+    parser.add_argument("in_format", type=str, help="The file format for the input")
+    parser.add_argument("output_dirname", type=str, help="Where to write the ZipHMM alignment")
 
-    if len(args) != 3:
-        parser.error("Needs input file, input format and output file")
-    in_filename = args.pop(0)
-    in_format = args.pop(0)
-    output_dirname = args.pop(0)
+    options = parser.parse_args()
 
-    if not os.path.exists(in_filename):
-        print 'The input file', in_filename, 'does not exists.'
+    if not os.path.exists(options.in_filename):
+        print 'The input file', options.in_filename, 'does not exists.'
         sys.exit(1)
 
-    if os.path.exists(output_dirname):
-        print 'The output directory', output_dirname, 'already exists.'
+    if os.path.exists(options.output_dirname):
+        print 'The output directory', options.output_dirname, 'already exists.'
         print 'If you want to replace it, please explicitly remove the current'
         print 'version first.'
         sys.exit(1)
 
-    if in_filename.endswith('.gz'):
+    if options.in_filename.endswith('.gz'):
         if options.verbose:
-            print "Assuming '%s' is a gzipped file." % in_filename
-        inf = gzip.open(in_filename)
+            print "Assuming '%s' is a gzipped file." % options.in_filename
+        inf = gzip.open(options.in_filename)
     else:
-        inf = open(in_filename)
+        inf = open(options.in_filename)
 
     if options.verbose:
         print "Loading data...",
         sys.stdout.flush()
-    alignments = SeqIO.to_dict(SeqIO.parse(inf, in_format))
+    alignments = SeqIO.to_dict(SeqIO.parse(inf, options.in_format))
     if options.verbose:
         print "done"
 
@@ -85,14 +82,14 @@ may want to split the alignment first if it's very large.
         print "Assuming pairwise alignment between '%s' and '%s'" % (names[0], names[1])
     srcs = [alignments[name].seq for name in names]
 
-    os.mkdir(output_dirname)
+    os.mkdir(options.output_dirname)
 
     clean = set('ACGT')
     sequence1 = srcs[0]
     sequence2 = srcs[1]
     assert len(sequence1) == len(sequence2)
     sequence_length = len(sequence1)
-    outname = os.path.join(output_dirname, 'original_sequence')
+    outname = os.path.join(options.output_dirname, 'original_sequence')
     if options.verbose:
         print "Writing file readable by ZipHMM to '%s'..." % outname,
         sys.stdout.flush()
@@ -122,9 +119,9 @@ may want to split the alignment first if it's very large.
         print "done"
 
     if options.verbose:
-        print "Writing ZipHMM data to '%s'..." % output_dirname,
+        print "Writing ZipHMM data to '%s'..." % options.output_dirname,
         sys.stdout.flush()
-    f.writeToDirectory(output_dirname)
+    f.writeToDirectory(options.output_dirname)
     if options.verbose:
         print "done"
 

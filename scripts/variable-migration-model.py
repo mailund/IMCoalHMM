@@ -3,7 +3,7 @@
 """Script for estimating parameters in an isolation model.
 """
 
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
@@ -14,41 +14,39 @@ def main():
     """
     Run the main script.
     """
-    usage = """%prog [options] <forwarder dirs>
+    usage = """%(prog)s [options] <forwarder dirs>
 
 This program estimates the coalescence and migration rates over time together with a constant
 recombination rate."""
 
-    parser = OptionParser(usage=usage, version="%prog 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
-    parser.add_option("-o", "--out",
-                      dest="outfile",
-                      type="string",
-                      default="/dev/stdout",
-                      help="Output file for the estimate (/dev/stdout)")
+    parser.add_argument("-o", "--out",
+                        type=str,
+                        default="/dev/stdout",
+                        help="Output file for the estimate (/dev/stdout)")
 
-    parser.add_option("--logfile",
-                      dest="logfile",
-                      type="string",
-                      default=None,
-                      help="Log for all points estimated in the optimization")
+    parser.add_argument("--logfile",
+                        type=str,
+                        default=None,
+                        help="Log for all points estimated in the optimization")
 
     optimized_params = [
-        ('split', 'split time in substitutions', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 100.0),
     ]
 
     for parameter_name, description, default in optimized_params:
-        parser.add_option("--%s" % parameter_name,
-                          dest=parameter_name.replace('-', '_'),
-                          type="float",
-                          default=default,
-                          help="Initial guess at the %s (%g)" % (description, default))
+        parser.add_argument("--%s" % parameter_name,
+                            type=float,
+                            default=default,
+                            help="Initial guess at the %s (%g)" % (description, default))
 
-    options, args = parser.parse_args()
-    if len(args) != 3:  # FIXME: How do I specify more alignments and split them in three?
+    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+
+    options = parser.parse_args()
+    if len(options.alignments) != 3:  # FIXME: How do I specify more alignments and split them in three?
         parser.error("Input alignment not provided!")
 
     # get options
@@ -59,13 +57,11 @@ recombination rate."""
     init_mig = options.migration_rate
     init_recomb = rho
 
-
     # FIXME: I don't know what would be a good choice here...
     # intervals = [4] + [2] * 25 + [4, 6]
     intervals = [5, 5, 5, 5]
     no_epochs = len(intervals)
     initial_parameters = (init_coal,) * 2 * no_epochs + (init_mig,) * 2 * no_epochs + (init_recomb,)
-
 
     def transform(parameters):
         coal_rates_1 = tuple(parameters[0:no_epochs])
@@ -79,9 +75,9 @@ recombination rate."""
 
     # load alignments
     # FIXME: pick the three types of alignments
-    forwarders_11 = [Forwarder.fromDirectory(args[0])]
-    forwarders_12 = [Forwarder.fromDirectory(args[1])]
-    forwarders_22 = [Forwarder.fromDirectory(args[2])]
+    forwarders_11 = [Forwarder.fromDirectory(options.alignments[0])]
+    forwarders_12 = [Forwarder.fromDirectory(options.alignments[1])]
+    forwarders_22 = [Forwarder.fromDirectory(options.alignments[2])]
 
     model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
     model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals)
@@ -89,7 +85,6 @@ recombination rate."""
     log_likelihood_11 = Likelihood(model_11, forwarders_11)
     log_likelihood_12 = Likelihood(model_12, forwarders_12)
     log_likelihood_22 = Likelihood(model_22, forwarders_22)
-
 
     def log_likelihood(parameters):
         return log_likelihood_11(parameters) + log_likelihood_12(parameters) + log_likelihood_22(parameters)
