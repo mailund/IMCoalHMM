@@ -27,7 +27,7 @@ Warning: This program uses SeqIO.to_dict to read in the entire alignment, you
 may want to split the alignment first if it's very large.
 """
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
     parser.add_argument("--names",
                         type=str,

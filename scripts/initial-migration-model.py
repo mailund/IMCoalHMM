@@ -27,7 +27,7 @@ def main():
 This program estimates the parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
     parser.add_argument("--header",
                         action="store_true",
