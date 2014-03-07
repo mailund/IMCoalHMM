@@ -1,7 +1,7 @@
 #!/bin/bash
 
 no_sims=1
-no_chunks=10
+no_chunks=100
 
 Ne=20000
 gen=25
