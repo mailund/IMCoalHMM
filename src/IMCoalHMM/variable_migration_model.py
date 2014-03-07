@@ -112,10 +112,11 @@ class VariableCoalAndMigrationRateModel(Model):
         """Unpack the rate parameters for the model from the linear representation
         used in optimizations to the specific rate parameters.
         """
-        coal_rates_1 = parameters[0:self.no_states]
-        coal_rates_2 = parameters[self.no_states:(2*self.no_states)]
-        mig_rates_12 = parameters[(2*self.no_states):(3*self.no_states)]
-        mig_rates_21 = parameters[(3*self.no_states):(4*self.no_states)]
+        no_epochs = len(self.intervals)
+        coal_rates_1 = parameters[0:no_epochs]
+        coal_rates_2 = parameters[no_epochs:(2*no_epochs)]
+        mig_rates_12 = parameters[(2*no_epochs):(3*no_epochs)]
+        mig_rates_21 = parameters[(3*no_epochs):(4*no_epochs)]
         recomb_rate = parameters[-1]
         return coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate
 
