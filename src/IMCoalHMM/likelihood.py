@@ -26,7 +26,7 @@ class Likelihood(object):
 
     def __call__(self, *parameters):
         """Compute the log-likelihood at a set of parameters."""
-        if not self.model.valid_parameters(parameters):
+        if not self.model.valid_parameters(*parameters):
             return -1e18  # FIXME: -infinity!
 
         init_probs, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)

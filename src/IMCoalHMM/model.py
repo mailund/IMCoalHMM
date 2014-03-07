@@ -2,6 +2,7 @@
 Abstract class for demographic models.
 """
 
+import numpy
 from abc import ABCMeta, abstractmethod
 from IMCoalHMM.transitions import compute_transition_probabilities
 from IMCoalHMM.emissions import emission_matrix
@@ -31,11 +32,12 @@ class Model(object):
     def valid_parameters(self, parameters):
         """Predicate testing if a given parameter point is valid for the model.
         :param parameters: Model specific parameters
-        :type parameters: numpy.array
+        :type parameters: numpy.ndarray
         :returns: True if all parameters are valid, otherwise False
         :rtype: bool
         """
         # This works but pycharm gives a type warning... I guess it doesn't see > overloading
+        assert isinstance(parameters, numpy.ndarray)
         # noinspection PyTypeChecker
         return all(parameters > 0)  # This is the default test, useful for most models.
 
