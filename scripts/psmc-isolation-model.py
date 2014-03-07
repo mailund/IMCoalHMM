@@ -13,6 +13,19 @@ from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from pyZipHMM import Forwarder
 
 
+def transform_with_split(params):
+    split_time = params[0]
+    coal_rates = params[1:-1]
+    recomb_rate = params[-1]
+    return [split_time] + [2 / cr for cr in coal_rates] + [recomb_rate]
+
+
+def transform_without_split(params):
+    coal_rates = params[0:-1]
+    recomb_rate = params[-1]
+    return [2 / cr for cr in coal_rates] + [recomb_rate]
+
+
 def main():
     """
     Run the main script.
@@ -79,23 +92,17 @@ and uniform coalescence and recombination rates."""
         if options.logfile:
             with open(options.logfile, 'w') as logfile:
 
-                def transform(params):
-                    split_time = params[0]
-                    coal_rates = params[1:-1]
-                    recomb_rate = params[-1]
-                    return [split_time] + [2 / cr for cr in coal_rates] + [recomb_rate]
-
                 mle_parameters = \
                     maximum_likelihood_estimate(log_likelihood,
                                                 initial_params,
                                                 log_file=logfile,
-                                                log_param_transform=transform)
+                                                log_param_transform=transform_with_split)
         else:  # no logging
             mle_parameters = \
                 maximum_likelihood_estimate(log_likelihood, initial_params)
 
         with open(options.outfile, 'w') as outfile:
-            print >> outfile, '\t'.join(map(str, mle_parameters))
+            print >> outfile, '\t'.join(map(str, transform_with_split(mle_parameters)))
 
     else:  # Not estimating split time
         initial_params = (init_coal,) * 28 + (init_recomb,)
@@ -103,22 +110,17 @@ and uniform coalescence and recombination rates."""
         if options.logfile:
             with open(options.logfile, 'w') as logfile:
 
-                def transform(params):
-                    coal_rates = params[0:-1]
-                    recomb_rate = params[-1]
-                    return [2 / cr for cr in coal_rates] + [recomb_rate]
-
                 mle_parameters = \
                     maximum_likelihood_estimate(log_likelihood,
                                                 initial_params,
                                                 log_file=logfile,
-                                                log_param_transform=transform)
+                                                log_param_transform=transform_without_split)
         else:  # no logging
             mle_parameters = \
                 maximum_likelihood_estimate(log_likelihood, initial_params)
 
         with open(options.outfile, 'w') as outfile:
-            print >> outfile, '\t'.join(map(str, mle_parameters))
+            print >> outfile, '\t'.join(map(str, transform_without_split(mle_parameters)))
 
 
 if __name__ == '__main__':
