@@ -3,46 +3,47 @@
 """Script for estimating parameters in an isolation model.
 """
 
-from optparse import OptionParser
+from argparse import ArgumentParser
 
-from IMCoalHMM.isolation_model import IsolationModel, MinimizeWrapper
+from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from pyZipHMM import Forwarder
+
+
+def transform(params):
+    split_time, coal_rate, recomb_rate = params
+    return split_time, 2 / coal_rate, recomb_rate
 
 
 def main():
     """
     Run the main script.
     """
-    usage = """%prog [options] <forwarder dirs>
+    usage = """%(prog)s [options] <forwarder dirs>
 
 This program estimates the parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = OptionParser(usage=usage, version="%prog 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
-    parser.add_option("--header",
-                      dest="include_header",
-                      action="store_true",
-                      default=False,
-                      help="Include a header on the output")
-    parser.add_option("-o", "--out",
-                      dest="outfile",
-                      type="string",
-                      default="/dev/stdout",
-                      help="Output file for the estimate (/dev/stdout)")
+    parser.add_argument("--header",
+                        action="store_true",
+                        default=False,
+                        help="Include a header on the output")
+    parser.add_argument("-o", "--outfile",
+                        type=str,
+                        default="/dev/stdout",
+                        help="Output file for the estimate (/dev/stdout)")
 
-    parser.add_option("--logfile",
-                      dest="logfile",
-                      type="string",
-                      default=None,
-                      help="Log for all points estimated in the optimization")
+    parser.add_argument("--logfile",
+                        type=str,
+                        default=None,
+                        help="Log for all points estimated in the optimization")
 
-    parser.add_option("--states",
-                      dest="states",
-                      type="int",
-                      default=10,
-                      help="Number of intervals used to discretize the time (10)")
+    parser.add_argument("--states",
+                        type=int,
+                        default=10,
+                        help="Number of intervals used to discretize the time (10)")
 
     optimized_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
@@ -50,15 +51,16 @@ and uniform coalescence and recombination rates."""
         ('rho', 'recombination rate in substitutions', 0.4),
     ]
 
-    for cname, desc, default in optimized_params:
-        parser.add_option("--%s" % cname,
-                          dest=cname,
-                          type="float",
-                          default=default,
-                          help="Initial guess at the %s (%g)" % (desc, default))
+    for parameter_name, description, default in optimized_params:
+        parser.add_argument("--%s" % parameter_name,
+                            type=float,
+                            default=default,
+                            help="Initial guess at the %s (%g)" % (description, default))
 
-    options, args = parser.parse_args()
-    if len(args) < 1:
+    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+
+    options = parser.parse_args()
+    if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
 
     # get options
@@ -67,45 +69,34 @@ and uniform coalescence and recombination rates."""
     theta = options.theta
     rho = options.rho
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in args]
+    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
 
     init_split = split
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
-    log_likelihood = Likelihood(IsolationModel(), forwarders)
+    log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
 
-            if options.include_header:
+            if options.header:
                 print >> logfile, '\t'.join(['split.time', 'theta', 'rho'])
 
-            def transform(params):
-                split_time, coal_rate, recomb_rate = params
-                return split_time, 2 / coal_rate, recomb_rate
-
-            mle_split_time, mle_coal_rate, mle_recomb_rate = \
-                maximum_likelihood_estimate(MinimizeWrapper(log_likelihood, no_states),
-                                            (init_split, init_coal, init_recomb),
-                                            log_file=logfile,
-                                            log_param_transform=transform)
+            mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                         (init_split, init_coal, init_recomb),
+                                                         log_file=logfile,
+                                                         log_param_transform=transform)
     else:
-        mle_split_time, mle_coal_rate, mle_recomb_rate = \
-            maximum_likelihood_estimate(MinimizeWrapper(log_likelihood, no_states),
-                                        (init_split, init_coal, init_recomb))
+        mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                     (init_split, init_coal, init_recomb))
 
-    max_log_likelihood = log_likelihood(no_states, mle_split_time, mle_coal_rate, mle_recomb_rate)
-
-    mle_theta = 2 / mle_coal_rate
+    max_log_likelihood = log_likelihood(mle_parameters)
 
     with open(options.outfile, 'w') as outfile:
-        if options.include_header:
+        if options.header:
             print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
-        print >> outfile, '\t'.join(map(str, [mle_split_time,
-                                              mle_theta,
-                                              mle_recomb_rate,
-                                              max_log_likelihood]))
+        print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
 
 
 if __name__ == '__main__':

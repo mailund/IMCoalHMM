@@ -1,17 +1,15 @@
+library(reshape2)
+library(ggplot2)
+library(scales)
 
-data <- rbind(read.table('estimates.split-0.001-mya.txt',header=TRUE),
-              read.table('estimates.split-0.1-mya.txt',header=TRUE),
-              read.table('estimates.split-1-mya.txt',header=TRUE),
-              read.table('estimates.split-2-mya.txt',header=TRUE),
-              read.table('estimates.split-4-mya.txt',header=TRUE))
+data <- read.table('constant-size-estimates.txt', header=FALSE)
 
-require(ggplot2)
+# transforming since it wasn't done in the output when I simulated this data
+thetas <- cbind(simulation=factor(1:nrow(data)), 2/data[,-ncol(data)])
+names(thetas) <- c('simulation', 1:28)
 
-qplot(factor(sim.tau), mle.tau, data=data, geom='boxplot') +
-  geom_hline(yintercept=unique(data$sim.tau), col='red')
+qplot(as.numeric(variable), value, color=simulation, #geom='line', 
+      data=melt(thetas, id.vars='simulation')) +
+  geom_hline(yintercept=0.001, col='red') + 
+  scale_y_continuous(trans=log10_trans(), limits=c(0.0001, 0.02))
 
-qplot(factor(sim.tau), mle.theta, data=data, geom='boxplot') +
-  geom_hline(yintercept=unique(data$sim.theta), col='red')
-
-qplot(factor(sim.tau), mle.rho, data=data, geom='boxplot') +
-  geom_hline(yintercept=unique(data$sim.rho), col='red')
