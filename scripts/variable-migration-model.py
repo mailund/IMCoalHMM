@@ -21,7 +21,7 @@ recombination rate."""
 
     parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
-    parser.add_argument("-o", "--out",
+    parser.add_argument("-o", "--outfile",
                         type=str,
                         default="/dev/stdout",
                         help="Output file for the estimate (/dev/stdout)")
