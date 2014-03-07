@@ -1,12 +1,12 @@
 """Code for constructing and optimizing the HMM for an isolation model.
 """
 
-from numpy import zeros, identity, matrix
+from numpy import zeros, matrix
 
-from IMCoalHMM.isolation_model import Isolation2, make_rates_table_isolation
-from IMCoalHMM.isolation_model import Single2, make_rates_table_single
+from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
+from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import CTMC
-from IMCoalHMM.transitions import CTMCSystem
+from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
@@ -34,102 +34,43 @@ def _compute_through(ctmcs, break_points):
     return through
 
 
-def _compute_upto(isolation, ctmcs, break_points, through):
+def _compute_upto0(isolation, ancestral, break_points):
     """Computes the probability matrices for moving from time zero up to,
     but not through, interval i."""
-
-    no_states = len(break_points)
-
-    # Projection matrix needed to go from the isolation to the single
-    # state spaces.
-    # noinspection PyCallingNonCallable
-    projection = matrix(zeros((len(isolation.state_space.states),
-                               len(ctmcs[0].state_space.states))))
-    for state, isolation_index in isolation.state_space.states.items():
-        ancestral_state = frozenset([(0, nucs) for (_, nucs) in state])
-        ancestral_index = ctmcs[0].state_space.states[ancestral_state]
-        projection[isolation_index, ancestral_index] = 1.0
-
-    # We handle the first state as a special case because of the isolation
-    # interval
-    upto = [None] * no_states
-    upto[0] = isolation.probability_matrix(break_points[0]) * projection
-    for i in xrange(1, no_states):
-        upto[i] = upto[i - 1] * through[i - 1]
-
-    return upto
-
-
-def _compute_between(ctmcs, through):
-    """Computes the matrices for moving from the end of interval i
-    to the beginning of interval j."""
-
-    no_states = len(ctmcs)
-    between = dict()
-    # Transitions going from the endpoint of interval i to the entry point
-    # of interval j
-    for i in xrange(no_states - 1):
-        # noinspection PyCallingNonCallable
-        between[(i, i + 1)] = matrix(identity(len(ctmcs[0].state_space.states)))
-        for j in xrange(i + 2, no_states):
-            between[(i, j)] = between[(i, j - 1)] * through[j - 1]
-    return between
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(isolation.state_space, ancestral[0].state_space, state_map)
+    return isolation.probability_matrix(break_points[0]) * projection
 
 
 class VariableCoalRateCTMCSystem(CTMCSystem):
     """Wrapper around CTMC transition matrices for the isolation model."""
 
-    def __init__(self, isolation_ctmc, single_ctmcs, break_points):
+    def __init__(self, isolation_ctmc, ancestral_ctmcs, break_points):
         """Construct all the matrices and cache them for the
-        method calls."""
+        method calls.
 
-        self.no_states_ = len(single_ctmcs)
-        self.initial_ = isolation_ctmc.state_space.i12_index
+        :param isolation_ctmc: CTMC for the initial isolation phase.
+        :type isolation_ctmc: CTMC
+        :param ancestral_ctmcs: CTMCs for the ancestral population.
+        :type ancestral_ctmcs: list[CTMC]
+        :param break_points: List of break points.
+        :type break_points: list[int]
+        """
+
+        super(VariableCoalRateCTMCSystem, self).__init__(no_hmm_states=len(ancestral_ctmcs),
+                                                         initial_ctmc_state=isolation_ctmc.state_space.i12_index)
+
         # Even though we have different CTMCs they have the same state space
-        self.begin_states_ = single_ctmcs[0].state_space.begin_states
-        self.left_states_ = single_ctmcs[0].state_space.left_states
-        self.end_states_ = single_ctmcs[0].state_space.end_states
+        self.state_space = ancestral_ctmcs[0].state_space
 
-        self.through_ = _compute_through(single_ctmcs, break_points)
-        self.upto_ = _compute_upto(isolation_ctmc, single_ctmcs,
-                                   break_points, self.through_)
-        self.between_ = _compute_between(single_ctmcs, self.through_)
+        self.through_ = _compute_through(ancestral_ctmcs, break_points)
+        self.upto_ = compute_upto(_compute_upto0(isolation_ctmc, ancestral_ctmcs, break_points), self.through_)
+        self.between_ = compute_between(self.through_)
 
-    @property
-    def no_states(self):
-        """The number of states the HMM should have."""
-        return self.no_states_
-
-    @property
-    def initial(self):
-        """The initial state index in the bottom-most matrix"""
-        return self.initial_
-
-    def begin_states(self, i):
-        """Begin states for interval i."""
-        return self.begin_states_
-
-    def left_states(self, i):
-        """Left states for interval i."""
-        return self.left_states_
-
-    def end_states(self, i):
-        """End states for interval i."""
-        return self.end_states_
-
-    def through(self, i):
-        """Returns a probability matrix for going through interval i."""
-        return self.through_[i]
-
-    def upto(self, i):
-        """Returns a probability matrix for going up to, but not
-        through, interval i"""
-        return self.upto_[i]
-
-    def between(self, i, j):
-        """Returns a probability matrix for going from the
-        end of interval i up to (but not through) interval j"""
-        return self.between_[(i, j)]
+    def get_state_space(self, _):
+        """Return the state space for interval i, but it is always the same."""
+        return self.state_space
 
 
 ## Class that can construct HMMs ######################################
@@ -143,8 +84,8 @@ class VariableCoalescenceRateIsolationModel(Model):
         This builds the state spaces for the CTMCs but the matrices for the
         HMM since those will depend on the rate parameters."""
         super(VariableCoalescenceRateIsolationModel, self).__init__()
-        self.isolation_state_space = Isolation2()
-        self.single_state_space = Single2()
+        self.isolation_state_space = Isolation()
+        self.single_state_space = Single()
         self.intervals = intervals
         self.est_split = est_split
 
@@ -202,14 +143,14 @@ class VariableCoalescenceRateIsolationModel(Model):
         isolation_rates = make_rates_table_isolation(coal_rates[0], coal_rates[0], recomb_rate)
         isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
 
-        single_ctmcs = []
+        ancestral_ctmcs = []
         for epoch, coal_rate in enumerate(coal_rates):
             single_rates = make_rates_table_single(coal_rate, recomb_rate)
             single_ctmc = CTMC(self.single_state_space, single_rates)
             for _ in xrange(self.intervals[epoch]):
-                single_ctmcs.append(single_ctmc)
+                ancestral_ctmcs.append(single_ctmc)
 
-        no_states = len(single_ctmcs)
+        no_states = len(ancestral_ctmcs)
         break_points = psmc_break_points(no_states, offset=split_time)
 
-        return VariableCoalRateCTMCSystem(isolation_ctmc, single_ctmcs, break_points)
+        return VariableCoalRateCTMCSystem(isolation_ctmc, ancestral_ctmcs, break_points)
