@@ -1,4 +1,4 @@
-"""Code for constructing and optimizing the HMM for an isolation model.
+"""Code for constructing and optimizing the HMM for a PSMC like model.
 """
 
 from numpy import zeros, matrix
@@ -55,7 +55,7 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
         :param ancestral_ctmcs: CTMCs for the ancestral population.
         :type ancestral_ctmcs: list[CTMC]
         :param break_points: List of break points.
-        :type break_points: list[int]
+        :type break_points: list[float]
         """
 
         super(VariableCoalRateCTMCSystem, self).__init__(no_hmm_states=len(ancestral_ctmcs),

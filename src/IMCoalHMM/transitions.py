@@ -38,9 +38,9 @@ def compute_upto(upto_0, through):
 
     :param upto_0: The probability matrix for moving up to the first break point.
         This is a basis case for the upto list that is returned.
-    :type upto_0: matrix
+    :type upto_0: numpy.matrix
     :param through: The probability matrices for moving through each interval.
-    :type through: list[matrix]
+    :type through: list[numpy.matrix]
 
     :returns: The list of transition probability matrices for moving up to
         each interval.
