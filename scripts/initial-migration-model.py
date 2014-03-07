@@ -3,7 +3,7 @@
 """Script for estimating parameters in an isolation model.
 """
 
-from optparse import OptionParser
+from argparse import ArgumentParser
 
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
@@ -22,40 +22,35 @@ def main():
     """
     Run the main script.
     """
-    usage = """%prog [options] <forwarder dirs>
+    usage = """%(prog)s [options] <forwarder dirs>
 
 This program estimates the parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = OptionParser(usage=usage, version="%prog 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
-    parser.add_option("--header",
-                      dest="include_header",
-                      action="store_true",
-                      default=False,
-                      help="Include a header on the output")
-    parser.add_option("-o", "--out",
-                      dest="outfile",
-                      type="string",
-                      default="/dev/stdout",
-                      help="Output file for the estimate (/dev/stdout)")
+    parser.add_argument("--header",
+                        action="store_true",
+                        default=False,
+                        help="Include a header on the output")
+    parser.add_argument("-o", "--outfile",
+                        type=str,
+                        default="/dev/stdout",
+                        help="Output file for the estimate (/dev/stdout)")
 
-    parser.add_option("--logfile",
-                      dest="logfile",
-                      type="string",
-                      default=None,
-                      help="Log for all points estimated in the optimization")
+    parser.add_argument("--logfile",
+                        type=str,
+                        default=None,
+                        help="Log for all points estimated in the optimization")
 
-    parser.add_option("--ancestral-states",
-                      dest="ancestral_states",
-                      type="int",
-                      default=10,
-                      help="Number of intervals used to discretize the time in the ancestral population (10)")
-    parser.add_option("--migration-states",
-                      dest="migration_states",
-                      type="int",
-                      default=10,
-                      help="Number of intervals used to discretize the time in the migration period (10)")
+    parser.add_argument("--ancestral-states",
+                        type=int,
+                        default=10,
+                        help="Number of intervals used to discretize the time in the ancestral population (10)")
+    parser.add_argument("--migration-states",
+                        type=int,
+                        default=10,
+                        help="Number of intervals used to discretize the time in the migration period (10)")
 
     optimized_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
@@ -65,15 +60,16 @@ and uniform coalescence and recombination rates."""
         ('migration-rate', 'migration rate in number of migrations per substitution', 200.0)
     ]
 
-    for (cname, desc, default) in optimized_params:
-        parser.add_option("--%s" % cname,
-                          dest=cname.replace('-', '_'),
-                          type="float",
-                          default=default,
-                          help="Initial guess at the %s (%g)" % (desc, default))
+    for parameter_name, description, default in optimized_params:
+        parser.add_argument("--%s" % parameter_name,
+                            type=float,
+                            default=default,
+                            help="Initial guess at the %s (%g)" % (description, default))
 
-    options, args = parser.parse_args()
-    if len(args) < 1:
+    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+
+    options = parser.parse_args()
+    if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
 
     # get options
@@ -82,7 +78,7 @@ and uniform coalescence and recombination rates."""
     theta = options.theta
     rho = options.rho
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in args]
+    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
 
     init_isolation_time = options.isolation_period
     init_migration_time = options.migration_period
@@ -96,7 +92,7 @@ and uniform coalescence and recombination rates."""
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
 
-            if options.include_header:
+            if options.header:
                 print >> logfile, '\t'.join(['isolation.period', 'migration.period',
                                              'theta', 'rho', 'migration'])
 
@@ -110,7 +106,7 @@ and uniform coalescence and recombination rates."""
 
     max_log_likelihood = log_likelihood(mle_parameters)
     with open(options.outfile, 'w') as outfile:
-        if options.include_header:
+        if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
                                          'theta', 'rho', 'migration', 'logL'])
         print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
