@@ -1,6 +1,7 @@
 #!/bin/bash
 
 no_sims=1
+no_chunks=10
 
 Ne=20000
 gen=25
@@ -21,20 +22,20 @@ for sim in `eval echo {1..${no_sims}}`; do
     simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
     treefile=${simdir}/trees.nwk
     seqfile=${simdir}/alignment.phylip
-    ziphmmfile=${simdir}/alignment.ziphmm
     
-    ms 2 1 -T -r ${coal_rho} ${seg_length} | tail +4 | grep -v // > ${treefile}
-    seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
+    for chunk in `eval echo {1..${no_chunks}}`; do
+        ziphmmfile=${simdir}/alignment.$chunk.ziphmm
+    
+        ms 2 1 -T -r ${coal_rho} ${seg_length} | tail +4 | grep -v // > ${treefile}
+        seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 
-    prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
-
-    psmc-isolation-model.py ${ziphmmfile}
+        prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
+    done
+    
+    psmc-isolation-model.py ${simdir}/alignment.*.ziphmm
     
     rm ${treefile}
     rm ${seqfile}
-    rm ${ziphmmfile}/nStates2seq/*
-    rmdir ${ziphmmfile}/nStates2seq
-    rm ${ziphmmfile}/*
-    rmdir ${ziphmmfile}
+    rm -rf ${simdir}/alignment.*.ziphmm  # ok, this is a little dangerious...
     rmdir ${simdir}
 done
