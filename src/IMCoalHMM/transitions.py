@@ -231,7 +231,7 @@ def compute_transition_probabilities(ctmc):
     # -- handle i < j (and j < i by symmetry) ---------------------------
     for i in xrange(no_states - 1):
         up_through_i = ctmc.upto(i)[ctmc.initial, ctmc.begin_states(i)] \
-                       * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i + 1))]
+            * ctmc.through(i)[ix_(ctmc.begin_states(i), ctmc.left_states(i + 1))]
         for j in xrange(i + 1, no_states):
             between_i_and_j = ctmc.between(i, j)[ix_(ctmc.left_states(i + 1), ctmc.left_states(j))]
             through_j = ctmc.through(j)[ix_(ctmc.left_states(j), ctmc.end_states(j + 1))]

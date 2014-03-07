@@ -23,14 +23,21 @@ class Model(object):
         """Build the time points to emit from using the model-specific parameters."""
         pass
 
+    # This method *could* be static, but I will leave it as a normal method in case
+    # sub-classes will need to access self.  In most cases though, I think it will
+    # just be this function being used, since most parameters are non-negative rates...
+
+    # noinspection PyMethodMayBeStatic
     def valid_parameters(self, parameters):
         """Predicate testing if a given parameter point is valid for the model.
         :param parameters: Model specific parameters
-        :type parameters: scipy.array
+        :type parameters: numpy.array
         :returns: True if all parameters are valid, otherwise False
         :rtype: bool
         """
-        return all(min(parameters) > 0)  # This is the default test, useful for most models.
+        # This works but pycharm gives a type warning... I guess it doesn't see > overloading
+        # noinspection PyTypeChecker
+        return all(parameters > 0)  # This is the default test, useful for most models.
 
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
