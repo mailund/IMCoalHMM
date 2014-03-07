@@ -25,8 +25,8 @@ for sim in `eval echo {1..${no_sims}}`; do
     
     for chunk in `eval echo {1..${no_chunks}}`; do
         ziphmmfile=${simdir}/alignment.$chunk.ziphmm
-    
-        ms 2 1 -T -r ${coal_rho} ${seg_length} | tail +4 | grep -v // > ${treefile}
+	
+        ms 2 1 -T -r ${coal_rho} ${seg_length} | tail -n +4 | grep -v // > ${treefile}
         seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 
         prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
