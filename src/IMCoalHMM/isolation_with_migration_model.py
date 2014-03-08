@@ -4,7 +4,7 @@
 from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
@@ -67,11 +67,11 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
         method calls.
 
         :param isolation_ctmc: CTMC for the isolation phase.
-        :type isolation_ctmc: CTMC
+        :type isolation_ctmc: IMCoalHMM.CTMC.CTMC
         :param migration_ctmc: CTMC for the migration phase.
-        :type migration_ctmc: CTMC
+        :type migration_ctmc: IMCoalHMM.CTMC.CTMC
         :param ancestral_ctmc: CTMC for the ancestral population.
-        :type ancestral_ctmc: CTMC
+        :type ancestral_ctmc: IMCoalHMM.CTMC.CTMC
         :param migration_break_points: List of break points in the migration phase.
         :type migration_break_points: list[int]
         :param ancestral_break_points: List of break points in the ancestral population.
@@ -131,14 +131,14 @@ class IsolationMigrationModel(Model):
         # true but it worked okay in simulations in Mailund et al. (2012).
 
         isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
-        isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
 
         migration_rates = make_rates_table_migration(coal_rate, coal_rate, recomb_rate,
                                                      mig_rate, mig_rate)
-        migration_ctmc = CTMC(self.migration_state_space, migration_rates)
+        migration_ctmc = make_ctmc(self.migration_state_space, migration_rates)
 
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
-        single_ctmc = CTMC(self.single_state_space, single_rates)
+        single_ctmc = make_ctmc(self.single_state_space, single_rates)
 
         tau1 = isolation_time
         tau2 = isolation_time + migration_time
