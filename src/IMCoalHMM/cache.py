@@ -1,5 +1,6 @@
 """A cache table."""
 
+
 class Cache(object):
     """A table for caching objects"""
 
@@ -32,11 +33,11 @@ class Cache(object):
 
     def cleanup(self):
         items = self.table.items()
-        reordered = [(access,key,value) for key,(value,access) in items]
+        reordered = [(access, key, value) for key, (value, access) in items]
         reordered.sort(reverse=True)
         last_accessed = reordered[:self.cleanup_size]
         self.last_access = 0
         self.table = {}
-        for access,key,value in last_accessed:
+        for access, key, value in last_accessed:
             self.table[key] = (value, self.last_access)
             self.last_access += 1
