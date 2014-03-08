@@ -84,7 +84,6 @@ recombination rate."""
         return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
 
     # load alignments
-    # FIXME: pick the three types of alignments
     forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
     forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
     forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
