@@ -1,0 +1,47 @@
+\documentclass[11pt]{article}
+\usepackage[sort]{cite}
+
+\title{IMCoalHMM developers manual}
+\author{Thomas Mailund}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    The goals of this manual are to describe the design of the IMCoalHMM framework and to explain how the framework can be used to build coalescent hidden Markov models for genome-wide demographic inference. The manual describes how a coalescence system can be specified by piecing together continuous time Markov chains and how the framework translates these into hidden Markov chains.
+\end{abstract}
+
+\section{Introduction}
+
+IMCoalHMM is both a framework for specifying demographic models for pairwise coalescent hidden Markov models, and a number of scripts for estimating parameters in such models. This manual describes the design of the framework and how the framework can be used to build new models, not the individual scripts or how they are used or how accurate the parameter estimation is. That will be left for another document.
+
+The framework assumes you are modelling pairwise samples of genomes in a setting with one or more populations that are either isolatiated (for a period of time) or that exchange migrants. (The IM in IMCoalHMM refers to isolation and migration). The reason the framework assumes that you are only looking at pairs of samples is that it greatly simplifies the code. The underlying theory generalises, see e.g. Mailund \emph{et al.} 2012 \cite{springerlink:10.1007/978-3-642-31131-4_3}, but the code gets messy so we leave for future version a more general implementation.
+
+Another underlying assumption is that the demographic model can be specified as a series of piece-wise constant rate continous time Markov chains, specifying the coalescence process. It is thus not possible to model continous changes to coalescence or migration rates and such, but it is necessary to discritize time into a set of epochs where each epoch has the same paramters. Continous changes can of course be specified by approximating them with a fine enough discritization of time.
+
+This manual will describe how to specify demographic models by piecing together continous time Markov chains of the coalescence process and how to translate such demographic models into hidden Markov models for CoalHMM analysis.
+
+\section{Specifying demographic models}
+
+\subsection{Isolation models}
+
+The isolation model from Mailund \emph{et al.} 2011 \cite{Mailund:2011dv}
+
+\subsection{Initial migration model}
+
+The model from Mailund \emph{et al.} 2012 \cite{Mailund:2012ew}
+
+\subsection{PSMC}
+
+The model from Li \& Durbin 2011 \cite{Li:2011ez}
+
+
+\section{Translating continuous time Markov chains into hidden Markov models}
+
+
+
+
+\bibliography{bibliography}
+\bibliographystyle{plain}
+
+\end{document}
