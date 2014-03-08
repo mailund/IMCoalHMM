@@ -89,6 +89,16 @@ class VariableCoalescenceRateIsolationModel(Model):
         self.intervals = intervals
         self.est_split = est_split
 
+    def _map_rates_to_intervals(self, coal_rates):
+        """Takes the coalescence rates as specified when building the CTMC
+        and maps them to each interval based on the intervals specification."""
+        assert len(coal_rates) == len(self.intervals)
+        interval_rates = []
+        for epoch, coal_rate in enumerate(coal_rates):
+            for _ in xrange(self.intervals[epoch]):
+                interval_rates.append(coal_rate)
+        return interval_rates
+
     def emission_points(self, *parameters):
         """Time points to emit from."""
         if self.est_split:
@@ -102,8 +112,7 @@ class VariableCoalescenceRateIsolationModel(Model):
         no_states = sum(self.intervals)
         break_points = psmc_break_points(no_states, offset=split_time)
 
-        # FIXME: I don't know how to choose a good rate here
-        return coalescence_points(break_points, coal_rates[0])
+        return coalescence_points(break_points, self._map_rates_to_intervals(coal_rates))
 
     def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the split time
