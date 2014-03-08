@@ -38,7 +38,63 @@ The model from Li \& Durbin 2011 \cite{Li:2011ez}
 
 \section{Translating continuous time Markov chains into hidden Markov models}
 
+The coalescent hidden Markov model that the framework constructs models how the time to the most recent common ancestor (TMRCA) of two samples changes along an alignment. Time is discritized into a finite number of time intervals, which become the finite state space of the hidden Markov model, and alignment columns are emitted from the coalescence point within each interval.
 
+\subsection{Transition probabilities}
+
+The transition probability matrix of the hidden Markov model should specify the probability of having the TMRCA at some interval $j$ at the next alignment position, given that the current TMRCA is at time interval $i$. Building the transition probabilites of the hidden Markov model thus boils down to specifying $T_{i,j} = \Pr(j\,|\,i)$. Given a joint probability of coalescing pairs of left and right nucleotide at $i$ and $j$ respecively, $J_{i,j} = \Pr(\mathrm{left}\in~i, \mathrm{right}\in~j)$, this means $T_{i,j}=J_{i,j}/\pi_i$ where $\pi_i=\sum_j J_{i,j}$. The framework takes care of this once $J_{i,j}$ is specified.
+
+Since the coalescence process is symmetric in left and right, $J_{i,j}=J_{j,i}$ there are two cases to consider, $i=j$ and $i<j$. If we let $B$ denote all CTMC states where neither left nor right nucleotide has coalesced, $L$ denote the states where only the left nucleotide has coalesced and $E$ the states where both nucleotides have coalesced, we need to sum over paths in the CTMC as follows:
+
+\begin{itemize}
+\item $i=j$: From the initial state $\iota$ until the beginning of interval $i=j$ we have moved from $\iota$ to a $B$ state $b\in B$ and when leaving interval $i=j$ we have to be in a state $e\in E$
+
+\item $i<j$: From $\iota$ until the beginning of interval $i$ we must move from $\iota$ to a state $b\in B$, when we leave interval $i$ we must be in a left state $l_1\in L$, and when we enter interval $j$ we must still be in a left state $l_2\in L$ and when we leave interval $j$ we must be in an end state $e\in E$.
+\end{itemize}
+
+Let $U^i$ -- up to -- denote the CTMC transition probability matrix for moving to the beginning of interval $i$ and $T^i$ -- through -- denote the CTMC transition probability matrix for moving through interval $i$. Then $J_{i,i}$ is given by
+\[
+    J_{i,i} = \sum_{b \in B} \sum_{e\in E} U^i_{\iota,b} T^i_{b,e}.
+\]
+
+If we let $B^{i,j}$ -- between -- denote the transition probability matrix of moving from the end of interval $i$ to the beginning of interval $j$, then $J_{i,j}$ is given by
+\[
+    J_{i,j} = \sum_{b \in B} \sum_{l_1 \in L} \sum_{l_2\in L} \sum_{e \in E}
+        U^i_{\iota,b} T^i_{b,l_1} B^{i,j}_{l_1,l_2} T^j_{l_2,e}.
+\]
+
+Specifying $U^i$, $B^{i,j}$ and $T^i$ thus lets the framework compute $J_{i,j}$ and thus the hidden Markov model transition probabilities $T_{i,j}$.
+
+Matrices $U^i$ and $B^{i,j}$ can be computed from $T^i$: $U^i = U^{i-1}T^i$ (with a special case for $U^0$) and $B^{i,j}=B^{i,j-1}T^i$, so it is only necessary to provide the framework with ways of computing $U^0$ and $T^i$.
+
+Computing $U^0$ is necessary when there is a coalescence system before the first interval. Otherwise it is just the identity matrix. Computing $T^i$ mainly is a question of exponentiating the CTMC for interval $i$ for the time period that interval $i$ spans. A complicating factor is that the state space of different intervals might be different, e.g. if interval $i$ is an isolation period while $i+1$ is an ancestral population.
+
+The framework assumes that you enter an interval with indices matching the state space of that interval, but you leave it with indices matching the next interval. If the state space changes, a mapping is necessary. This is achieved using a projection matrix.
+
+If $Q^i$ is the rate matrix for the CTMC in interval $i$ and $P^{i,i+1}$ is a projection matrix mapping states from the state space of interval $i$ to the state space of interval $i+1$ then $T^i = \exp(Q^i\tau_i)P^{i,i+1}$ where $\tau_i$ is the time period for interval $i$.
+
+Projection matrices can be constructed using the \texttt{projection\_matrix} from \texttt{IMCoalHMM.transitions}. For the isolation model, one is needed for $U^0$ for moving from the isolation model before the first HMM state into the first interval, which looks like this
+
+\begin{verbatim}
+def _compute_upto0(isolation, single, break_points):
+    """Computes the probability matrices for moving to time zero."""
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(isolation.state_space, 
+                                   single.state_space, state_map)
+    return isolation.probability_matrix(break_points[0]) * projection
+\end{verbatim}
+
+It involves mapping states from one state space to the next and computing the transition probability matrix through the first, isolation system, CTMC. For the initial-migration system it is also needed to move from the migration system to the ancestral population. See the code for details.
+
+In general, for any new model you will need to specify $U^0$ and $T^i$ with the relevant projections but after that the framework will compute $J_{i,j}$ and $T_{i,j}$.
+
+
+
+
+
+
+\subsection{Emission probabilitites}
 
 
 \bibliography{bibliography}
