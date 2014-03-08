@@ -25,6 +25,7 @@ class ComputeThroughInterval(object):
     def __init__(self, single, break_points):
         self.single = single
         self.break_points = break_points
+
     def __call__(self, i):
         return self.single.probability_matrix(self.break_points[i + 1] - self.break_points[i])
 
