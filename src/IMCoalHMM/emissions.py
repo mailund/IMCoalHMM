@@ -42,18 +42,28 @@ def exp_midpoint(t, rate):
     return t + 1.0 / rate
 
 
-def coalescence_points(break_points, rate):
+def coalescence_points(break_points, rates):
     """Calculates the mean coalescence times (given the rate) between
     each time break point and after the last break point.
 
     :param break_points: Break points between the HMM states.
-    :param rate: A coalescence rate, assumed to be constant through time.
+    :type break_points: list[float]
+    :param rates: A coalescence rate or a list of rates for each interval.
+    :type rates: float | list[float]
+
+    :rtype: list[float]
     """
+    if hasattr(rates, '__iter__'):
+        assert len(rates) == len(break_points), \
+            "You must have the same number of rates as break points."
+    else:
+        rates = [rates] * len(break_points)
+
     result = []
     for i in xrange(1, len(break_points)):
-        t = truncated_exp_midpoint(break_points[i - 1], break_points[i], rate)
+        t = truncated_exp_midpoint(break_points[i - 1], break_points[i], rates[i-1])
         result.append(t)
-    result.append(exp_midpoint(break_points[-1], rate))
+    result.append(exp_midpoint(break_points[-1], rates[-1]))
     return result
 
 

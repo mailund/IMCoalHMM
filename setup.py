@@ -11,7 +11,7 @@ def read(fname):
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
-    version = "0.2.2",
+    version = "0.3.0",
     packages = find_packages(where='src'),
     package_dir = {'': 'src'},
     
@@ -19,6 +19,7 @@ setup(
                'scripts/isolation-model.py',
                'scripts/initial-migration-model.py',
                'scripts/psmc-isolation-model.py',
+               'scripts/variable-migration-model.py',
               ],
 
     install_requires = ['numpy', 
