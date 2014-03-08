@@ -54,7 +54,8 @@ class CTMC(object):
 # We cache the CTMCs because in the optimisations, especially the models with a large number
 # of parameters, we are creating the same CTMCs again and again and computing the probability
 # transition matrices is where we spend most of the time.
-CTMC_CACHE = {}  # FIXME: Make a proper cache instead of a table to save space!
+from cache import Cache
+CTMC_CACHE = Cache()
 
 
 def make_ctmc(state_space, rates_table):
