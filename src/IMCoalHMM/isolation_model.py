@@ -29,7 +29,7 @@ class ComputeThroughInterval(object):
         return self.single.probability_matrix(self.break_points[i + 1] - self.break_points[i])
 
 
-COMPUTATION_POOL = Pool(cpu_count())
+COMPUTATION_POOL = Pool(cpu_count()-1)
 
 
 def _compute_through(single, break_points):
