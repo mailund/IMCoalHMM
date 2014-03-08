@@ -49,3 +49,24 @@ class CTMC(object):
         if not delta_t in self.prob_matrix_cache:
             self.prob_matrix_cache[delta_t] = expm(self.rate_matrix * delta_t)
         return self.prob_matrix_cache[delta_t]
+
+
+# We cache the CTMCs because in the optimisations, especially the models with a large number
+# of parameters, we are creating the same CTMCs again and again and computing the probability
+# transition matrices is where we spend most of the time.
+CTMC_CACHE = {}  # FIXME: Make a proper cache instead of a table to save space!
+
+
+def make_ctmc(state_space, rates_table):
+    """Create the CTMC based on a state space and a mapping
+    from transition labels to rates.
+
+    :param state_space: The state space the CTMC is over.
+    :type state_space: IMCoalHMM.CoalSystem
+    :param rates_table: A table where transition rates can be looked up.
+    :type rates_table: dict
+    """
+    cache_key = (state_space, tuple(rates_table.items()))
+    if not cache_key in CTMC_CACHE:
+        CTMC_CACHE[cache_key] = CTMC(state_space, rates_table)
+    return CTMC_CACHE[cache_key]

@@ -6,7 +6,7 @@ from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points
@@ -53,9 +53,9 @@ class IsolationCTMCSystem(CTMCSystem):
         method calls.
 
         :param isolation_ctmc: CTMC for the isolation phase.
-        :type isolation_ctmc: CTMC
+        :type isolation_ctmc: IMCoalHMM.CTMC.CTMC
         :param ancestral_ctmc: CTMC for the ancestral population.
-        :type ancestral_ctmc: CTMC
+        :type ancestral_ctmc: IMCoalHMM.CTMC.CTMC
         :param break_points: List of break points between intervals.
         :type break_points: list[int]
         """
@@ -102,9 +102,9 @@ class IsolationModel(Model):
         # separate populations as it is in the ancestral. This is not necessarily
         # true but it worked okay in simulations in Mailund et al. (2011).
         isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
-        isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
-        single_ctmc = CTMC(self.single_state_space, single_rates)
+        single_ctmc = make_ctmc(self.single_state_space, single_rates)
         break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
         return IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
 

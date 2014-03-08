@@ -5,7 +5,7 @@ migration and coalescence.
 from numpy import zeros, matrix, identity
 
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
@@ -45,7 +45,7 @@ class VariableCoalAndMigrationRateCTMCSystem(CTMCSystem):
             We include it in the constructor for this model because we want to handle
             both samples from each population and between them.
         :param ctmcs: CTMCs for each interval.
-        :type ctmcs: list[CTMC]
+        :type ctmcs: list[IMCoalHMM.CTMC.CTMC]
         :param break_points: List of break points.
         :type break_points: list[float]
         """
@@ -159,7 +159,7 @@ class VariableCoalAndMigrationRateModel(Model):
             rates = make_rates_table_migration(coal_rates_1[epoch], coal_rates_2[epoch],
                                                mig_rates_12[epoch], mig_rates_21[epoch],
                                                recomb_rate)
-            ctmc = CTMC(self.migration_state_space, rates)
+            ctmc = make_ctmc(self.migration_state_space, rates)
             for _ in xrange(states_in_interval):
                 ctmcs.append(ctmc)
 
