@@ -37,8 +37,6 @@ def _compute_through(single, break_points):
     no_states = len(break_points)
 
     # Construct the transition matrices for going through each interval
-    #through = [single.probability_matrix(break_points[i + 1] - break_points[i])
-    #           for i in xrange(no_states - 1)]
     through = COMPUTATION_POOL.map(ComputeThroughInterval(single, break_points),  range(no_states-1))
 
     # As a hack we set up a pseudo through matrix for the last interval that
