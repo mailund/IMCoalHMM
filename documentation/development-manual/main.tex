@@ -13,7 +13,7 @@
 
 \section{Introduction}
 
-IMCoalHMM is both a framework for specifying demographic models for pairwise coalescent hidden Markov models, and a number of scripts for estimating parameters in such models. This manual describes the design of the framework and how the framework can be used to build new models, not the individual scripts or how they are used or how accurate the parameter estimation is. That will be left for another document.
+IMCoalHMM is both a framework for specifying demographic models for pairwise coalescent hidden Markov models (HMMs), and a number of scripts for estimating parameters in such models. This manual describes the design of the framework and how the framework can be used to build new models, not the individual scripts or how they are used or how accurate the parameter estimation is. That will be left for another document.
 
 The framework assumes you are modelling pairwise samples of genomes in a setting with one or more populations that are either isolatiated (for a period of time) or that exchange migrants. (The IM in IMCoalHMM refers to isolation and migration). The reason the framework assumes that you are only looking at pairs of samples is that it greatly simplifies the code. The underlying theory generalises, see e.g. Mailund \emph{et al.} 2012 \cite{springerlink:10.1007/978-3-642-31131-4_3}, but the code gets messy so we leave for future version a more general implementation.
 
@@ -23,22 +23,107 @@ This manual will describe how to specify demographic models by piecing together 
 
 \section{Specifying demographic models}
 
-\subsection{Isolation models}
+Demographic models are specified using a continious time Markov chain (CTMC) describing the ancestry of a sample of two two-nucleotide sequences. Complex models can be build by piecing these together so different time intervals have different CTMCs.
 
-The isolation model from Mailund \emph{et al.} 2011 \cite{Mailund:2011dv}
+The CTMCs are build by first building their state space and then constructing a rate matrix from this. The state space is building by the \texttt{CoalSystem} class that is based on a colour Petri net \cite{springerlink:10.1007/978-3-642-31131-4_3}. It represents states as sets of lineages with a left and right nucleotide, that are sets of samples represented by the lineage. Each lineage can recombine, splitting the left and right nucleotides into two separate lineages, and each pair of lineages from the same population can coalesce. With more than one population, it is also possible to migrate between populations.
 
-\subsection{Initial migration model}
+Specifying a new state space mainly boils down to setting up the initial state for the state space generator and telling it which transitions should be considered for moving between states.
 
-The model from Mailund \emph{et al.} 2012 \cite{Mailund:2012ew}
+The isolation model from Mailund \emph{et al.} 2011 \cite{Mailund:2011dv} has two phases, one where the two samples cannot coalesce because they are in different species, and one where they are in the same ancestral population. These differ only in their initial state and are implemented as shown below.
 
-\subsection{PSMC}
+\begin{verbatim}
+class Isolation(CoalSystem):
+    """Class for IM system with exactly two samples."""
 
-The model from Li \& Durbin 2011 \cite{Li:2011ez}
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are)."""
+
+        super(Isolation, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in [1, 2]])
+
+        self.compute_state_space()
+        
+class Single(CoalSystem):
+    """Class for a merged ancestral population."""
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are)."""
+
+        super(Single, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        samples = [1, 2]
+        self.init = frozenset([(0,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in samples])
+
+        self.compute_state_space()
+\end{verbatim}
+
+The \texttt{self.transitions} specifies the possible transitions as a list where the first element is a list of transitions working on one lineage and the second is a list of transitions working on two lineages. Here there is one of each. The transitions are pairs where the first element is the name of the transition, used when building rate matrices, and the second a method for updating the state space during the state space generation.
+
+The \texttt{self.init} sets the initial state before the state space is computed.
+
+The migration model of Mailund \emph{et al.} \cite{Mailund:2012ew} also has a migration phase where the state space generation also needs a transition for this.
+
+\begin{verbatim}
+class Migration(CoalSystem):
+    """Class for IM system with exactly two samples."""
+
+    def migrate(self, token):
+        """Move nucleotides from one population to another"""
+        pop, nuc = token
+        res = [(pop, pop2, frozenset([(pop2, nuc)])) 
+                for pop2 in self.legal_migrations[pop]]
+        return res
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are).
+
+        Also collects the indices in the state space for the three
+        (realistic) initial states, with both chromosomes in population 1
+        or in 2 or one from each."""
+
+        super(Migration, self).__init__()
+
+        self.legal_migrations = dict()
+        species = [1, 2]
+        for sample in species:
+            self.legal_migrations[sample] = \
+                frozenset([other for other in species if sample != other])
+
+        self.transitions = [[('R', self.recombination),
+                             ('M', self.migrate)],
+                            [('C', self.coalesce)]]
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in species])
+
+        self.compute_state_space()
+\end{verbatim}
+
+
+Once the state space is constructed it can be translated into a rate matrix. This is done by the \texttt{make\_ctmc} function in the \texttt{CTMC} module. Together with the state space it takes a table that maps transition names into concrete rates.
+
 
 
 \section{Translating continuous time Markov chains into hidden Markov models}
 
-The coalescent hidden Markov model that the framework constructs models how the time to the most recent common ancestor (TMRCA) of two samples changes along an alignment. Time is discritized into a finite number of time intervals, which become the finite state space of the hidden Markov model, and alignment columns are emitted from the coalescence point within each interval.
+The coalescent hidden Markov model that the framework constructs models how the time to the most recent common ancestor of two samples changes along an alignment. Time is discritized into a finite number of time intervals, which become the finite state space of the hidden Markov model, and alignment columns are emitted from the coalescence point within each interval.
 
 The specification of a model is given to the framework in the form of a \texttt{Model} object that is responsible for providing the coalescence points to emit from and the system of CTMCs for computing the transition probabilities.
 
