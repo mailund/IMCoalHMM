@@ -1,0 +1,259 @@
+\documentclass[11pt]{article}
+\usepackage[sort]{cite}
+
+\title{IMCoalHMM developers manual}
+\author{Thomas Mailund}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    The goals of this manual are to describe the design of the IMCoalHMM framework and to explain how the framework can be used to build coalescent hidden Markov models for genome-wide demographic inference. The manual describes how a coalescence system can be specified by piecing together continuous time Markov chains and how the framework translates these into hidden Markov chains.
+\end{abstract}
+
+\section{Introduction}
+
+IMCoalHMM is both a framework for specifying demographic models for pairwise coalescent hidden Markov models (HMMs), and a number of scripts for estimating parameters in such models. This manual describes the design of the framework and how the framework can be used to build new models, not the individual scripts or how they are used or how accurate the parameter estimation is. That will be left for another document.
+
+The framework assumes you are modelling pairwise samples of genomes in a setting with one or more populations that are either isolatiated (for a period of time) or that exchange migrants. (The IM in IMCoalHMM refers to isolation and migration). The reason the framework assumes that you are only looking at pairs of samples is that it greatly simplifies the code. The underlying theory generalises, see e.g. Mailund \emph{et al.} 2012 \cite{springerlink:10.1007/978-3-642-31131-4_3}, but the code gets messy so we leave for future version a more general implementation.
+
+Another underlying assumption is that the demographic model can be specified as a series of piece-wise constant rate continous time Markov chains, specifying the coalescence process. It is thus not possible to model continous changes to coalescence or migration rates and such, but it is necessary to discritize time into a set of epochs where each epoch has the same paramters. Continous changes can of course be specified by approximating them with a fine enough discritization of time.
+
+This manual will describe how to specify demographic models by piecing together continous time Markov chains of the coalescence process and how to translate such demographic models into hidden Markov models for CoalHMM analysis.
+
+\section{Specifying demographic models}
+
+Demographic models are specified using a continious time Markov chain (CTMC) describing the ancestry of a sample of two two-nucleotide sequences. Complex models can be build by piecing these together so different time intervals have different CTMCs.
+
+The CTMCs are build by first building their state space and then constructing a rate matrix from this. The state space is building by the \texttt{CoalSystem} class that is based on a colour Petri net \cite{springerlink:10.1007/978-3-642-31131-4_3}. It represents states as sets of lineages with a left and right nucleotide, that are sets of samples represented by the lineage. Each lineage can recombine, splitting the left and right nucleotides into two separate lineages, and each pair of lineages from the same population can coalesce. With more than one population, it is also possible to migrate between populations.
+
+Specifying a new state space mainly boils down to setting up the initial state for the state space generator and telling it which transitions should be considered for moving between states.
+
+The isolation model from Mailund \emph{et al.} 2011 \cite{Mailund:2011dv} has two phases, one where the two samples cannot coalesce because they are in different species, and one where they are in the same ancestral population. These differ only in their initial state and are implemented as shown below.
+
+\begin{verbatim}
+class Isolation(CoalSystem):
+    """Class for IM system with exactly two samples."""
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are)."""
+
+        super(Isolation, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in [1, 2]])
+
+        self.compute_state_space()
+        
+class Single(CoalSystem):
+    """Class for a merged ancestral population."""
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are)."""
+
+        super(Single, self).__init__()
+
+        self.transitions = [[('R', self.recombination)],
+                            [('C', self.coalesce)]]
+
+        samples = [1, 2]
+        self.init = frozenset([(0,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in samples])
+
+        self.compute_state_space()
+\end{verbatim}
+
+The \texttt{self.transitions} specifies the possible transitions as a list where the first element is a list of transitions working on one lineage and the second is a list of transitions working on two lineages. Here there is one of each. The transitions are pairs where the first element is the name of the transition, used when building rate matrices, and the second a method for updating the state space during the state space generation.
+
+The \texttt{self.init} sets the initial state before the state space is computed.
+
+The migration model of Mailund \emph{et al.} \cite{Mailund:2012ew} also has a migration phase where the state space generation also needs a transition for this.
+
+\begin{verbatim}
+class Migration(CoalSystem):
+    """Class for IM system with exactly two samples."""
+
+    def migrate(self, token):
+        """Move nucleotides from one population to another"""
+        pop, nuc = token
+        res = [(pop, pop2, frozenset([(pop2, nuc)])) 
+                for pop2 in self.legal_migrations[pop]]
+        return res
+
+    def __init__(self):
+        """Constructs the state space and collect B, L, R and E states (see the
+        CoalHMM papers for what these are).
+
+        Also collects the indices in the state space for the three
+        (realistic) initial states, with both chromosomes in population 1
+        or in 2 or one from each."""
+
+        super(Migration, self).__init__()
+
+        self.legal_migrations = dict()
+        species = [1, 2]
+        for sample in species:
+            self.legal_migrations[sample] = \
+                frozenset([other for other in species if sample != other])
+
+        self.transitions = [[('R', self.recombination),
+                             ('M', self.migrate)],
+                            [('C', self.coalesce)]]
+        self.init = frozenset([(sample,
+                                (frozenset([sample]),
+                                 frozenset([sample])))
+                               for sample in species])
+
+        self.compute_state_space()
+\end{verbatim}
+
+
+Once the state space is constructed it can be translated into a rate matrix. This is done by the \texttt{make\_ctmc} function in the \texttt{CTMC} module. Together with the state space it takes a table that maps transition names into concrete rates.
+
+
+
+\section{Translating continuous time Markov chains into hidden Markov models}
+
+The coalescent hidden Markov model that the framework constructs models how the time to the most recent common ancestor of two samples changes along an alignment. Time is discritized into a finite number of time intervals, which become the finite state space of the hidden Markov model, and alignment columns are emitted from the coalescence point within each interval.
+
+The specification of a model is given to the framework in the form of a \texttt{Model} object that is responsible for providing the coalescence points to emit from and the system of CTMCs for computing the transition probabilities.
+
+For the isolation model, the complete code looks like this:
+
+\begin{verbatim}
+class IsolationModel(Model):
+    """Class wrapping the code that generates an isolation model HMM."""
+
+    def __init__(self, no_hmm_states):
+        """Construct the model.
+        This builds the state spaces for the CTMCs but not the matrices for the
+        HMM since those will depend on the rate parameters."""
+        super(IsolationModel, self).__init__()
+        self.no_hmm_states = no_hmm_states
+        self.isolation_state_space = Isolation()
+        self.single_state_space = Single()
+
+    def emission_points(self, split_time, coal_rate, _):
+        """Points to emit from."""
+        break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        return coalescence_points(break_points, coal_rate)
+
+    def build_ctmc_system(self, split_time, coal_rate, recomb_rate):
+        """Construct CTMC system."""
+        # We assume here that the coalescence rate is the same in the two
+        # separate populations as it is in the ancestral. This is not necessarily
+        # true but it worked okay in simulations in Mailund et al. (2011).
+        isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
+        single_rates = make_rates_table_single(coal_rate, recomb_rate)
+        single_ctmc = make_ctmc(self.single_state_space, single_rates)
+        break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        return IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
+\end{verbatim}
+
+Any state spaces for building the demographic model should be built in the constructor. The \texttt{emission\_points} method should return one time point for each HMM state and the \texttt{build\_ctmc\_system} method should return a \texttt{CTMCSystem} that is needed for computing the HMM transition matrix, as described below.
+
+\subsection{Transition probabilities}
+
+The transition probability matrix of the hidden Markov model should specify the probability of having the TMRCA at some interval $j$ at the next alignment position, given that the current TMRCA is at time interval $i$. Building the transition probabilites of the hidden Markov model thus boils down to specifying $T_{i,j} = \Pr(j\,|\,i)$. Given a joint probability of coalescing pairs of left and right nucleotide at $i$ and $j$ respecively, $J_{i,j} = \Pr(\mathrm{left}\in~i, \mathrm{right}\in~j)$, this means $T_{i,j}=J_{i,j}/\pi_i$ where $\pi_i=\sum_j J_{i,j}$. The framework takes care of this once $J_{i,j}$ is specified.
+
+Since the coalescence process is symmetric in left and right, $J_{i,j}=J_{j,i}$ there are two cases to consider, $i=j$ and $i<j$. If we let $B$ denote all CTMC states where neither left nor right nucleotide has coalesced, $L$ denote the states where only the left nucleotide has coalesced and $E$ the states where both nucleotides have coalesced, we need to sum over paths in the CTMC as follows:
+
+\begin{itemize}
+\item $i=j$: From the initial state $\iota$ until the beginning of interval $i=j$ we have moved from $\iota$ to a $B$ state $b\in B$ and when leaving interval $i=j$ we have to be in a state $e\in E$
+
+\item $i<j$: From $\iota$ until the beginning of interval $i$ we must move from $\iota$ to a state $b\in B$, when we leave interval $i$ we must be in a left state $l_1\in L$, and when we enter interval $j$ we must still be in a left state $l_2\in L$ and when we leave interval $j$ we must be in an end state $e\in E$.
+\end{itemize}
+
+Let $U^i$ -- up to -- denote the CTMC transition probability matrix for moving to the beginning of interval $i$ and $T^i$ -- through -- denote the CTMC transition probability matrix for moving through interval $i$. Then $J_{i,i}$ is given by
+\[
+    J_{i,i} = \sum_{b \in B} \sum_{e\in E} U^i_{\iota,b} T^i_{b,e}.
+\]
+
+If we let $B^{i,j}$ -- between -- denote the transition probability matrix of moving from the end of interval $i$ to the beginning of interval $j$, then $J_{i,j}$ is given by
+\[
+    J_{i,j} = \sum_{b \in B} \sum_{l_1 \in L} \sum_{l_2\in L} \sum_{e \in E}
+        U^i_{\iota,b} T^i_{b,l_1} B^{i,j}_{l_1,l_2} T^j_{l_2,e}.
+\]
+
+Specifying $U^i$, $B^{i,j}$ and $T^i$ thus lets the framework compute $J_{i,j}$ and thus the hidden Markov model transition probabilities $T_{i,j}$.
+
+Matrices $U^i$ and $B^{i,j}$ can be computed from $T^i$: $U^i = U^{i-1}T^i$ (with a special case for $U^0$) and $B^{i,j}=B^{i,j-1}T^i$, so it is only necessary to provide the framework with ways of computing $U^0$ and $T^i$.
+
+Computing $U^0$ is necessary when there is a coalescence system before the first interval. Otherwise it is just the identity matrix. Computing $T^i$ mainly is a question of exponentiating the CTMC for interval $i$ for the time period that interval $i$ spans. A complicating factor is that the state space of different intervals might be different, e.g. if interval $i$ is an isolation period while $i+1$ is an ancestral population.
+
+The framework assumes that you enter an interval with indices matching the state space of that interval, but you leave it with indices matching the next interval. If the state space changes, a mapping is necessary. This is achieved using a projection matrix.
+
+If $Q^i$ is the rate matrix for the CTMC in interval $i$ and $P^{i,i+1}$ is a projection matrix mapping states from the state space of interval $i$ to the state space of interval $i+1$ then $T^i = \exp(Q^i\tau_i)P^{i,i+1}$ where $\tau_i$ is the time period for interval $i$.
+
+Projection matrices can be constructed using the \texttt{projection\_matrix} from \texttt{IMCoalHMM.transitions}. For the isolation model, one is needed for $U^0$ for moving from the isolation model before the first HMM state into the first interval, which looks like this
+
+\begin{verbatim}
+def _compute_upto0(isolation, single, break_points):
+    """Computes the probability matrices for moving to time zero."""
+    def state_map(state):
+        return frozenset([(0, nucs) for (_, nucs) in state])
+    projection = projection_matrix(isolation.state_space, 
+                                   single.state_space, state_map)
+    return isolation.probability_matrix(break_points[0]) * projection
+\end{verbatim}
+
+It involves mapping states from one state space to the next and computing the transition probability matrix through the first, isolation system, CTMC. For the initial-migration system it is also needed to move from the migration system to the ancestral population. See the code for details.
+
+In general, for any new model you will need to specify $U^0$ and $T^i$ with the relevant projections but after that the framework will compute $J_{i,j}$ and $T_{i,j}$. Examples of this can be found in all the \texttt{*\_model.py} files.
+
+The matrices for computing $J_{i,j}$ are provided to the frame work through a \texttt{CTMCSystem} object implementing the relevant interface. This mostly boils down to computing the ``through'' matrices and telling the framework which state space to use in eacn interval. The complete implementation of this for the isolation model can be seen below:
+
+\begin{verbatim}
+class IsolationCTMCSystem(CTMCSystem):
+    """Wrapper around CTMC transition matrices for the isolation model."""
+
+    def __init__(self, isolation_ctmc, ancestral_ctmc, break_points):
+        """Construct all the matrices and cache them for the
+        method calls.
+        """
+
+        super(IsolationCTMCSystem, self).__init__(len(break_points),
+                                                  isolation_ctmc.state_space.i12_index)
+
+        self.ancestral_ctmc = ancestral_ctmc
+        self.through_ = _compute_through(ancestral_ctmc, break_points)
+        upto0 = _compute_upto0(isolation_ctmc, ancestral_ctmc, break_points)
+        self.upto_ = compute_upto(upto0, self.through_)
+        self.between_ = compute_between(self.through_)
+
+    def get_state_space(self, i):
+        """Return the state space for interval i. In this case it 
+        is always the ancestral state space.
+        """
+        return self.ancestral_ctmc.state_space
+\end{verbatim}
+
+Only the functions \texttt{\_compute\_through} and \texttt{\_compute\_upto0} are model specific here, the rest uses general functions from the \texttt{transitions} module.
+
+
+\subsection{Emission probabilitites}
+
+Emission probabilities are determined by the coalescence time of a state. Currently they are just computed using the Jukes-Cantor model, so the input alignment consists of three possible signs, equal nucelotides, not equal nucleotides and missing data/gaps. The framework will build the emission matrix given a list of time points for each state.
+
+We really should be integrating over time for the emissions, but by default we use the expectation of the coalescence time (in a single population), which can be computed using the \texttt{coalescence\_points} function from \texttt{IMCoalHMM.emissions}.
+
+
+\section{Estimating parameters}
+
+To estimate parameters we use ZipHMM \cite{Sand:2013bi} to compute the hidden Markov model likelihood and \texttt{scipy.optimize} (by default \texttt{scipy.optimize.fmin}) to maximize it.
+
+
+\bibliography{bibliography}
+\bibliographystyle{plain}
+
+\end{document}
