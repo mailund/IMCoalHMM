@@ -12,7 +12,7 @@ class Cache(object):
     def __setitem__(self, key, value):
         self.table[key] = (value, self.last_access)
         self.last_access += 1
-        if len(self.table) > self.cleanup_size:
+        if len(self.table) > 2*self.cleanup_size:
             self.cleanup()
         return value
 
