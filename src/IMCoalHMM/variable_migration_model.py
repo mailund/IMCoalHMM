@@ -5,21 +5,39 @@ migration and coalescence.
 from numpy import zeros, matrix, identity
 
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
 
+from multiprocessing import Pool, cpu_count
+
 
 ## Code for computing HMM transition probabilities ####################
+
+# The way multiprocessing works means that we have to define this class for mapping in parallel
+# and we have to define the processing pool after we define the class, or it won't be able to see
+# it in the sub-processes. It breaks the flow of the code, but it is necessary.
+
+class ComputeThroughInterval(object):
+    def __init__(self, ctmcs, break_points):
+        self.ctmcs = ctmcs
+        self.break_points = break_points
+
+    def __call__(self, i):
+        return self.ctmcs[i].probability_matrix(self.break_points[i + 1] - self.break_points[i])
+
+
+COMPUTATION_POOL = Pool(cpu_count()-1)
+
+
 def _compute_through(ctmcs, break_points):
     """Computes the matrices for moving through an interval"""
     no_states = len(break_points)
 
     # Construct the transition matrices for going through each interval
-    through = [ctmcs[i].probability_matrix(break_points[i + 1] - break_points[i])
-               for i in xrange(no_states - 1)]
+    through = COMPUTATION_POOL.map(ComputeThroughInterval(ctmcs, break_points), range(no_states - 1))
 
     # As a hack we set up a pseudo through matrix for the last interval that
     # just puts all probability on ending in one of the end states. This
@@ -45,7 +63,7 @@ class VariableCoalAndMigrationRateCTMCSystem(CTMCSystem):
             We include it in the constructor for this model because we want to handle
             both samples from each population and between them.
         :param ctmcs: CTMCs for each interval.
-        :type ctmcs: list[CTMC]
+        :type ctmcs: list[IMCoalHMM.CTMC.CTMC]
         :param break_points: List of break points.
         :type break_points: list[float]
         """
@@ -100,14 +118,6 @@ class VariableCoalAndMigrationRateModel(Model):
         self.intervals = intervals
         self.no_states = sum(intervals)
 
-    def emission_points(self, *parameters):
-        """Time points to emit from."""
-        # FIXME: This is just one of the rate parameters and I am not sure it is a particular good choice
-        # I need one for the coalescence points, though.
-        coal_rate = parameters[0]
-        break_points = psmc_break_points(self.no_states)
-        return coalescence_points(break_points, coal_rate)
-
     def unpack_parameters(self, parameters):
         """Unpack the rate parameters for the model from the linear representation
         used in optimizations to the specific rate parameters.
@@ -119,6 +129,26 @@ class VariableCoalAndMigrationRateModel(Model):
         mig_rates_21 = parameters[(3*no_epochs):(4*no_epochs)]
         recomb_rate = parameters[-1]
         return coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate
+
+    def _map_rates_to_intervals(self, coal_rates):
+        """Takes the coalescence rates as specified when building the CTMC
+        and maps them to each interval based on the intervals specification."""
+        assert len(coal_rates) == len(self.intervals)
+        interval_rates = []
+        for epoch, coal_rate in enumerate(coal_rates):
+            for _ in xrange(self.intervals[epoch]):
+                interval_rates.append(coal_rate)
+        return interval_rates
+
+    def emission_points(self, *parameters):
+        """Time points to emit from."""
+        # Emitting from points given by the mean of the coalescence rates in both populations.
+        # When there is migration it is hard to know where the mean coalescence rate actually is
+        # and it will depend on the starting point. This is a compromise at least.
+        coal_rates_1, coal_rates_2, _, _, _ = self.unpack_parameters(parameters)
+        mean_coal_rates = [(c1+c2)/2.0 for c1, c2 in zip(coal_rates_1, coal_rates_2)]
+        break_points = psmc_break_points(self.no_states)
+        return coalescence_points(break_points, self._map_rates_to_intervals(mean_coal_rates))
 
     def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the split time
@@ -147,7 +177,7 @@ class VariableCoalAndMigrationRateModel(Model):
             rates = make_rates_table_migration(coal_rates_1[epoch], coal_rates_2[epoch],
                                                mig_rates_12[epoch], mig_rates_21[epoch],
                                                recomb_rate)
-            ctmc = CTMC(self.migration_state_space, rates)
+            ctmc = make_ctmc(self.migration_state_space, rates)
             for _ in xrange(states_in_interval):
                 ctmcs.append(ctmc)
 

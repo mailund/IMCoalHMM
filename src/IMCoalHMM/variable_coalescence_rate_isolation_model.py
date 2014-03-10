@@ -5,21 +5,39 @@ from numpy import zeros, matrix
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
-from IMCoalHMM.CTMC import CTMC
+from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.break_points import psmc_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
 
+from multiprocessing import Pool, cpu_count
+
 
 ## Code for computing HMM transition probabilities ####################
+
+# The way multiprocessing works means that we have to define this class for mapping in parallel
+# and we have to define the processing pool after we define the class, or it won't be able to see
+# it in the sub-processes. It breaks the flow of the code, but it is necessary.
+
+class ComputeThroughInterval(object):
+    def __init__(self, ctmcs, break_points):
+        self.ctmcs = ctmcs
+        self.break_points = break_points
+
+    def __call__(self, i):
+        return self.ctmcs[i].probability_matrix(self.break_points[i + 1] - self.break_points[i])
+
+
+COMPUTATION_POOL = Pool(cpu_count()-1)
+
+
 def _compute_through(ctmcs, break_points):
     """Computes the matrices for moving through an interval"""
     no_states = len(break_points)
 
     # Construct the transition matrices for going through each interval
-    through = [ctmcs[i].probability_matrix(break_points[i + 1] - break_points[i])
-               for i in xrange(no_states - 1)]
+    through = COMPUTATION_POOL.map(ComputeThroughInterval(ctmcs, break_points), range(no_states - 1))
 
     # As a hack we set up a pseudo through matrix for the last interval that
     # just puts all probability on ending in one of the end states. This
@@ -51,9 +69,9 @@ class VariableCoalRateCTMCSystem(CTMCSystem):
         method calls.
 
         :param isolation_ctmc: CTMC for the initial isolation phase.
-        :type isolation_ctmc: CTMC
+        :type isolation_ctmc: IMCoalHMM.CTMC.CTMC
         :param ancestral_ctmcs: CTMCs for the ancestral population.
-        :type ancestral_ctmcs: list[CTMC]
+        :type ancestral_ctmcs: list[IMCoalHMM.CTMC.CTMC]
         :param break_points: List of break points.
         :type break_points: list[float]
         """
@@ -89,6 +107,16 @@ class VariableCoalescenceRateIsolationModel(Model):
         self.intervals = intervals
         self.est_split = est_split
 
+    def _map_rates_to_intervals(self, coal_rates):
+        """Takes the coalescence rates as specified when building the CTMC
+        and maps them to each interval based on the intervals specification."""
+        assert len(coal_rates) == len(self.intervals)
+        interval_rates = []
+        for epoch, coal_rate in enumerate(coal_rates):
+            for _ in xrange(self.intervals[epoch]):
+                interval_rates.append(coal_rate)
+        return interval_rates
+
     def emission_points(self, *parameters):
         """Time points to emit from."""
         if self.est_split:
@@ -102,8 +130,7 @@ class VariableCoalescenceRateIsolationModel(Model):
         no_states = sum(self.intervals)
         break_points = psmc_break_points(no_states, offset=split_time)
 
-        # FIXME: I don't know how to choose a good rate here
-        return coalescence_points(break_points, coal_rates[0])
+        return coalescence_points(break_points, self._map_rates_to_intervals(coal_rates))
 
     def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the split time
@@ -141,12 +168,12 @@ class VariableCoalescenceRateIsolationModel(Model):
         # in Mailund et al. (2011).
 
         isolation_rates = make_rates_table_isolation(coal_rates[0], coal_rates[0], recomb_rate)
-        isolation_ctmc = CTMC(self.isolation_state_space, isolation_rates)
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
 
         ancestral_ctmcs = []
         for epoch, coal_rate in enumerate(coal_rates):
             single_rates = make_rates_table_single(coal_rate, recomb_rate)
-            single_ctmc = CTMC(self.single_state_space, single_rates)
+            single_ctmc = make_ctmc(self.single_state_space, single_rates)
             for _ in xrange(self.intervals[epoch]):
                 ancestral_ctmcs.append(single_ctmc)
 
