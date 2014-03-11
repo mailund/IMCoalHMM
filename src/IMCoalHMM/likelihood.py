@@ -34,7 +34,7 @@ class Likelihood(object):
 
 
 def maximum_likelihood_estimate(log_likelihood, initial_parameters,
-                                optimizer=scipy.optimize.fmin,
+                                optimizer_method="Powell",
                                 log_file=None,
                                 log_param_transform=lambda x: x):
     """Maximum likelihood estimation.
@@ -69,4 +69,7 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     def minimize_wrapper(parameters):
         return -log_likelihood(parameters)
 
-    return optimizer(minimize_wrapper, initial_parameters, callback=log_callback, disp=False)
+    result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
+                                     method=optimizer_method,
+                                     callback=log_callback, options={'disp': False})
+    return result.x
