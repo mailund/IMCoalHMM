@@ -49,3 +49,30 @@ qplot(factor(sim.mig), mle.theta, data=data, geom='boxplot',
 qplot(factor(sim.mig), mle.mig, data=data, geom='boxplot', fill=factor(sim.migration.period)) +
   geom_hline(yintercept=unique(data$sim.mig), col='red') +
   scale_y_continuous(trans=log10_trans())
+
+qplot(factor(sim.mig), mle.isolation.period, data=data, geom='boxplot',
+      fill=factor(sim.migration.period)) +
+  geom_hline(yintercept=unique(data$sim.isolation.period), col='red')
+
+qplot(factor(sim.migration.period), mle.isolation.period, data=data, geom='boxplot',
+      fill=factor(sim.migration.period)) +
+  geom_hline(yintercept=unique(data$sim.isolation.period), col='red')
+
+
+
+data <- read.table('different-optimizers.txt', header=TRUE)
+
+qplot(optimizer, mle.isolation.period, data=data, geom='boxplot') +
+  geom_hline(yintercept=unique(data$sim.isolation.period), col='red') +
+  scale_y_continuous(trans=log10_trans())
+
+qplot(optimizer, mle.migration.period, data=data, geom='boxplot') +
+  geom_hline(yintercept=unique(data$sim.migration.period), col='red') +
+  scale_y_continuous(trans=log10_trans())
+
+qplot(optimizer, mle.theta, data=data, geom='boxplot') +
+  geom_hline(yintercept=unique(data$sim.theta), col='red')
+
+qplot(optimizer, mle.mig, data=data, geom='boxplot') +
+  geom_hline(yintercept=unique(data$sim.mig), col='red') +
+  scale_y_continuous(trans=log10_trans())

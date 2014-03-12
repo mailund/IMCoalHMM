@@ -21,3 +21,4 @@ qplot(as.numeric(variable), value, color=simulation, geom='line',
       data=melt(thetas, id.vars='simulation')) +
   geom_hline(yintercept=0.001, col='red') + 
   scale_y_continuous(trans=log10_trans())#, limits=c(0.0001, 0.02))
+

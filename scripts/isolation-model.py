@@ -47,10 +47,9 @@ and uniform coalescence and recombination rates."""
                         
     parser.add_argument("--optimizer",
                         type=str,
-                        default="Nealder-Mead",
+                        default="Nelder-Mead",
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
-                        choices=['Nelder-Mead', 'Powell', 'CG', 'BFGS', 'Anneal',
-                                 'L-BFGS-B', 'TNC', 'COBYLA', 'SLSQP'])
+                        choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
     optimized_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),

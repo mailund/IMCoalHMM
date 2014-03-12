@@ -69,7 +69,20 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     def minimize_wrapper(parameters):
         return -log_likelihood(parameters)
 
-    result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
-                                     method=optimizer_method,
-                                     callback=log_callback, options={'disp': False})
+    options = {'disp': False}
+    # Set optimizer specific options
+
+    #FIXME: if I have other ways of checking valid parameters for later models, this
+    # really needs to be updated as well!
+    if optimizer_method in ['Anneal', 'L-BFGS-B', 'TNC', 'SLSQP']:
+        bounds = [(0, None)] * len(initial_parameters)
+        result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
+                                         method=optimizer_method, bounds=bounds,
+                                         callback=log_callback, options=options)
+    else:
+        result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
+                                         method=optimizer_method,
+                                         callback=log_callback, options=options)
+
+    #print result
     return result.x
