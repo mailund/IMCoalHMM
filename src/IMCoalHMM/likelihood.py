@@ -34,7 +34,7 @@ class Likelihood(object):
 
 
 def maximum_likelihood_estimate(log_likelihood, initial_parameters,
-                                optimizer_method="Powell",
+                                optimizer_method="Nelder-Mead",
                                 log_file=None,
                                 log_param_transform=lambda x: x):
     """Maximum likelihood estimation.
@@ -53,7 +53,6 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     :param log_likelihood: The Likelihood wrapper needed for computing the likelihood.
     :type log_likelihood: Likelihood
     :param initial_parameters: The initial set of parameters. Model specific.
-    :param optimizer: The algorithm used for numerical optimization.
     :param log_file: Progress will be logged to this file/stream.
     :param log_param_transform: A function to map the optimization parameter space
      into a model parameter space.
