@@ -27,7 +27,7 @@ def main():
 
 This program estimates the parameters of an initial-migration model with two species
 and uniform coalescence and recombination rates and outputs the profile likelihood for
-the rho parameter."""
+the migration rate parameter."""
 
     parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
@@ -55,9 +55,9 @@ the rho parameter."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
-    parser.add_argument('--rho-start', type=float, required=True,
+    parser.add_argument('--migration-rate-start', type=float, required=True,
                         help="First point in the range to compute likelihood for.")
-    parser.add_argument('--rho-end', type=float, required=True,
+    parser.add_argument('--migration-rate-end', type=float, required=True,
                         help="Last point in the range to compute likelihood for.")
     parser.add_argument('--number-of-points', type=int, default=50,
                         help="Number of points to compute the profile likelihood in.")
@@ -66,7 +66,7 @@ the rho parameter."""
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
         ('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
-        ('migration-rate', 'migration rate in number of migrations per substitution', 200.0)
+        ('rho', 'recombination rate in substitutions', 0.4),
     ]
 
     for parameter_name, description, default in optimized_params:
@@ -91,17 +91,18 @@ the rho parameter."""
     init_migration_time = options.migration_period
     theta = options.theta
     init_coal = 1 / (theta / 2)
+    rho = options.rho
 
-    rho_points = scipy.linspace(options.rho_start, options.rho_end, options.number_of_points)
-    init_migration = options.migration_rate
+    migration_rate_points = scipy.linspace(options.migration_rate_start, options.migration_rate_end, options.number_of_points)
+
 
 
     log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
-    initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_migration)
+    initial_parameters = (init_isolation_time, init_migration_time, init_coal, rho)
 
-    def make_minimize_wrapper(rho):
+    def make_minimize_wrapper(migration_rate):
         def wrapper(params):
-            parameters = params[0], params[1], params[2], rho, params[3]
+            parameters = params[0], params[1], params[2], params[3], migration_rate
             return - log_likelihood(scipy.array(parameters))
         return wrapper
 
@@ -111,14 +112,14 @@ the rho parameter."""
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
                                          'theta', 'rho', 'migration', 'logL'])
 
-        for rho in rho_points:
-            minimize_wrapper = make_minimize_wrapper(rho)
+        for migration_rate in migration_rate_points:
+            minimize_wrapper = make_minimize_wrapper(migration_rate)
             optimized_results = scipy.optimize.minimize(fun=minimize_wrapper,
                                                         x0=initial_parameters,
                                                         method=options.optimizer)
 
-            isolation_period, migration_period, coal_rate, mig_rate = optimized_results.x
-            mle_parameters = [isolation_period, migration_period, coal_rate, rho, mig_rate]
+            isolation_period, migration_period, coal_rate, rho = optimized_results.x
+            mle_parameters = [isolation_period, migration_period, coal_rate, rho, migration_rate]
             logL = -optimized_results.fun
             print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (logL,)))
 
