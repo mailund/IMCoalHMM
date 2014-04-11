@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""Script for estimating parameters in an isolation model.
+"""Script for estimating parameters in an initial migration model.
 """
 
 from argparse import ArgumentParser
@@ -24,7 +24,7 @@ def main():
     """
     usage = """%(prog)s [options] <forwarder dirs>
 
-This program estimates the parameters of an isolation model with two species
+This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates."""
 
     parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
