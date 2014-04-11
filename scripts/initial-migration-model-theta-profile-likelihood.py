@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-"""Script for estimating parameters in an initial migration model.
+"""Script for estimating parameters in an isolation model.
 """
 
 from argparse import ArgumentParser
+import scipy
 
-from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
+from IMCoalHMM.likelihood import Likelihood
 from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
@@ -24,10 +25,11 @@ def main():
     """
     usage = """%(prog)s [options] <forwarder dirs>
 
-This program estimates the parameters of an isolation model with an initial migration period with two species
-and uniform coalescence and recombination rates."""
+This program estimates the parameters of an initial-migration model with two species
+and uniform coalescence and recombination rates and outputs the profile likelihood for
+the theta parameter."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
     parser.add_argument("--header",
                         action="store_true",
@@ -37,11 +39,6 @@ and uniform coalescence and recombination rates."""
                         type=str,
                         default="/dev/stdout",
                         help="Output file for the estimate (/dev/stdout)")
-
-    parser.add_argument("--logfile",
-                        type=str,
-                        default=None,
-                        help="Log for all points estimated in the optimization")
 
     parser.add_argument("--ancestral-states",
                         type=int,
@@ -58,10 +55,16 @@ and uniform coalescence and recombination rates."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
+    parser.add_argument('--theta-start', type=float, required=True,
+                        help="First point in the range to compute likelihood for.")
+    parser.add_argument('--theta-end', type=float, required=True,
+                        help="Last point in the range to compute likelihood for.")
+    parser.add_argument('--number-of-points', type=int, default=50,
+                        help="Number of points to compute the profile likelihood in.")
+
     optimized_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
         ('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
-        ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 200.0)
     ]
@@ -81,42 +84,44 @@ and uniform coalescence and recombination rates."""
     # get options
     no_migration_states = options.migration_states
     no_ancestral_states = options.ancestral_states
-    theta = options.theta
-    rho = options.rho
 
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
 
     init_isolation_time = options.isolation_period
     init_migration_time = options.migration_period
-    init_coal = 1 / (theta / 2)
+    theta_points = scipy.linspace(options.theta_start, options.theta_end, options.number_of_points)
+
+    rho = options.rho
     init_recomb = rho
     init_migration = options.migration_rate
 
+
     log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
-    initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_recomb, init_migration)
+    initial_parameters = (init_isolation_time, init_migration_time, init_recomb, init_migration)
 
-    if options.logfile:
-        with open(options.logfile, 'w') as logfile:
+    def make_minimize_wrapper(coal_rate):
+        def wrapper(params):
+            parameters = params[0], params[1], coal_rate, params[2], params[3]
+            return - log_likelihood(scipy.array(parameters))
+        return wrapper
 
-            if options.header:
-                print >> logfile, '\t'.join(['isolation.period', 'migration.period',
-                                             'theta', 'rho', 'migration'])
 
-            mle_parameters = \
-                maximum_likelihood_estimate(log_likelihood, initial_parameters,
-                                            log_file=logfile, optimizer_method=options.optimizer,
-                                            log_param_transform=transform)
-    else:
-        mle_parameters = \
-            maximum_likelihood_estimate(log_likelihood, initial_parameters,
-                                        optimizer_method=options.optimizer)
-
-    max_log_likelihood = log_likelihood(mle_parameters)
     with open(options.outfile, 'w') as outfile:
         if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
                                          'theta', 'rho', 'migration', 'logL'])
-        print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
+
+        for theta in theta_points:
+            coal_rate = 1 / (theta / 2)
+            minimize_wrapper = make_minimize_wrapper(coal_rate)
+            optimized_results = scipy.optimize.minimize(fun=minimize_wrapper,
+                                                        x0=initial_parameters,
+                                                        method=options.optimizer)
+
+            isolation_period, migration_period, rho, mig_rate = optimized_results.x
+            mle_parameters = [isolation_period, migration_period, coal_rate, rho, mig_rate]
+            logL = -optimized_results.fun
+            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (logL,)))
 
 
 if __name__ == '__main__':

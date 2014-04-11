@@ -4,7 +4,7 @@ split_mya=$1
 migration_mya=$2
 coal_mig_rate=$3
 
-no_sims=50
+no_sims=10
 
 Ne=20000
 gen=25
@@ -32,7 +32,7 @@ subs_theta=$(bc -l <<< ${theta_years}*${mu})
 subs_rho=$(bc -l <<< ${rho_per_gen}/${gen}/${mu})
 subs_mig=$(bc -l <<< ${coal_mig_rate}/${subs_theta})
 
-echo -n "sim.isolation.period sim.migration.period sim.theta sim.rho sim.mig "
+echo -n "sim.isolation.period sim.migration.period sim.theta sim.rho sim.mig optimizer "
 echo    "mle.isolation.period mle.migration.period mle.theta mle.rho mle.mig logL"
 for sim in `eval echo {1..${no_sims}}`; do
     
@@ -49,8 +49,13 @@ for sim in `eval echo {1..${no_sims}}`; do
 
     prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
 
-    echo -ne "${subs_isolation_time}\t${subs_migration_time}\t${subs_theta}\t${subs_rho}\t${subs_mig}\t"
-    initial-migration-model.py ${ziphmmfile}
+	for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
+		
+	    echo -ne "${subs_isolation_time}\t${subs_migration_time}\t${subs_theta}\t${subs_rho}\t${subs_mig}\t${optimizer}\t"
+	    initial-migration-model.py --optimizer=${optimizer} ${ziphmmfile}
+    
+	done
+	
     
     rm ${treefile}
     rm ${seqfile}

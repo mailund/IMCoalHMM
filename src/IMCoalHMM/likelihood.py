@@ -34,7 +34,7 @@ class Likelihood(object):
 
 
 def maximum_likelihood_estimate(log_likelihood, initial_parameters,
-                                optimizer=scipy.optimize.fmin,
+                                optimizer_method="Nelder-Mead",
                                 log_file=None,
                                 log_param_transform=lambda x: x):
     """Maximum likelihood estimation.
@@ -53,7 +53,6 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     :param log_likelihood: The Likelihood wrapper needed for computing the likelihood.
     :type log_likelihood: Likelihood
     :param initial_parameters: The initial set of parameters. Model specific.
-    :param optimizer: The algorithm used for numerical optimization.
     :param log_file: Progress will be logged to this file/stream.
     :param log_param_transform: A function to map the optimization parameter space
      into a model parameter space.
@@ -69,4 +68,20 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     def minimize_wrapper(parameters):
         return -log_likelihood(parameters)
 
-    return optimizer(minimize_wrapper, initial_parameters, callback=log_callback, disp=False)
+    options = {'disp': False}
+    # Set optimizer specific options
+
+    #FIXME: if I have other ways of checking valid parameters for later models, this
+    # really needs to be updated as well!
+    if optimizer_method in ['Anneal', 'L-BFGS-B', 'TNC', 'SLSQP']:
+        bounds = [(0, None)] * len(initial_parameters)
+        result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
+                                         method=optimizer_method, bounds=bounds,
+                                         callback=log_callback, options=options)
+    else:
+        result = scipy.optimize.minimize(fun=minimize_wrapper, x0=initial_parameters,
+                                         method=optimizer_method,
+                                         callback=log_callback, options=options)
+
+    #print result
+    return result.x

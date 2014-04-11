@@ -44,6 +44,12 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=10,
                         help="Number of intervals used to discretize the time (10)")
+                        
+    parser.add_argument("--optimizer",
+                        type=str,
+                        default="Nelder-Mead",
+                        help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
+                        choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
     optimized_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
@@ -85,11 +91,12 @@ and uniform coalescence and recombination rates."""
 
             mle_parameters = maximum_likelihood_estimate(log_likelihood,
                                                          (init_split, init_coal, init_recomb),
+                                                         optimizer_method=options.optimizer,
                                                          log_file=logfile,
                                                          log_param_transform=transform)
     else:
-        mle_parameters = maximum_likelihood_estimate(log_likelihood,
-                                                     (init_split, init_coal, init_recomb))
+        mle_parameters = maximum_likelihood_estimate(log_likelihood, (init_split, init_coal, init_recomb),
+                                                     optimizer_method=options.optimizer)
 
     max_log_likelihood = log_likelihood(mle_parameters)
 
