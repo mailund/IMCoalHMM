@@ -27,7 +27,7 @@ def main():
 
 This program estimates the parameters of an initial-migration model with two species
 and uniform coalescence and recombination rates and outputs the profile likelihood for
-the isolation period parameter."""
+the migration period parameter."""
 
     parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
@@ -55,15 +55,16 @@ the isolation period parameter."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
-    parser.add_argument('--isolation-period-start', type=float, required=True,
+    parser.add_argument('--migration-period-start', type=float, required=True,
                         help="First point in the range to compute likelihood for.")
-    parser.add_argument('--isolation-period-end', type=float, required=True,
+    parser.add_argument('--migration-period-end', type=float, required=True,
                         help="Last point in the range to compute likelihood for.")
     parser.add_argument('--number-of-points', type=int, default=50,
                         help="Number of points to compute the profile likelihood in.")
 
     optimized_params = [
-        ('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
+        ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
+        #('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 200.0)
@@ -87,11 +88,11 @@ the isolation period parameter."""
 
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
 
-    isolation_period_points = scipy.linspace(options.isolation_period_start,
-                                             options.isolation_period_end,
+    init_isolation_time = options.isolation_period
+    migration_period_points = scipy.linspace(options.migration_period_start,
+                                             options.migration_period_end,
                                              options.number_of_points)
-
-    init_migration_time = options.migration_period
+    #init_migration_time = options.migration_period
     theta = options.theta
     rho = options.rho
     init_coal = 1 / (theta / 2)
@@ -100,11 +101,13 @@ the isolation period parameter."""
 
 
     log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
-    initial_parameters = (init_migration_time, init_coal, init_recomb, init_migration)
+    initial_parameters = (init_isolation_time,
+                          #init_migration_time,
+                          init_coal, init_recomb, init_migration)
 
-    def make_minimize_wrapper(isolation_time):
+    def make_minimize_wrapper(migration_period):
         def wrapper(params):
-            parameters = isolation_time, params[0], params[1], params[2], params[3]
+            parameters = params[0], migration_period, params[1], params[2], params[3]
             return - log_likelihood(scipy.array(parameters))
         return wrapper
 
@@ -114,13 +117,13 @@ the isolation period parameter."""
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
                                          'theta', 'rho', 'migration', 'logL'])
 
-        for isolation_period in isolation_period_points:
-            minimize_wrapper = make_minimize_wrapper(isolation_period)
+        for migration_period in migration_period_points:
+            minimize_wrapper = make_minimize_wrapper(migration_period)
             optimized_results = scipy.optimize.minimize(fun=minimize_wrapper,
                                                         x0=initial_parameters,
                                                         method=options.optimizer)
 
-            migration_period, theta, rho, mig_rate = optimized_results.x
+            isolation_period, theta, rho, mig_rate = optimized_results.x
             mle_parameters = [isolation_period, migration_period, theta, rho, mig_rate]
             logL = -optimized_results.fun
             print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (logL,)))
