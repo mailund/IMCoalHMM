@@ -21,6 +21,8 @@ setup(
                'scripts/initial-migration-model-isolation-profile-likelihood.py',
                'scripts/initial-migration-model-migration-profile-likelihood.py',
                'scripts/initial-migration-model-theta-profile-likelihood.py',
+               'scripts/initial-migration-model-rho-profile-likelihood.py',
+               'scripts/initial-migration-model-mig-rate-profile-likelihood.py',
                'scripts/psmc-isolation-model.py',
                'scripts/variable-migration-model.py',
               ],
