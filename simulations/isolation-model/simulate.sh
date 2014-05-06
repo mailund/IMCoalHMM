@@ -22,7 +22,7 @@ theta_subs=$(bc -l <<< $theta_years*$mu )
 rho_subs=$(bc -l <<< $rho_per_gen/$gen/$mu )
 
 
-echo "sim.tau sim.theta sim.rho optimizer mle.tau mle.theta mle.rho logL"
+echo "sim.tau sim.theta sim.rho mle.tau mle.theta mle.rho logL"
 for sim in `eval echo {1..${no_sims}}`; do
     
     simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
@@ -35,12 +35,14 @@ for sim in `eval echo {1..${no_sims}}`; do
 
     prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
 
-	for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
-		
-    	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t${optimizer}\t"
-    	isolation-model.py --optimizer=${optimizer} ${ziphmmfile}
-    
-	done
+	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t"
+	isolation-model.py ${ziphmmfile}
+	#for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
+	#	
+    #	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t${optimizer}\t"
+    #	isolation-model.py --optimizer=${optimizer} ${ziphmmfile}
+    #
+	#done
 	
     rm ${treefile}
     rm ${seqfile}
