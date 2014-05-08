@@ -75,12 +75,11 @@ and uniform coalescence and recombination rates."""
     theta = options.theta
     rho = options.rho
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
-
     init_split = split
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
+    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
 
     if options.logfile:
