@@ -98,7 +98,6 @@ the isolation period parameter."""
     init_recomb = rho
     init_migration = options.migration_rate
 
-
     log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     initial_parameters = (init_migration_time, init_coal, init_recomb, init_migration)
 
@@ -107,7 +106,6 @@ the isolation period parameter."""
             parameters = isolation_time, params[0], params[1], params[2], params[3]
             return - log_likelihood(scipy.array(parameters))
         return wrapper
-
 
     with open(options.outfile, 'w') as outfile:
         if options.header:
@@ -122,8 +120,8 @@ the isolation period parameter."""
 
             migration_period, theta, rho, mig_rate = optimized_results.x
             mle_parameters = [isolation_period, migration_period, theta, rho, mig_rate]
-            logL = -optimized_results.fun
-            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (logL,)))
+            log_likelihood = -optimized_results.fun
+            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (log_likelihood,)))
 
 
 if __name__ == '__main__':
