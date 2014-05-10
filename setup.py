@@ -19,6 +19,7 @@ setup(
                'scripts/isolation-model.py',
                'scripts/isolation-model-mcmc.py',
                'scripts/initial-migration-model.py',
+               'scripts/initial-migration-model-mcmc.py',
                'scripts/initial-migration-model-isolation-profile-likelihood.py',
                'scripts/initial-migration-model-migration-profile-likelihood.py',
                'scripts/initial-migration-model-theta-profile-likelihood.py',
