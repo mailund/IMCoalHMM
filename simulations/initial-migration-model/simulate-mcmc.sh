@@ -1,7 +1,7 @@
 #!/bin/bash
 
-split_mya=2
-migration_mya=5
+split_mya=4
+migration_mya=1
 coal_mig_rate=0.5
 
 no_sims=2
