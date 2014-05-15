@@ -3,13 +3,15 @@ Module for generic MCMC code.
 
 """
 
-from scipy.stats import norm
+from scipy.stats import norm, expon
 from numpy.random import random
 from math import log, exp
 from numpy import array
 
 
 class LogNormPrior(object):
+    '''Prior and proposal distribution. The prior is a log-normal and steps are a 
+    random walk in log-space.'''
     def __init__(self, log_mean, proposal_sd=None):
         self.log_mean = log_mean
         if proposal_sd is not None:
@@ -27,6 +29,25 @@ class LogNormPrior(object):
         log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
         return exp(log_step)
 
+class ExpLogNormPrior(object):
+    '''Prior and proposal distribution. The prior is an exponential and steps are a 
+    random walk in log-space.'''
+    def __init__(self, mean, proposal_sd=None):
+        self.mean = mean
+        if proposal_sd is not None:
+            self.proposal_sd = proposal_sd
+        else:
+            self.proposal_sd = 0.1
+
+    def pdf(self, x):
+        return expon.pdf(x, scale=self.mean)
+
+    def sample(self):
+        return expon.rvs(scale=self.mean, size=1)[0]
+
+    def proposal(self, x):
+        log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
+        return exp(log_step)
 
 class MCMC(object):
     def __init__(self, priors, log_likelihood):
