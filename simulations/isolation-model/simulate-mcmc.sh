@@ -1,7 +1,8 @@
 #!/bin/bash
 
 split_mya=2
-no_sims=10
+no_sims=2
+no_chains=5
 
 Ne=20000
 gen=25
@@ -22,7 +23,9 @@ theta_subs=$(bc -l <<< $theta_years*$mu )
 rho_subs=$(bc -l <<< $rho_per_gen/$gen/$mu )
 
 
-echo "sim.tau sim.theta sim.rho mle.tau mle.theta mle.rho logL"
+echo "sim.tau sim.theta sim.rho" > mcmc-simulated-params.txt
+echo -e "${tau_subs}\t${theta_subs}\t${rho_subs}" >> mcmc-simulated-params.txt
+
 for sim in `eval echo {1..${no_sims}}`; do
     
     simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
@@ -35,14 +38,9 @@ for sim in `eval echo {1..${no_sims}}`; do
 
     prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
 
-	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t"
-	isolation-model.py ${ziphmmfile}
-	#for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
-	#	
-    #	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t${optimizer}\t"
-    #	isolation-model.py --optimizer=${optimizer} ${ziphmmfile}
-    #
-	#done
+    for chain in `eval echo {1..${no_chains}}`; do
+        isolation-model-mcmc.py ${ziphmmfile} -o mcmc-sim-${sim}-chain-${chain}.txt
+	done
 	
     rm ${treefile}
     rm ${seqfile}

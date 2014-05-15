@@ -11,13 +11,15 @@ def read(fname):
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
-    version = "0.4.0",
+    version = "0.5.0",
     packages = find_packages(where='src'),
     package_dir = {'': 'src'},
     
     scripts = ['scripts/prepare-alignments.py',
                'scripts/isolation-model.py',
+               'scripts/isolation-model-mcmc.py',
                'scripts/initial-migration-model.py',
+               'scripts/initial-migration-model-mcmc.py',
                'scripts/initial-migration-model-isolation-profile-likelihood.py',
                'scripts/initial-migration-model-migration-profile-likelihood.py',
                'scripts/initial-migration-model-theta-profile-likelihood.py',

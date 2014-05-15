@@ -93,9 +93,9 @@ the migration rate parameter."""
     init_coal = 1 / (theta / 2)
     rho = options.rho
 
-    migration_rate_points = scipy.linspace(options.migration_rate_start, options.migration_rate_end, options.number_of_points)
-
-
+    migration_rate_points = scipy.linspace(options.migration_rate_start,
+                                           options.migration_rate_end,
+                                           options.number_of_points)
 
     log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     initial_parameters = (init_isolation_time, init_migration_time, init_coal, rho)
@@ -105,7 +105,6 @@ the migration rate parameter."""
             parameters = params[0], params[1], params[2], params[3], migration_rate
             return - log_likelihood(scipy.array(parameters))
         return wrapper
-
 
     with open(options.outfile, 'w') as outfile:
         if options.header:
@@ -120,8 +119,8 @@ the migration rate parameter."""
 
             isolation_period, migration_period, coal_rate, rho = optimized_results.x
             mle_parameters = [isolation_period, migration_period, coal_rate, rho, migration_rate]
-            logL = -optimized_results.fun
-            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (logL,)))
+            log_likelihood = -optimized_results.fun
+            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (log_likelihood,)))
 
 
 if __name__ == '__main__':
