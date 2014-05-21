@@ -78,3 +78,16 @@ class MCMC(object):
         for _ in xrange(thinning):
             self.step(temperature)
         return self.current_theta, self.current_posterior
+
+
+## snippet for the MCMCMC
+if 0:
+        if itr % switching == 0:
+            i = randint(0, no_chains)
+            j = randint(0, no_chains)
+            if i != j:
+                current = posteriors[i] / (i+1) + posteriors[j] / (j+1)
+                new = posteriors[i] / (j+1) + posteriors[j] / (i+1)
+                if random() < exp(new - current):
+                    thetas[i], thetas[j] = thetas[j], thetas[i]
+                    posteriors[i], posteriors[j] = posteriors[j], posteriors[i]
