@@ -105,6 +105,7 @@ and uniform coalescence and recombination rates."""
         for _ in xrange(options.samples):
             params, post = mcmc.sample(thinning=options.thinning)
             print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+            outfile.flush()
 
 if __name__ == '__main__':
     main()
