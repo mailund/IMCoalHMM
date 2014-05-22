@@ -9,7 +9,7 @@ from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood
 from pyZipHMM import Forwarder
 
-from IMCoalHMM.mcmc import MCMC, LogNormPrior
+from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior
 from math import log
 
 
@@ -22,7 +22,7 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -43,6 +43,9 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=100,
                         help="Number of MCMC steps between samples (100)")
+
+    parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
+    parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
 
     meta_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
@@ -76,7 +79,11 @@ and uniform coalescence and recombination rates."""
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
 
-    mcmc = MCMC(priors, log_likelihood)
+    if options.mc3:
+        mcmc = MC3(priors, log_likelihood, thinning=options.thinning, no_chains=options.mc3_chains,
+                   switching=options.thinning/10)
+    else:
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     def transform(params):
         split_time, coal_rate, recomb_rate = params
@@ -86,8 +93,9 @@ and uniform coalescence and recombination rates."""
         print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
         
         for _ in xrange(options.samples):
-            params, post = mcmc.sample(thinning=options.thinning)
+            params, post = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+            outfile.flush()
 
 
 if __name__ == '__main__':
