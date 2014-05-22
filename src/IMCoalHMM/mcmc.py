@@ -91,6 +91,7 @@ class MC3(object):
     def __init__(self, priors, log_likelihood, no_chains, thinning, switching):
         self.no_chains = no_chains
         self.chains = [MCMC(priors, log_likelihood, thinning) for _ in xrange(no_chains)]
+        self.thinning = thinning
         self.switching = switching
 
     def sample(self):
@@ -113,3 +114,4 @@ class MC3(object):
                     if random() < exp(new - current):
                         self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
 
+        return self.chains[0].current_theta, self.chains[0].current_posterior

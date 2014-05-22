@@ -9,7 +9,7 @@ from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood
 from pyZipHMM import Forwarder
 
-from IMCoalHMM.mcmc import MCMC, LogNormPrior
+from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior
 from math import log
 
 
@@ -44,6 +44,9 @@ and uniform coalescence and recombination rates."""
                         default=100,
                         help="Number of MCMC steps between samples (100)")
 
+    parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
+    parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
+
     meta_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
@@ -76,7 +79,11 @@ and uniform coalescence and recombination rates."""
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
 
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
+    if options.mc3:
+        mcmc = MC3(priors, log_likelihood, thinning=options.thinning, no_chains=options.mc3_chains,
+                   switching=options.thinning/10)
+    else:
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     def transform(params):
         split_time, coal_rate, recomb_rate = params

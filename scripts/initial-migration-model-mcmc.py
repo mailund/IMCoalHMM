@@ -10,7 +10,7 @@ from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
 
-from IMCoalHMM.mcmc import MCMC, LogNormPrior, ExpLogNormPrior
+from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
 
 
@@ -51,6 +51,10 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=500,
                         help="Number of samples to draw (500)")
+
+
+    parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
+    parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
 
     parser.add_argument("-k", "--thinning",
                         type=int,
@@ -96,7 +100,11 @@ and uniform coalescence and recombination rates."""
                                                         options.ancestral_states),
                                 forwarders)
 
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
+    if options.mc3:
+        mcmc = MC3(priors, log_likelihood, thinning=options.thinning, no_chains=options.mc3_chains,
+                   switching=options.thinning/10)
+    else:
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['isolation.period', 'migration.period',
