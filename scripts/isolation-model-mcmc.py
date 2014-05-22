@@ -22,7 +22,7 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -76,7 +76,7 @@ and uniform coalescence and recombination rates."""
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
 
-    mcmc = MCMC(priors, log_likelihood)
+    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     def transform(params):
         split_time, coal_rate, recomb_rate = params
@@ -86,7 +86,7 @@ and uniform coalescence and recombination rates."""
         print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
         
         for _ in xrange(options.samples):
-            params, post = mcmc.sample(thinning=options.thinning)
+            params, post = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
             outfile.flush()
 

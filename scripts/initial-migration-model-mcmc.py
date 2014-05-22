@@ -96,14 +96,14 @@ and uniform coalescence and recombination rates."""
                                                         options.ancestral_states),
                                 forwarders)
 
-    mcmc = MCMC(priors, log_likelihood)
+    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['isolation.period', 'migration.period',
                                      'theta', 'rho', 'migration', 'posterior'])
         
         for _ in xrange(options.samples):
-            params, post = mcmc.sample(thinning=options.thinning)
+            params, post = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
             outfile.flush()
 
