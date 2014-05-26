@@ -111,7 +111,7 @@ class MC3(object):
                     chain_i, chain_j = self.chains[i], self.chains[j]
                     current = chain_i.current_posterior / (i + 1) + chain_j.current_posterior / (j + 1)
                     new = chain_j.current_posterior / (i + 1) + chain_i.current_posterior / (j + 1)
-                    if random() < exp(new - current):
+                    if new > current or random() < exp(new - current):
                         self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
 
         return self.chains[0].current_theta, self.chains[0].current_posterior
