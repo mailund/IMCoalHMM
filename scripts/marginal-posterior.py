@@ -59,7 +59,7 @@ the distribution for each state averaged over the table(s).
             print >> outfile, line
 
         for seqname, posterior in posterior_counts.iteritems():
-            print seqname, ' '.join(map(str, posterior/posterior.sum()))
+            print >> outfile, seqname, ' '.join(map(str, posterior/posterior.sum()))
 
 if __name__ == '__main__':
     main()
