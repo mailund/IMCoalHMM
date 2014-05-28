@@ -13,8 +13,7 @@ import os
 
 # Hack to avoid error messages when pipe-lining through head
 from signal import signal, SIGPIPE, SIG_DFL
-signal(SIGPIPE,SIG_DFL)
-
+signal(SIGPIPE, SIG_DFL)
 
 
 def write_posterior_table(fout, seqname, pd_table):
@@ -30,6 +29,7 @@ def write_posterior_table(fout, seqname, pd_table):
         fout.write('\n')
 
     fout.flush()
+
 
 def main():
     """
