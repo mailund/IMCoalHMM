@@ -29,6 +29,7 @@ setup(
                'scripts/initial-migration-model-migration-rate-profile-likelihood.py',
                'scripts/psmc-isolation-model.py',
                'scripts/variable-migration-model.py',
+               'scripts/marginal-posterior.py'
               ],
 
     install_requires = ['numpy', 
