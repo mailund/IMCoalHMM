@@ -25,7 +25,7 @@ def write_posterior_table(fout, seqname, pd_table):
         fout.write('%s\t%d' % (seqname, pos))
         pos += 1
         for state in xrange(no_states):
-            fout.write('\t%f' % pd_table[state, line])
+            fout.write('\t%g' % pd_table[state, line])
         fout.write('\n')
 
     fout.flush()
