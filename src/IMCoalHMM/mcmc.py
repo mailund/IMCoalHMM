@@ -89,29 +89,34 @@ class MCMC(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
     def __init__(self, priors, log_likelihood, no_chains, thinning, switching):
+
         self.no_chains = no_chains
-        self.chains = [MCMC(priors, log_likelihood, thinning) for _ in xrange(no_chains)]
+        self.chains = [MCMC(priors, log_likelihood, switching) for _ in xrange(no_chains)]
         self.thinning = thinning
         self.switching = switching
+
 
     def sample(self):
         '''Sample after running "thinning" steps with a proposal for switching chains at each
         "switching" step.'''
 
-        for itr in xrange(self.thinning):
-            for temperature, chain in enumerate(self.chains):
-                chain.step(temperature + 1.0)  # +1 because enumerate starts from zero
+        for _ in xrange(self.thinning / self.switching):
 
-            if itr % self.switching == 0:
-                i = randint(0, self.no_chains)
-                j = randint(0, self.no_chains)
+            # FIXME: I want to parallelise this code.
+            def foo(temperature, chain):
+                return chain.sample(temperature + 1)
+            map(foo, enumerate(self.chains))
+
+            i = randint(0, self.no_chains)
+            j = randint(0, self.no_chains)
 
 
-                if i != j:
-                    chain_i, chain_j = self.chains[i], self.chains[j]
-                    current = chain_i.current_posterior / (i + 1) + chain_j.current_posterior / (j + 1)
-                    new = chain_j.current_posterior / (i + 1) + chain_i.current_posterior / (j + 1)
-                    if new > current or random() < exp(new - current):
-                        self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
+            if i != j:
+                chain_i, chain_j = self.chains[i], self.chains[j]
+                current = chain_i.current_posterior / (i + 1) + chain_j.current_posterior / (j + 1)
+                new = chain_j.current_posterior / (i + 1) + chain_i.current_posterior / (j + 1)
+                if new > current or random() < exp(new - current):
+                    self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
+
 
         return self.chains[0].current_theta, self.chains[0].current_posterior

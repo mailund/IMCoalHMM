@@ -91,9 +91,6 @@ and uniform coalescence and recombination rates."""
     priors = [isolation_period_prior, migration_period_prior,
               coal_prior, rho_prior, migration_rate_prior]
 
-    # Draw initial parameters from the priors
-    init_params = [pi.sample() for pi in priors]
-
     # Read data and provide likelihood function
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
