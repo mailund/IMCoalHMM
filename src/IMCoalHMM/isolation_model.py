@@ -12,8 +12,6 @@ from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.break_points import exp_break_points
 from IMCoalHMM.model import Model
 
-from multiprocessing import Pool, cpu_count
-
 
 ## Code for computing HMM transition probabilities ####################
 
@@ -30,15 +28,12 @@ class ComputeThroughInterval(object):
         return self.single.probability_matrix(self.break_points[i + 1] - self.break_points[i])
 
 
-COMPUTATION_POOL = Pool(cpu_count()-1)
-
-
 def _compute_through(single, break_points):
     """Computes the matrices for moving through an interval"""
     no_states = len(break_points)
 
     # Construct the transition matrices for going through each interval
-    through = COMPUTATION_POOL.map(ComputeThroughInterval(single, break_points),  range(no_states-1))
+    through = map(ComputeThroughInterval(single, break_points),  range(no_states-1))
 
     # As a hack we set up a pseudo through matrix for the last interval that
     # just puts all probability on ending in one of the end states. This

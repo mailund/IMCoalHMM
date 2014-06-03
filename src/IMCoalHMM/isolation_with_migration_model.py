@@ -14,7 +14,6 @@ from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 
-from multiprocessing import Pool, cpu_count
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -32,9 +31,6 @@ class ComputeThroughInterval(object):
         return self.ctmc.probability_matrix(self.break_points[i + 1] - self.break_points[i])
 
 
-COMPUTATION_POOL = Pool(cpu_count()-1)
-
-
 def _compute_through(migration, migration_break_points,
                      ancestral, ancestral_break_points):
     """Computes the matrices for moving through an interval"""
@@ -48,13 +44,13 @@ def _compute_through(migration, migration_break_points,
 
     # Construct the transition matrices for going through each interval in
     # the migration phase
-    migration_through = COMPUTATION_POOL.map(ComputeThroughInterval(migration, migration_break_points),
-                                             range(no_migration_states - 1))
+    migration_through = map(ComputeThroughInterval(migration, migration_break_points),
+                            range(no_migration_states - 1))
     last_migration = migration.probability_matrix(ancestral_break_points[0] - migration_break_points[-1]) * projection
     migration_through.append(last_migration)
 
-    ancestral_through = COMPUTATION_POOL.map(ComputeThroughInterval(ancestral, ancestral_break_points),
-                                             range(no_ancestral_states - 1))
+    ancestral_through = map(ComputeThroughInterval(ancestral, ancestral_break_points),
+                            range(no_ancestral_states - 1))
 
     # As a hack we set up a pseudo through matrix for the last interval that
     # just puts all probability on ending in one of the end states. This
