@@ -91,16 +91,17 @@ and uniform coalescence and recombination rates."""
     priors = [isolation_period_prior, migration_period_prior,
               coal_prior, rho_prior, migration_rate_prior]
 
-    # Read data and provide likelihood function
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
-    log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
-                                                        options.ancestral_states),
-                                forwarders)
 
     if options.mc3:
-        mcmc = MC3(priors, log_likelihood, thinning=options.thinning, no_chains=options.mc3_chains,
+        mcmc = MC3(priors, input_files=options.alignments,
+                   model=IsolationMigrationModel(options.migration_states, options.ancestral_states),
+                   thinning=options.thinning, no_chains=options.mc3_chains,
                    switching=options.thinning/10)
     else:
+        forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+        log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
+                                                            options.ancestral_states),
+                                    forwarders)
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     with open(options.outfile, 'w') as outfile:
@@ -111,6 +112,9 @@ and uniform coalescence and recombination rates."""
             params, post = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
             outfile.flush()
+
+    if options.mc3:
+        mcmc.terminate()
 
 if __name__ == '__main__':
     main()
