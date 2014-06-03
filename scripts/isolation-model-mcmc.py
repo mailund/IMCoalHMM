@@ -22,7 +22,7 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.2")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
