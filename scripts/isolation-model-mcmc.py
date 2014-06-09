@@ -22,12 +22,18 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.2")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.3")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
                         default="/dev/stdout",
                         help="Output file for the estimate (/dev/stdout)")
+
+    parser.add_argument("--logfile",
+                        type=str,
+                        default=None,
+                        help="Log for sampled points in all chains for the MCMCMC during the run." \
+                             "This parameter is only valid when running --mc3.")
 
     parser.add_argument("--states",
                         type=int,
@@ -65,6 +71,9 @@ and uniform coalescence and recombination rates."""
     if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
 
+    if options.logfile and not options.mc3:
+        parser.error("the --logfile option is only valid together with the --mc3 option.")
+
     # Specify priors and proposal distributions... 
     # I am sampling in log-space to make it easier to make a random walk
     split_prior = LogNormPrior(log(options.split))
@@ -94,11 +103,29 @@ and uniform coalescence and recombination rates."""
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
-        
-        for _ in xrange(options.samples):
-            params, post = mcmc.sample()
-            print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
-            outfile.flush()
+
+        if options.logfile:
+            with open(options.logfile, 'w') as logfile:
+                print >> logfile, '\t'.join(['chain', 'split.time', 'theta', 'rho', 'posterior'])
+
+                for _ in xrange(options.samples):
+                    params, post = mcmc.sample()
+
+                    # Main chain written to output
+                    print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                    outfile.flush()
+
+                    # All chains written to the log
+                    for chain_no, chain in enumerate(mcmc.chains):
+                        params = chain.current_theta
+                        post = chain.current_posterior
+                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) + (post,)))
+                    logfile.flush()
+        else:
+            for _ in xrange(options.samples):
+                params, post = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                outfile.flush()
 
     if options.mc3:
         mcmc.terminate()
