@@ -31,7 +31,7 @@ def main():
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.3")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.4")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -61,7 +61,9 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
-
+    parser.add_argument("--temperature-scale", type=float, default=1.0,
+                        help="The scale by which higher chains will have added temperature." \
+                             "Chain i will have temperature scale*i.")
     parser.add_argument("-k", "--thinning",
                         type=int,
                         default=100,
@@ -105,7 +107,8 @@ and uniform coalescence and recombination rates."""
         mcmc = MC3(priors, input_files=options.alignments,
                    model=IsolationMigrationModel(options.migration_states, options.ancestral_states),
                    thinning=options.thinning, no_chains=options.mc3_chains,
-                   switching=options.thinning/10)
+                   switching=options.thinning/10,
+                   temperature_scale=options.temperature_scale)
     else:
         forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
         log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,

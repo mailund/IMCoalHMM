@@ -22,7 +22,7 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.3")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.4")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -52,6 +52,9 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
+    parser.add_argument("--temperature-scale", type=float, default=1.0,
+                        help="The scale by which higher chains will have added temperature." \
+                             "Chain i will have temperature scale*i.")
 
     meta_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
@@ -91,7 +94,8 @@ and uniform coalescence and recombination rates."""
         mcmc = MC3(priors, input_files=options.alignments,
                    model=IsolationModel(options.states),
                    thinning=options.thinning, no_chains=options.mc3_chains,
-                   switching=options.thinning/10)
+                   switching=options.thinning/10,
+                   temperature_scale=options.temperature_scale)
     else:
         forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
         log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
