@@ -80,8 +80,7 @@ class MCMC(object):
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior or \
-            random() < exp(new_posterior / temperature - self.current_posterior / temperature):
-
+                        random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_posterior = new_posterior
 
@@ -140,6 +139,7 @@ class RemoteMCMCProxy(object):
 
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
+
     def __init__(self, priors, input_files, model, no_chains, thinning, switching):
 
         self.no_chains = no_chains
