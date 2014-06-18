@@ -22,12 +22,18 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.2")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.4")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
                         default="/dev/stdout",
                         help="Output file for the estimate (/dev/stdout)")
+
+    parser.add_argument("--logfile",
+                        type=str,
+                        default=None,
+                        help="Log for sampled points in all chains for the MCMCMC during the run." \
+                             "This parameter is only valid when running --mc3.")
 
     parser.add_argument("--states",
                         type=int,
@@ -46,6 +52,9 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
+    parser.add_argument("--temperature-scale", type=float, default=1.0,
+                        help="The scale by which higher chains will have added temperature." \
+                             "Chain i will have temperature scale*i.")
 
     meta_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
@@ -65,6 +74,9 @@ and uniform coalescence and recombination rates."""
     if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
 
+    if options.logfile and not options.mc3:
+        parser.error("the --logfile option is only valid together with the --mc3 option.")
+
     # Specify priors and proposal distributions... 
     # I am sampling in log-space to make it easier to make a random walk
     split_prior = LogNormPrior(log(options.split))
@@ -82,7 +94,8 @@ and uniform coalescence and recombination rates."""
         mcmc = MC3(priors, input_files=options.alignments,
                    model=IsolationModel(options.states),
                    thinning=options.thinning, no_chains=options.mc3_chains,
-                   switching=options.thinning/10)
+                   switching=options.thinning/10,
+                   temperature_scale=options.temperature_scale)
     else:
         forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
         log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
@@ -94,11 +107,29 @@ and uniform coalescence and recombination rates."""
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
-        
-        for _ in xrange(options.samples):
-            params, post = mcmc.sample()
-            print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
-            outfile.flush()
+
+        if options.logfile:
+            with open(options.logfile, 'w') as logfile:
+                print >> logfile, '\t'.join(['chain', 'split.time', 'theta', 'rho', 'posterior'])
+
+                for _ in xrange(options.samples):
+                    params, post = mcmc.sample()
+
+                    # Main chain written to output
+                    print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                    outfile.flush()
+
+                    # All chains written to the log
+                    for chain_no, chain in enumerate(mcmc.chains):
+                        params = chain.current_theta
+                        post = chain.current_posterior
+                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) + (post,)))
+                    logfile.flush()
+        else:
+            for _ in xrange(options.samples):
+                params, post = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                outfile.flush()
 
     if options.mc3:
         mcmc.terminate()

@@ -80,8 +80,7 @@ class MCMC(object):
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior or \
-            random() < exp(new_posterior / temperature - self.current_posterior / temperature):
-
+                        random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_posterior = new_posterior
 
@@ -140,12 +139,14 @@ class RemoteMCMCProxy(object):
 
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
-    def __init__(self, priors, input_files, model, no_chains, thinning, switching):
+
+    def __init__(self, priors, input_files, model, no_chains, thinning, switching, temperature_scale):
 
         self.no_chains = no_chains
         self.chains = [RemoteMCMCProxy(priors, input_files, model, switching) for _ in xrange(no_chains)]
         self.thinning = thinning
         self.switching = switching
+        self.temperature_scale = temperature_scale
 
     def sample(self):
         """Sample after running "thinning" steps with a proposal for switching chains at each
@@ -154,17 +155,19 @@ class MC3(object):
         for _ in xrange(self.thinning / self.switching):
 
             for temperature, chain in enumerate(self.chains):
-                chain.remote_start(temperature + 1.0)
+                chain.remote_start(self.temperature_scale * (temperature + 1.0))
             for chain in self.chains:
                 chain.remote_complete()
 
             i = randint(0, self.no_chains)
             j = randint(0, self.no_chains)
+            temperature_i = (i + 1) * self.temperature_scale
+            temperature_j = (j + 1) * self.temperature_scale
 
             if i != j:
                 chain_i, chain_j = self.chains[i], self.chains[j]
-                current = chain_i.current_posterior / (i + 1) + chain_j.current_posterior / (j + 1)
-                new = chain_j.current_posterior / (i + 1) + chain_i.current_posterior / (j + 1)
+                current = chain_i.current_posterior / temperature_i + chain_j.current_posterior / temperature_j
+                new = chain_j.current_posterior / temperature_i + chain_i.current_posterior / temperature_j
                 if new > current or random() < exp(new - current):
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
 
