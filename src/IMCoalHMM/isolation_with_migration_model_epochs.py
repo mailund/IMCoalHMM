@@ -147,8 +147,12 @@ class IsolationMigrationEpochsModel(Model):
         self.no_mig_states = no_mig_states
         self.no_ancestral_states = no_ancestral_states
 
-    def emission_points(self, isolation_time, migration_time, coal_rates, recomb_rate, mig_rates):
+    def emission_points(self, *parameters):
         """Compute model specific coalescence points."""
+
+        isolation_time, migration_time, recomb_rate = parameters[:3]
+        coal_rates = parameters[3:2 * self.no_epochs + 1 + 3]
+
         tau1 = isolation_time
         tau2 = isolation_time + migration_time
 
@@ -161,9 +165,13 @@ class IsolationMigrationEpochsModel(Model):
         break_points = list(migration_break_points) + list(ancestral_break_points)
         return coalescence_points(break_points, coal_rate)
 
-    def build_ctmc_system(self, isolation_time, migration_time, coal_rates, recomb_rate, mig_rates):
+    def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the split times
         and the rates."""
+
+        isolation_time, migration_time, recomb_rate = parameters[:3]
+        coal_rates = parameters[3:2 * self.no_epochs + 1 + 3]
+        mig_rates = parameters[2 * self.no_epochs + 1 + 3:]
 
         assert len(coal_rates) == self.no_epochs * 2 + 1, "Isolation + #Epochs migration + #Epochs ancestral"
         assert len(mig_rates) == self.no_epochs, "#Epochs migration epochs"
@@ -217,7 +225,11 @@ def main():
     mig_rate = 0.1
 
     model = IsolationMigrationEpochsModel(no_epochs, no_mig_states, no_ancestral_states)
-    parameters = isolation_time, migration_time, [coal_rate] * (2 * no_epochs + 1), recomb_rate, [mig_rate] * no_epochs
+
+    parameters = [isolation_time, migration_time, recomb_rate]
+    parameters.extend([coal_rate] * (2 * no_epochs + 1))
+    parameters.extend([mig_rate] * no_epochs)
+
     pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
 
     no_states = pi.getHeight()

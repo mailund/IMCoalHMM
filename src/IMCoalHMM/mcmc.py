@@ -158,7 +158,7 @@ class MC3(object):
         """Sample after running "thinning" steps with a proposal for switching chains at each
         "switching" step."""
 
-        for _ in xrange(self.thinning / self.switching):
+        for _ in xrange(int(float(self.thinning) / self.switching)):
 
             for chain_no, chain in enumerate(self.chains):
                 chain.remote_start(self.chain_temperature(chain_no))
