@@ -33,7 +33,7 @@ def main():
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.4")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.5")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
