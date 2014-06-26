@@ -19,7 +19,7 @@ def main():
     """
     Run the main script.
     """
-    usage = """%(prog)s [options] alignment [alignments]
+    usage = """%(prog)s [options] alignments...
 
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
