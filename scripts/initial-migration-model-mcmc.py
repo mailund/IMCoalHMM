@@ -94,6 +94,9 @@ and uniform coalescence and recombination rates."""
     if len(options.alignments) < 1 and not (options.sample_priors or options.mcmc_priors):
         parser.error("Input alignment not provided!")
 
+    if len(options.alignments) > 0 and options.mcmc_priors:
+        parser.error("You should not provide alignments to the command line when sampling from the prior")
+
     if options.logfile and not options.mc3:
         parser.error("the --logfile option is only valid together with the --mc3 option.")
 
