@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-"""Script for estimating parameters in an initial migration model.
+"""Script for estimating parameters in an initial migration model with multiple epochs.
 """
 
 from argparse import ArgumentParser
 
 from IMCoalHMM.likelihood import Likelihood
-from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
+from IMCoalHMM.isolation_with_migration_model_epochs import IsolationMigrationEpochsModel
 from pyZipHMM import Forwarder
 
 
@@ -16,12 +16,18 @@ from math import log
 import sys
 
 
-def transform(params):
+def transform(no_epochs, parameters):
     """
     Translate the parameters to the input and output parameter space.
     """
-    isolation_time, migration_time, coal_rate, recomb_rate, mig_rate = params
-    return isolation_time, migration_time, 2 / coal_rate, recomb_rate, mig_rate
+
+    isolation_time, migration_time, recomb_rate = parameters[:3]
+    coal_rates = tuple(parameters[3:2 * no_epochs + 1 + 3])
+    mig_rates = tuple(parameters[2 * no_epochs + 1 + 3:])
+    thetas = tuple(2 / coal_rate for coal_rate in coal_rates)
+
+    transformed = (isolation_time, migration_time) + thetas + (recomb_rate,) + mig_rates
+    return transformed
 
 
 def main():
@@ -31,9 +37,9 @@ def main():
     usage = """%(prog)s [options] alignments...
 
 This program estimates the parameters of an isolation model with an initial migration period with two species
-and uniform coalescence and recombination rates."""
+and uniform coalescence and recombination rates and with variable effective population size."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.5")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -46,14 +52,20 @@ and uniform coalescence and recombination rates."""
                         help="Log for sampled points in all chains for the MCMCMC during the run." \
                              "This parameter is only valid when running --mc3.")
 
+    parser.add_argument("--epochs",
+                        type=int,
+                        default=2,
+                        help="Number of epochs (variation in population size and migration rate) used " \
+                             "in the migration period and in the ancestral population (2)")
     parser.add_argument("--ancestral-states",
                         type=int,
-                        default=10,
-                        help="Number of intervals used to discretize the time in the ancestral population (10)")
+                        default=5,
+                        help="Number of intervals per epoch used to discretize the time in the " \
+                             "ancestral population (5)")
     parser.add_argument("--migration-states",
                         type=int,
-                        default=10,
-                        help="Number of intervals used to discretize the time in the migration period (10)")
+                        default=5,
+                        help="Number of intervals per epoch used to discretize the time in the migration period (5)")
 
     parser.add_argument("-n", "--samples",
                         type=int,
@@ -70,6 +82,7 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=100,
                         help="Number of MCMC steps between samples (100)")
+
 
     parser.add_argument("--sample-priors", help="Sample independently from the priors", action="store_true")
     parser.add_argument("--mcmc-priors", help="Run the MCMC but use the prior as the posterior", action="store_true")
@@ -107,61 +120,73 @@ and uniform coalescence and recombination rates."""
     coal_prior = LogNormPrior(log(1/(options.theta/2)))
     rho_prior = LogNormPrior(log(options.rho))
     migration_rate_prior = ExpLogNormPrior(options.migration_rate)
-    priors = [isolation_period_prior, migration_period_prior,
-              coal_prior, rho_prior, migration_rate_prior]
+
+    # Putting these together with the right number of priors when there are multiple epochs...
+    priors = [isolation_period_prior, migration_period_prior, rho_prior] + \
+             [coal_prior] * (2 * options.epochs + 1) + \
+             [migration_rate_prior] * options.epochs
+
+    out_header = '\t'.join(['isolation.period', 'migration.period'] +
+                           ['isolation.theta'] +
+                           ['migration.theta.{}'.format(epoch) for epoch in range(options.epochs)] +
+                           ['ancestral.theta.{}'.format(epoch) for epoch in range(options.epochs)] +
+                           ['rho'] +
+                           ['migration.{}'.format(epoch) for epoch in range(options.epochs)] +
+                           ['posterior'])
+    log_header = "chain\t{}".format(out_header)
 
     # If we only want to sample from the priors we simply collect random points from these
     if options.sample_priors:
         with open(options.outfile, 'w') as outfile:
-            print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'posterior'])
+            print >> outfile, out_header
             for _ in xrange(options.samples):
                 params = [prior.sample() for prior in priors]
                 posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
-                print >> outfile, '\t'.join(map(str, transform(params) + (posterior,)))
+                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (posterior,)))
                 outfile.flush()
 
         sys.exit(0) # Successful termination
 
     if options.mc3:
         mcmc = MC3(priors, input_files=options.alignments,
-                   model=IsolationMigrationModel(options.migration_states, options.ancestral_states),
+                   model=IsolationMigrationEpochsModel(options.epochs,
+                                                       options.migration_states,
+                                                       options.ancestral_states),
                    thinning=options.thinning, no_chains=options.mc3_chains,
-                   switching=options.thinning/10,
+                   switching=max(1,int(options.thinning/10.0)),
                    temperature_scale=options.temperature_scale)
     else:
         forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
-        log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
-                                                            options.ancestral_states),
+        log_likelihood = Likelihood(IsolationMigrationEpochsModel(options.epochs,
+                                                                  options.migration_states,
+                                                                  options.ancestral_states),
                                     forwarders)
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
     with open(options.outfile, 'w') as outfile:
-        print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                     'theta', 'rho', 'migration', 'posterior'])
+        print >> outfile, out_header
         
         if options.logfile:
             with open(options.logfile, 'w') as logfile:
-                print >> logfile, '\t'.join(['chain', 'isolation.period', 'migration.period',
-                                             'theta', 'rho', 'migration', 'posterior'])
+                print >> logfile, log_header
 
                 for _ in xrange(options.samples):
                     # Write main chain to output
                     params, post = mcmc.sample()
-                    print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                    print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (post,)))
                     outfile.flush()
 
                     # All chains written to the log
                     for chain_no, chain in enumerate(mcmc.chains):
                         params = chain.current_theta
                         post = chain.current_posterior
-                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) + (post,)))
+                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(options.epochs, params) + (post,)))
                     logfile.flush()
 
         else:
             for _ in xrange(options.samples):
                 params, post = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (post,)))
                 outfile.flush()
 
     if options.mc3:

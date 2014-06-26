@@ -158,7 +158,7 @@ class MC3(object):
         """Sample after running "thinning" steps with a proposal for switching chains at each
         "switching" step."""
 
-        for _ in xrange(self.thinning / self.switching):
+        for _ in xrange(int(float(self.thinning) / self.switching)):
 
             for chain_no, chain in enumerate(self.chains):
                 chain.remote_start(self.chain_temperature(chain_no))
@@ -167,10 +167,10 @@ class MC3(object):
 
             i = randint(0, self.no_chains)
             j = randint(0, self.no_chains)
-            temperature_i = self.chain_temperature(i)
-            temperature_j = self.chain_temperature(j)
 
             if i != j:
+                temperature_i = self.chain_temperature(i)
+                temperature_j = self.chain_temperature(j)
                 chain_i, chain_j = self.chains[i], self.chains[j]
                 current = chain_i.current_posterior / temperature_i + chain_j.current_posterior / temperature_j
                 new = chain_j.current_posterior / temperature_i + chain_i.current_posterior / temperature_j
