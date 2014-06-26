@@ -12,17 +12,19 @@ from pyZipHMM import Forwarder
 from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior
 from math import log
 
+import sys
+
 
 def main():
     """
     Run the main script.
     """
-    usage = """%(prog)s [options] <forwarder dirs>
+    usage = """%(prog)s [options] alignment [alignments]
 
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.4")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.5")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -56,6 +58,9 @@ and uniform coalescence and recombination rates."""
                         help="The scale by which higher chains will have added temperature." \
                              "Chain i will have temperature scale*i.")
 
+    parser.add_argument("--sample-priors", help="Sample independently from the priors", action="store_true")
+    parser.add_argument("--mcmc-priors", help="Run the MCMC but use the prior as the posterior", action="store_true")
+
     meta_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
@@ -68,10 +73,10 @@ and uniform coalescence and recombination rates."""
                             default=default,
                             help="Meta-parameter mean of the %s (%g)" % (description, default))
 
-    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+    parser.add_argument('alignments', nargs='*', help='Alignments in ZipHMM format')
 
     options = parser.parse_args()
-    if len(options.alignments) < 1:
+    if len(options.alignments) < 1 and not (options.sample_priors or options.mcmc_priors):
         parser.error("Input alignment not provided!")
 
     if options.logfile and not options.mc3:
@@ -84,11 +89,21 @@ and uniform coalescence and recombination rates."""
     rho_prior = LogNormPrior(log(options.rho))
     priors = [split_prior, coal_prior, rho_prior]
 
-    # Draw initial parameters from the priors
-    init_params = [pi.sample() for pi in priors]
+    def transform(params):
+        split_time, coal_rate, recomb_rate = params
+        return split_time, 2 / coal_rate, recomb_rate
 
-    # Read data and provide likelihood function
+    # If we only want to sample from the priors we simply collect random points from these
+    if options.sample_priors:
+        with open(options.outfile, 'w') as outfile:
+            print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
+            for _ in xrange(options.samples):
+                params = [prior.sample() for prior in priors]
+                posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
+                print >> outfile, '\t'.join(map(str, transform(params) + (posterior,)))
+                outfile.flush()
 
+        sys.exit(0) # Successful termination
 
     if options.mc3:
         mcmc = MC3(priors, input_files=options.alignments,
@@ -101,9 +116,6 @@ and uniform coalescence and recombination rates."""
         log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
-    def transform(params):
-        split_time, coal_rate, recomb_rate = params
-        return split_time, 2 / coal_rate, recomb_rate
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
