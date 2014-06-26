@@ -110,7 +110,8 @@ and uniform coalescence and recombination rates."""
     # If we only want to sample from the priors we simply collect random points from these
     if options.sample_priors:
         with open(options.outfile, 'w') as outfile:
-            print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'posterior'])
+            print >> outfile, '\t'.join(['isolation.period', 'migration.period',
+                                         'theta', 'rho', 'migration', 'posterior'])
             for _ in xrange(options.samples):
                 params = [prior.sample() for prior in priors]
                 posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
