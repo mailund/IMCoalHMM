@@ -13,6 +13,8 @@ from pyZipHMM import Forwarder
 from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
 
+import sys
+
 
 def transform(no_epochs, parameters):
     """
@@ -32,7 +34,7 @@ def main():
     """
     Run the main script.
     """
-    usage = """%(prog)s [options] <forwarder dirs>
+    usage = """%(prog)s [options] alignments...
 
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates and with variable effective population size."""
@@ -81,6 +83,10 @@ and uniform coalescence and recombination rates and with variable effective popu
                         default=100,
                         help="Number of MCMC steps between samples (100)")
 
+
+    parser.add_argument("--sample-priors", help="Sample independently from the priors", action="store_true")
+    parser.add_argument("--mcmc-priors", help="Run the MCMC but use the prior as the posterior", action="store_true")
+
     meta_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
         ('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
@@ -95,11 +101,14 @@ and uniform coalescence and recombination rates and with variable effective popu
                             default=default,
                             help="Meta-parameter mean of the %s (%g)" % (description, default))
 
-    parser.add_argument('alignments', nargs='+', help='Alignments in ZipHMM format')
+    parser.add_argument('alignments', nargs='*', help='Alignments in ZipHMM format')
 
     options = parser.parse_args()
-    if len(options.alignments) < 1:
+    if len(options.alignments) < 1 and not (options.sample_priors or options.mcmc_priors):
         parser.error("Input alignment not provided!")
+
+    if len(options.alignments) > 0 and options.mcmc_priors:
+        parser.error("You should not provide alignments to the command line when sampling from the prior")
 
     if options.logfile and not options.mc3:
         parser.error("the --logfile option is only valid together with the --mc3 option.")
@@ -125,6 +134,18 @@ and uniform coalescence and recombination rates and with variable effective popu
                            ['migration.{}'.format(epoch) for epoch in range(options.epochs)] +
                            ['posterior'])
     log_header = "chain\t{}".format(out_header)
+
+    # If we only want to sample from the priors we simply collect random points from these
+    if options.sample_priors:
+        with open(options.outfile, 'w') as outfile:
+            print >> outfile, out_header
+            for _ in xrange(options.samples):
+                params = [prior.sample() for prior in priors]
+                posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
+                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (posterior,)))
+                outfile.flush()
+
+        sys.exit(0) # Successful termination
 
     if options.mc3:
         mcmc = MC3(priors, input_files=options.alignments,

@@ -11,7 +11,7 @@ def read(fname):
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
-    version = "0.6.0",
+    version = "0.6.1",
     packages = find_packages(where='src'),
     package_dir = {'': 'src'},
     
@@ -27,7 +27,7 @@ setup(
                'scripts/initial-migration-model-theta-profile-likelihood.py',
                'scripts/initial-migration-model-rho-profile-likelihood.py',
                'scripts/initial-migration-model-migration-rate-profile-likelihood.py',
-                'scripts/initial-migration-epochs-model-mcmc.py',
+               'scripts/initial-migration-epochs-model-mcmc.py',
                'scripts/psmc-isolation-model.py',
                'scripts/variable-migration-model.py',
                'scripts/marginal-posterior.py'
