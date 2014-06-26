@@ -34,7 +34,7 @@ def main():
     """
     Run the main script.
     """
-    usage = """%(prog)s [options] <forwarder dirs>
+    usage = """%(prog)s [options] alignments...
 
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates and with variable effective population size."""
