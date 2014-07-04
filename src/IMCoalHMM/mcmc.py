@@ -65,7 +65,9 @@ class MCMC(object):
         self.thinning = thinning
 
         self.current_theta = array([pi.sample() for pi in self.priors])
-        self.current_posterior = self.log_prior(self.current_theta) + self.log_likelihood(self.current_theta)
+        self.current_prior = self.log_prior(self.current_theta)
+        self.current_likelihood = self.log_likelihood(self.current_theta)
+        self.current_posterior = self.current_prior + self.current_likelihood
 
     def log_prior(self, theta):
         log_prior = 0.0
@@ -82,12 +84,14 @@ class MCMC(object):
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
+            self.current_prior = new_prior
+            self.current_likelihood = new_log_likelihood
             self.current_posterior = new_posterior
 
     def sample(self, temperature=1.0):
         for _ in xrange(self.thinning):
             self.step(temperature)
-        return self.current_theta, self.current_posterior
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior
 
 
 class RemoteMCMC(object):
@@ -112,8 +116,7 @@ class RemoteMCMC(object):
         self._set_chain()
         while True:
             temperature = self.task_queue.get()
-            self.chain.sample(temperature)
-            self.response_queue.put((self.chain.current_theta, self.chain.current_posterior))
+            self.response_queue.put(self.chain.sample(temperature))
 
 
 class RemoteMCMCProxy(object):
@@ -123,6 +126,8 @@ class RemoteMCMCProxy(object):
         self.remote_chain = RemoteMCMC(priors, input_files, model, thinning)
         self.remote_process = Process(target=self.remote_chain)
         self.current_theta = None
+        self.current_prior = None
+        self.current_likelihood = None
         self.current_posterior = None
 
         self.remote_process.start()
@@ -131,7 +136,8 @@ class RemoteMCMCProxy(object):
         self.remote_chain.task_queue.put(temperature)
 
     def remote_complete(self):
-        self.current_theta, self.current_posterior = self.remote_chain.response_queue.get()
+        self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior = \
+            self.remote_chain.response_queue.get()
 
     def remote_terminate(self):
         self.remote_process.terminate()
@@ -177,7 +183,8 @@ class MC3(object):
                 if new > current or random() < exp(new - current):
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
 
-        return self.chains[0].current_theta, self.chains[0].current_posterior
+        return self.chains[0].current_theta, self.chains[0].current_prior, \
+               self.chains[0].current_likelihood, self.chains[0].current_posterior
 
     def terminate(self):
         for chain in self.chains:
