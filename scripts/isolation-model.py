@@ -101,7 +101,7 @@ and uniform coalescence and recombination rates."""
 
     with open(options.outfile, 'w') as outfile:
         if options.header:
-            print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'logL'])
+            print >> outfile, '\t'.join(['split.time', 'theta', 'rho', 'log.likelihood'])
         print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
 
 
