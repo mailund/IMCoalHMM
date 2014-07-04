@@ -24,7 +24,7 @@ def main():
 This program samples the posterior parameters of an isolation model with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.6")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.7")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -54,7 +54,7 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
-    parser.add_argument("--temperature-scale", type=float, default=1.0,
+    parser.add_argument("--temperature-scale", type=float, default=10.0,
                         help="The scale by which higher chains will have added temperature." \
                              "Chain i will have temperature scale*i.")
 
