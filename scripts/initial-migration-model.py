@@ -27,7 +27,7 @@ def main():
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.2")
 
     parser.add_argument("--header",
                         action="store_true",
@@ -115,7 +115,7 @@ and uniform coalescence and recombination rates."""
     with open(options.outfile, 'w') as outfile:
         if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'logL'])
+                                         'theta', 'rho', 'migration', 'log.likelihood'])
         print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
 
 
