@@ -107,7 +107,7 @@ the theta parameter."""
     with open(options.outfile, 'w') as outfile:
         if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'logL'])
+                                         'theta', 'rho', 'migration', 'log.likelihood'])
 
         for theta in theta_points:
             coal_rate = 1 / (theta / 2)

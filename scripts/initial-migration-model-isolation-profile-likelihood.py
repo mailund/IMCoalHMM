@@ -29,7 +29,7 @@ This program estimates the parameters of an initial-migration model with two spe
 and uniform coalescence and recombination rates and outputs the profile likelihood for
 the isolation period parameter."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.1")
 
     parser.add_argument("--header",
                         action="store_true",
@@ -110,7 +110,7 @@ the isolation period parameter."""
     with open(options.outfile, 'w') as outfile:
         if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'logL'])
+                                         'theta', 'rho', 'migration', 'log.likelihood'])
 
         for isolation_period in isolation_period_points:
             minimize_wrapper = make_minimize_wrapper(isolation_period)
