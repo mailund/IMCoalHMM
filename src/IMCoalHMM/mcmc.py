@@ -73,7 +73,7 @@ class MCMC(object):
         log_prior = 0.0
         for i in xrange(len(theta)):
             pdf = self.priors[i].pdf(theta[i])
-            assert pdf > 0.0
+            if pdf <= 0.0: return -float("inf")
             log_prior += log(pdf)
         return log_prior
 
