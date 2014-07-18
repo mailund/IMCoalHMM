@@ -72,7 +72,9 @@ class MCMC(object):
     def log_prior(self, theta):
         log_prior = 0.0
         for i in xrange(len(theta)):
-            log_prior += log(self.priors[i].pdf(theta[i]))
+            pdf = self.priors[i].pdf(theta[i])
+            assert pdf > 0.0
+            log_prior += log(pdf)
         return log_prior
 
     def step(self, temperature=1.0):
