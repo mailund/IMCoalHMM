@@ -109,7 +109,7 @@ the migration rate parameter."""
     with open(options.outfile, 'w') as outfile:
         if options.header:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'logL'])
+                                         'theta', 'rho', 'migration', 'log.likelihood'])
 
         for migration_rate in migration_rate_points:
             minimize_wrapper = make_minimize_wrapper(migration_rate)

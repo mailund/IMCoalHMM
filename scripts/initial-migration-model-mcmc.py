@@ -33,7 +33,7 @@ def main():
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.5")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.7")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -63,7 +63,7 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
-    parser.add_argument("--temperature-scale", type=float, default=1.0,
+    parser.add_argument("--temperature-scale", type=float, default=10.0,
                         help="The scale by which higher chains will have added temperature." \
                              "Chain i will have temperature scale*i.")
     parser.add_argument("-k", "--thinning",
@@ -114,11 +114,14 @@ and uniform coalescence and recombination rates."""
     if options.sample_priors:
         with open(options.outfile, 'w') as outfile:
             print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                         'theta', 'rho', 'migration', 'posterior'])
+                                         'theta', 'rho', 'migration',
+                                         'log.prior', 'log.likelihood', 'log.posterior'])
             for _ in xrange(options.samples):
                 params = [prior.sample() for prior in priors]
-                posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
-                print >> outfile, '\t'.join(map(str, transform(params) + (posterior,)))
+                prior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
+                likelihood = 0.0
+                posterior = prior + likelihood
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                 outfile.flush()
 
         sys.exit(0) # Successful termination
@@ -138,30 +141,35 @@ and uniform coalescence and recombination rates."""
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                     'theta', 'rho', 'migration', 'posterior'])
+                                     'theta', 'rho', 'migration',
+                                     'log.prior', 'log.likelihood', 'log.posterior'])
         
         if options.logfile:
             with open(options.logfile, 'w') as logfile:
                 print >> logfile, '\t'.join(['chain', 'isolation.period', 'migration.period',
-                                             'theta', 'rho', 'migration', 'posterior'])
+                                             'theta', 'rho', 'migration',
+                                             'log.prior', 'log.likelihood', 'log.posterior'])
 
                 for _ in xrange(options.samples):
                     # Write main chain to output
-                    params, post = mcmc.sample()
-                    print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                    params, prior, likelihood, posterior = mcmc.sample()
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                     outfile.flush()
 
                     # All chains written to the log
                     for chain_no, chain in enumerate(mcmc.chains):
                         params = chain.current_theta
-                        post = chain.current_posterior
-                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) + (post,)))
+                        prior = chain.current_prior
+                        likelihood = chain.current_likelihood
+                        posterior = chain.current_posterior
+                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) +
+                                                        (prior, likelihood, posterior)))
                     logfile.flush()
 
         else:
             for _ in xrange(options.samples):
-                params, post = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (post,)))
+                params, prior, likelihood, posterior = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                 outfile.flush()
 
     if options.mc3:

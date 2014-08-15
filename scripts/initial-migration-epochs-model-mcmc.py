@@ -39,7 +39,7 @@ def main():
 This program estimates the parameters of an isolation model with an initial migration period with two species
 and uniform coalescence and recombination rates and with variable effective population size."""
 
-    parser = ArgumentParser(usage=usage, version="%(prog)s 1.0")
+    parser = ArgumentParser(usage=usage, version="%(prog)s 1.2")
 
     parser.add_argument("-o", "--outfile",
                         type=str,
@@ -75,7 +75,7 @@ and uniform coalescence and recombination rates and with variable effective popu
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
     parser.add_argument("--mc3-chains", type=int, default=3, help="Number of MCMCMC chains")
-    parser.add_argument("--temperature-scale", type=float, default=1.0,
+    parser.add_argument("--temperature-scale", type=float, default=10.0,
                         help="The scale by which higher chains will have added temperature." \
                              "Chain i will have temperature scale*i.")
     parser.add_argument("-k", "--thinning",
@@ -132,7 +132,7 @@ and uniform coalescence and recombination rates and with variable effective popu
                            ['ancestral.theta.{}'.format(epoch) for epoch in range(options.epochs)] +
                            ['rho'] +
                            ['migration.{}'.format(epoch) for epoch in range(options.epochs)] +
-                           ['posterior'])
+                           ['log.prior', 'log.likelihood', 'log.posterior'])
     log_header = "chain\t{}".format(out_header)
 
     # If we only want to sample from the priors we simply collect random points from these
@@ -141,8 +141,11 @@ and uniform coalescence and recombination rates and with variable effective popu
             print >> outfile, out_header
             for _ in xrange(options.samples):
                 params = [prior.sample() for prior in priors]
-                posterior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
-                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (posterior,)))
+                prior = sum(log(prior.pdf(p)) for prior, p in zip(priors, params))
+                likelihood = 0.0
+                posterior = prior + likelihood
+                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) +
+                                                (prior, likelihood, posterior)))
                 outfile.flush()
 
         sys.exit(0) # Successful termination
@@ -172,21 +175,26 @@ and uniform coalescence and recombination rates and with variable effective popu
 
                 for _ in xrange(options.samples):
                     # Write main chain to output
-                    params, post = mcmc.sample()
-                    print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (post,)))
+                    params, prior, likelihood, posterior = mcmc.sample()
+                    print >> outfile, '\t'.join(map(str, transform(options.epochs, params) +
+                                                    (prior, likelihood, posterior)))
                     outfile.flush()
 
                     # All chains written to the log
                     for chain_no, chain in enumerate(mcmc.chains):
                         params = chain.current_theta
-                        post = chain.current_posterior
-                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(options.epochs, params) + (post,)))
+                        prior = chain.current_prior
+                        likelihood = chain.current_likelihood
+                        posterior = chain.current_posterior
+                        print >> logfile, '\t'.join(map(str, (chain_no,) + transform(options.epochs, params) +
+                                                        (prior, likelihood, posterior)))
                     logfile.flush()
 
         else:
             for _ in xrange(options.samples):
-                params, post = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) + (post,)))
+                params, prior, likelihood, posterior = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(options.epochs, params) +
+                                                (prior, likelihood, posterior)))
                 outfile.flush()
 
     if options.mc3:
