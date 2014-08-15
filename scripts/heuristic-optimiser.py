@@ -32,7 +32,7 @@ Infers population genetic parameters using heuristic optimisers for CoalHMMs.
 For an example of the mandatory configuration file, see
 heuristic-optimiser.config in the directory accompanying this script.
 
-Report bugs to Jade Cheng <ycheng@cs.au.dk>.'''.format(sys.argv[0])
+Report bugs to Jade Cheng <ycheng@birc.au.dk>.'''.format(sys.argv[0])
 
 
 def _log(text):
