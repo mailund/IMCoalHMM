@@ -37,3 +37,5 @@ test.txt
 test2.txt
 #annulerer alle filer der ender på ~
 *.py~
+*.sh~
+
