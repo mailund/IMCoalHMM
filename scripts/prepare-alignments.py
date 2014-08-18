@@ -9,7 +9,6 @@ from argparse import ArgumentParser
 from pyZipHMM import Forwarder
 from Bio import SeqIO
 
-
 def main():
     usage = """%(prog)s [options] <input> <input format> <output dir>
 
@@ -42,6 +41,8 @@ may want to split the alignment first if it's very large.
     parser.add_argument("in_filename", type=str, help="Input file")
     parser.add_argument("in_format", type=str, help="The file format for the input")
     parser.add_argument("output_dirname", type=str, help="Where to write the ZipHMM alignment")
+    parser.add_argument("--where_path_ends",type=int, default=0, help="The path is assumed to consist of a lot of /, \
+        and it is assumed that the path goes through the working directory. This is the index[counting 0] of the working directory")
 
     options = parser.parse_args()
 
@@ -121,7 +122,8 @@ may want to split the alignment first if it's very large.
     if options.verbose:
         print "Writing ZipHMM data to '%s'..." % options.output_dirname,
         sys.stdout.flush()
-    f.writeToDirectory(options.output_dirname)
+        
+    f.writeToDirectory('/'.join(options.output_dirname.split("/")[options.where_path_ends:]))
     if options.verbose:
         print "done"
 

@@ -4,8 +4,9 @@ split_mya=4
 migration_mya=1
 coal_mig_rate=0.5
 
-no_sims=2
-no_chains=3
+no_sims=1 #no_sims=2
+no_chains=1 #no_chains=3
+no_pieces=10
 
 Ne=20000
 gen=25
@@ -38,28 +39,40 @@ echo -e "${subs_isolation_time}\t${subs_migration_time}\t${subs_theta}\t${subs_r
 
 for sim in `eval echo {1..${no_sims}}`; do
     
-    simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
+		mkdir /home/svendvn/IMCoalHMM-simulations.3 -p
+	simdir=/home/svendvn/IMCoalHMM-simulations.3
+    #simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
     treefile=${simdir}/trees.nwk
-    seqfile=${simdir}/alignment.phylip
-    ziphmmfile=${simdir}/alignment.ziphmm
+	for piece in `eval echo {1..${no_pieces}}`; do  
+		mkdir ${simdir}/${piece} -p  
+		seqfile[$piece]=${simdir}/${piece}/alignment.phylip
+		ziphmmfile[$piece]=${simdir}/${piece}/alignment.ziphmm
+	done
+    
+
+	echo "directory made"
     
     ms 2 1 -T -r ${coal_rho} ${seg_length} \
 		   -I 2 1 1 0.0 -em ${coal_tau_mig} 1 2 ${coal_mig_rate} -em ${coal_tau_mig} 2 1 ${coal_mig_rate} \
-		   -ej ${coal_tau_split} 2 1 | tail +4 | grep -v // > ${treefile}
-	
-    seq-gen -q -mHKY -l ${seg_length} -s ${subs_theta} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
+		   -ej ${coal_tau_split} 2 1 | tail -n +4 | grep -v // > ${treefile}
 
-    prepare-alignments.py ${seqfile} phylip ${ziphmmfile}
 
-    for chain in `eval echo {1..${no_chains}}`; do
-        initial-migration-model-mcmc.py ${ziphmmfile} -o mcmc-sim-${sim}-chain-${chain}.txt
+	echo "ms run"
+
+    for piece in `eval echo {1..${no_pieces}}`; do 
+	seq-gen -q -mHKY -l ${seg_length} -s ${subs_theta} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile[$piece]}
+	echo "seq-gen run ${piece}"	
+	python /home/svendvn/workspace/coalHMMmcmc/def/scripts/prepare-alignments.py ${seqfile[$piece]} phylip ${ziphmmfile[$piece]} --verbose --where_path_ends 3
+	echo "zipmm made ${piece}"
+    done
+
+	for i in `eval echo {1..2}`; do
+        	python /home/svendvn/workspace/coalHMMmcmc/def/scripts/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]} \
+  		${ziphmmfile[5]} ${ziphmmfile[6]} ${ziphmmfile[7]} ${ziphmmfile[8]} ${ziphmmfile[9]} ${ziphmmfile[10]} \
+		-o INMmcmc-sim-${i}-chain.txt --samples 1000 -k 50 --sd_multiplyer 0.2 --transform $i
+		echo "finished transform" $i
 	done
+	echo "now finished " ${chains}
     
-    rm ${treefile}
-    rm ${seqfile}
-    rm ${ziphmmfile}/nStates2seq/*
-    rmdir ${ziphmmfile}/nStates2seq
-    rm ${ziphmmfile}/*
-    rmdir ${ziphmmfile}
-    rmdir ${simdir}
+
 done

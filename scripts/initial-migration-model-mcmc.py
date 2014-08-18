@@ -10,8 +10,10 @@ from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
 
-from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior, ExpLogNormPrior
-from math import log
+from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
+from math import log,exp
+
+from numpy import array, dot
 
 import sys
 
@@ -50,6 +52,7 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=10,
                         help="Number of intervals used to discretize the time in the ancestral population (10)")
+    
     parser.add_argument("--migration-states",
                         type=int,
                         default=10,
@@ -59,6 +62,8 @@ and uniform coalescence and recombination rates."""
                         type=int,
                         default=500,
                         help="Number of samples to draw (500)")
+    
+    parser.add_argument("--transform", type=int, default=1, help="the transformation to use. 1 is dependent transformation and 2 is independent transformation(scaling)")
 
 
     parser.add_argument("--mc3", help="Run a Metropolis-Coupled MCMC", action="store_true")
@@ -73,6 +78,7 @@ and uniform coalescence and recombination rates."""
 
     parser.add_argument("--sample-priors", help="Sample independently from the priors", action="store_true")
     parser.add_argument("--mcmc-priors", help="Run the MCMC but use the prior as the posterior", action="store_true")
+    parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
 
     meta_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
@@ -100,13 +106,50 @@ and uniform coalescence and recombination rates."""
     if options.logfile and not options.mc3:
         parser.error("the --logfile option is only valid together with the --mc3 option.")
 
+    def transformToI(inarray):
+        inarray=map(log,inarray)
+        tmp= dot(array(    [[4.9875799, -1.3487765,      3.1201993,      1.2686557,     -5.7025884], \
+                                [0,          9.9498989,      10.2635097,    -0.0162581,     -2.8033441],\
+                                [0,          0,              4.2651228,      7.1733158,     -2.9267196],\
+                                [0,          0,              0,              6.2813348,      1.3268374],\
+                                [0,          0,              0,              0,              7.8601317]]).transpose(), inarray) 
+        return map(exp,tmp)
+    
+    def transformFromI(inarray):
+        inarray=map(log,inarray)
+        tmp=dot(array([[0.20049804,  0.02717887, -0.21207935,  0.20177098,  0.04212849],\
+                           [0,           0.10050353, -0.24184978,  0.27645379, -0.10087487],\
+                           [0,           0,           0.23445984, -0.26775431,  0.13249964],\
+                           [0,           0,           0,           0.15920183, -0.02687422],\
+                           [0,           0,           0,           0,           0.12722433]]).transpose(), inarray)
+        return map(exp,tmp)
+    
+    def transformToI2(inarray):
+        inarray=map(log,inarray)
+        tmp= dot(array(    [[4.982471, 0,      0,      0,     0], \
+                                [0,          6.749068,      0,    0,     0],\
+                                [0,          0,              2.457224,      0,     0],\
+                                [0,          0,              0,              2.238575,      0],\
+                                [0,          0,              0,              0,              2.874258]]).transpose(), inarray) 
+        return map(exp,tmp)
+    
+    def transformFromI2(inarray):
+        inarray=map(log,inarray)
+        tmp=dot(array([[0.2007036,  0, 0,  0,  0],\
+                           [0,           0.1481686, 0,  0, 0],\
+                           [0,           0,           0.4069633, 0,  0],\
+                           [0,           0,           0,           0.4467127, 0],\
+                           [0,           0,           0,           0,           0.3479159]]).transpose(), inarray)
+        return map(exp,tmp)
+    
     # Specify priors and proposal distributions... 
     # I am sampling in log-space to make it easier to make a random walk
-    isolation_period_prior = LogNormPrior(log(options.isolation_period))
-    migration_period_prior = LogNormPrior(log(options.migration_period))
-    coal_prior = LogNormPrior(log(1/(options.theta/2)))
-    rho_prior = LogNormPrior(log(options.rho))
-    migration_rate_prior = ExpLogNormPrior(options.migration_rate)
+    means=array([options.isolation_period, options.migration_period,1/(options.theta/2), options.rho, options.migration_rate])
+    isolation_period_prior = LogNormPrior(log(means[0]), proposal_sd=options.sd_multiplyer)
+    migration_period_prior = LogNormPrior(log(means[1]), proposal_sd=options.sd_multiplyer)
+    coal_prior = LogNormPrior(log(means[2]), proposal_sd=options.sd_multiplyer)
+    rho_prior = LogNormPrior(log(means[3]), proposal_sd=options.sd_multiplyer)
+    migration_rate_prior = ExpLogNormPrior(means[4], proposal_sd=options.sd_multiplyer)
     priors = [isolation_period_prior, migration_period_prior,
               coal_prior, rho_prior, migration_rate_prior]
 
@@ -137,7 +180,12 @@ and uniform coalescence and recombination rates."""
         log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
                                                             options.ancestral_states),
                                     forwarders)
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
+        if options.transform==1:
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI)
+        elif options.transform==2:
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI2, transformFromI=transformFromI2)
+        else:
+            parser.error("wrong transformation number")
 
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(['isolation.period', 'migration.period',
@@ -165,12 +213,17 @@ and uniform coalescence and recombination rates."""
                         print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) +
                                                         (prior, likelihood, posterior)))
                     logfile.flush()
+                    
 
         else:
             for _ in xrange(options.samples):
                 params, prior, likelihood, posterior = mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                 outfile.flush()
+                if _%20==0:
+                    print str(_)
+                else:
+                    print str(_),
 
     if options.mc3:
         mcmc.terminate()
