@@ -1,11 +1,13 @@
 #!bin/bash
-#SBATCH -c 8
-#SBATCH --time=0:10:00
+#SBATCH -c 16
+#SBATCH --time=5:00:00
 #SBATCH -p normal
 
 echo "fil startet" > svendvn.txt
 
 echo "========= Job started  at `date` =========="
+
+echo $SLURM_JOBID
 
 cd /home/svendvn/IMCoalHMM/scripts
 cp *py /scratch/$SLURM_JOBID
@@ -15,7 +17,7 @@ split_mya=4
 migration_mya=1
 coal_mig_rate=0.5
 
-no_sims=1 #no_sims=2
+no_sims=5 #no_sims=2
 no_chains=1 #no_chains=3
 no_pieces=10
 
@@ -80,7 +82,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 	for i in `eval echo {1..2}`; do
         	python /scratch/$SLURM_JOBID/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]}\
   		${ziphmmfile[5]} ${ziphmmfile[6]} ${ziphmmfile[7]} ${ziphmmfile[8]} ${ziphmmfile[9]} ${ziphmmfile[10]}\
-		-o INMmcmc-sim-${sim}-chain-${i}.txt --samples 1 -k 1 --sd_multiplyer 0.2 --transform $i
+		-o INMmcmc-sim-${sim}-chain-${i}.txt --samples 1000 -k 50 --sd_multiplyer 0.2 --transform $i
 		echo "finished transform" $i
 	done
 	echo "now finished " ${chains}
