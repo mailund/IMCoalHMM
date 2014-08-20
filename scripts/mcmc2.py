@@ -59,7 +59,7 @@ class ExpLogNormPrior(object):
 
 
 class MCMC(object):
-    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None):
+    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixture=False):
         self.priors = priors
         self.log_likelihood = log_likelihood
         self.thinning = thinning
@@ -74,6 +74,7 @@ class MCMC(object):
         self.current_prior = self.log_prior(self.current_theta)
         self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
+        self.mixture=mixture
 
     def log_prior(self, theta):
         log_prior = 0.0
@@ -118,7 +119,7 @@ class MCMC(object):
 
     def sample(self, temperature=1.0):
         for _ in xrange(self.thinning):
-            if(randint(0,3)==1):
+            if(randint(0,3)==1 and self.mixture):
                 self.step(temperature)
             else:
                 self.ScewStep(temperature)

@@ -79,6 +79,7 @@ and uniform coalescence and recombination rates."""
     parser.add_argument("--sample-priors", help="Sample independently from the priors", action="store_true")
     parser.add_argument("--mcmc-priors", help="Run the MCMC but use the prior as the posterior", action="store_true")
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
+    parser.add_argument("--mixture", help="Every third is sampled from the standard distribution where log increments are independent N(0,sd=0.1)", action="store_true")
 
     meta_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
@@ -181,9 +182,9 @@ and uniform coalescence and recombination rates."""
                                                             options.ancestral_states),
                                     forwarders)
         if options.transform==1:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI, mixture=options.mixture)
         elif options.transform==2:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI2, transformFromI=transformFromI2)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI2, transformFromI=transformFromI2, mixture=options.mixture)
         else:
             parser.error("wrong transformation number")
 
