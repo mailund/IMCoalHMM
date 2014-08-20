@@ -1,6 +1,6 @@
 #!bin/bash
 #SBATCH -c 16
-#SBATCH --time=8:00:00
+#SBATCH --time=22:00:00
 #SBATCH -p normal
 
 echo "fil startet" 
@@ -19,7 +19,7 @@ split_mya=4
 migration_mya=1
 coal_mig_rate=0.5
 
-no_sims=1 #no_sims=2
+no_sims=5 #no_sims=2
 no_chains=1 #no_chains=3
 no_pieces=10
 
@@ -52,7 +52,7 @@ subs_mig=$(bc -l <<< ${coal_mig_rate}/${subs_theta})
 echo "sim.isolation.period sim.migration.period sim.theta sim.rho sim.mig " > mcmc-simulated-params.txt
 echo -e "${subs_isolation_time}\t${subs_migration_time}\t${subs_theta}\t${subs_rho}\t${subs_mig}" >> mcmc-simulated-params.txt
 
-for sim in `eval echo {1..${no_sims}}`; do
+for sim in `eval echo {2..${no_sims}}`; do
     
 		mkdir /scratch/$SLURM_JOBID/IMCoalHMM-simulations.$sim -p
 	simdir=/scratch/$SLURM_JOBID/IMCoalHMM-simulations.$sim
