@@ -62,12 +62,12 @@ for sim in `eval echo {1..${no_sims}}`; do
     for piece in `eval echo {1..${no_pieces}}`; do 
 	seq-gen -q -mHKY -l ${seg_length} -s ${subs_theta} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile[$piece]}
 	echo "seq-gen run ${piece}"	
-	python /home/svendvn/workspace/coalHMMmcmc/def/scripts/prepare-alignments.py ${seqfile[$piece]} phylip ${ziphmmfile[$piece]} --verbose --where_path_ends 3
+	python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py ${seqfile[$piece]} phylip ${ziphmmfile[$piece]} --verbose --where_path_ends 3
 	echo "zipmm made ${piece}"
     done
 
-	for i in `eval echo {1..2}`; do
-        	python /home/svendvn/workspace/coalHMMmcmc/def/scripts/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]} \
+	for i in `eval echo {2..2}`; do
+        	python /home/svendvn/workspace/IMCoalHMM/scripts/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]} \
   		${ziphmmfile[5]} ${ziphmmfile[6]} ${ziphmmfile[7]} ${ziphmmfile[8]} ${ziphmmfile[9]} ${ziphmmfile[10]} \
 		-o INMmcmc-sim-${i}-chain.txt --samples 1000 -k 50 --sd_multiplyer 0.2 --transform $i
 		echo "finished transform" $i

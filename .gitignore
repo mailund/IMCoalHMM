@@ -35,7 +35,9 @@ simulations/initial-migration-model/.Rhistory
 test.log
 test.txt
 test2.txt
-#annulerer alle filer der ender på ~
+#ignores bacupfiles ending with ~
 *.py~
 *.sh~
-
+#ignores some eclipse-generated files.
+*.project
+*.pydevproject
