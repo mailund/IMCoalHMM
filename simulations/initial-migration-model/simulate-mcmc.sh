@@ -66,10 +66,10 @@ for sim in `eval echo {1..${no_sims}}`; do
 	echo "zipmm made ${piece}"
     done
 
-	for i in `eval echo {2..2}`; do
+	for i in `eval echo {1..2}`; do
         	python /home/svendvn/workspace/IMCoalHMM/scripts/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]} \
   		${ziphmmfile[5]} ${ziphmmfile[6]} ${ziphmmfile[7]} ${ziphmmfile[8]} ${ziphmmfile[9]} ${ziphmmfile[10]} \
-		-o INMmcmc-sim-${i}-chain.txt --samples 1000 -k 50 --sd_multiplyer 0.2 --transform $i
+		-o INMmcmc-sim-${i}-chain.txt --samples 1 -k 1 --sd_multiplyer 0.2 --transform $i --mixture 
 		echo "finished transform" $i
 	done
 	echo "now finished " ${chains}

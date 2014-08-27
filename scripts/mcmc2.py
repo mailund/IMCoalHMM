@@ -75,6 +75,8 @@ class MCMC(object):
         self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
         self.mixture=mixture
+        self.rejections=0
+        self.accepts=0
 
     def log_prior(self, theta):
         log_prior = 0.0
@@ -98,6 +100,9 @@ class MCMC(object):
             self.current_prior = new_prior
             self.current_likelihood = new_log_likelihood
             self.current_posterior = new_posterior
+            self.accepts+=1
+        else:
+            self.rejections+=1
         
             
     def ScewStep(self, temperature=1.0):
@@ -114,16 +119,20 @@ class MCMC(object):
             self.current_prior = new_prior
             self.current_likelihood = new_log_likelihood
             self.current_posterior = new_posterior
-        
+            self.accepts+=1
+        else: 
+            self.rejections+=1
 
 
     def sample(self, temperature=1.0):
+        self.accepts=0
+        self.rejections=0
         for _ in xrange(self.thinning):
             if(randint(0,3)==1 and self.mixture):
                 self.step(temperature)
             else:
                 self.ScewStep(temperature)
-        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections
     
     def transformToIdef(self, inarray):
         return inarray
