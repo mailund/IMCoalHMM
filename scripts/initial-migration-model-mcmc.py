@@ -201,8 +201,8 @@ and uniform coalescence and recombination rates."""
 
                 for _ in xrange(options.samples):
                     # Write main chain to output
-                    params, prior, likelihood, posterior = mcmc.sample()
-                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
+                    params, prior, likelihood, posterior,accepts,rejects = mcmc.sample()
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior,accpets,rejects)))
                     outfile.flush()
 
                     # All chains written to the log
@@ -212,19 +212,17 @@ and uniform coalescence and recombination rates."""
                         likelihood = chain.current_likelihood
                         posterior = chain.current_posterior
                         print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) +
-                                                        (prior, likelihood, posterior)))
+                                                        (prior, likelihood, posterior, accepts, rejects)))
                     logfile.flush()
                     
 
         else:
             for _ in xrange(options.samples):
-                params, prior, likelihood, posterior = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
+                params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
                 outfile.flush()
                 if _%20==0:
                     print str(_)
-                else:
-                    print str(_),
 
     if options.mc3:
         mcmc.terminate()
