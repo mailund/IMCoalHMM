@@ -118,8 +118,8 @@ recombination rate."""
     multiplyer=[0.001]*17
     print options.change_often
     for i in options.change_often:
-        multiplyerB[i]-=999
-        multiplyer*=1000
+        multiplyerB[int(float(i))]-=999
+        multiplyer[int(float(i))]*=1000
     
     def makeSomeBig(inarray):
         return [a*x for a,x in zip(multiplyerB, inarray)]
