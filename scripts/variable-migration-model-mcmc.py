@@ -8,6 +8,7 @@ from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
 from numpy.random import random, randint
+from copy import deepcopy
 
 def main():
     """
@@ -61,6 +62,8 @@ recombination rate."""
     
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
+    parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
+    parser.add_argument('--scew', default=0, type=int, help='this number is how many times between two scewsteps')
     
     options = parser.parse_args()
 
@@ -127,6 +130,17 @@ recombination rate."""
     def makeSomeSmall(inarray):
         return [a*x for a,x in zip(multiplyer, inarray)]
     
+    def switchChooser(inarray):
+        ans=inarray
+        length=(len(inarray)-1)
+        x=randint(4)
+        y=randint(4)
+        epoch1,epoch2=min(x,y),max(x,y)
+        for i in range(epoch1,epoch2+1):
+            ans[i],ans[no_epochs+i]=ans[no_epochs+i],ans[i]
+            ans[i+2*no_epochs], ans[i+3*no_epochs]=ans[i+3*no_epochs], ans[i+2*no_epochs]
+        return ans
+    
     # load alignments
     forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
     forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
@@ -143,7 +157,7 @@ recombination rate."""
         return log_likelihood_11(parameters) + log_likelihood_12(parameters) + log_likelihood_22(parameters)
 
     
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=1)
+    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=1 , mixtureWithSwitch=1, switcher=switchChooser)
     
     
     with open(options.outfile, 'w') as outfile:
