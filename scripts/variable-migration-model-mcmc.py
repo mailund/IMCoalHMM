@@ -1,16 +1,13 @@
-#!/usr/bin/env python
-
-"""Script for estimating parameters in an isolation model using mcmc
-"""
+#!/uroalHMM.likelihood import Likelihood, maximum_likelihood_estimate
+from pyZipHMM import Forwarder
 
 from argparse import ArgumentParser
-
 from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
-from pyZipHMM import Forwarder
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
+from numpy.random import random, randint
 
 def main():
     """
@@ -63,6 +60,7 @@ recombination rate."""
                         help='Alignments of two sequences from the second population')
     
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
+    parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     
     options = parser.parse_args()
 
@@ -72,6 +70,8 @@ recombination rate."""
         parser.error("Input alignment for the 12 system not provided!")
     if len(options.alignments22) < 1:
         parser.error("Input alignment for the 22 system not provided!")
+        
+    
 
     # get options
     theta = options.theta
@@ -113,7 +113,20 @@ recombination rate."""
         theta_1 = tuple([2 / coal_rate for coal_rate in coal_rates_1])
         theta_2 = tuple([2 / coal_rate for coal_rate in coal_rates_2])
         return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
-
+    
+    multiplyerB=[1000]*17
+    multiplyer=[0.001]*17
+    print options.change_often
+    for i in options.change_often:
+        multiplyerB[i]-=999
+        multiplyer*=1000
+    
+    def makeSomeBig(inarray):
+        return [a*x for a,x in zip(multiplyerB, inarray)]
+        
+    def makeSomeSmall(inarray):
+        return [a*x for a,x in zip(multiplyer, inarray)]
+    
     # load alignments
     forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
     forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
@@ -130,8 +143,9 @@ recombination rate."""
         return log_likelihood_11(parameters) + log_likelihood_12(parameters) + log_likelihood_22(parameters)
 
     
-
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
+    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=1)
+    
+    
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects'])
         for _ in xrange(options.samples):

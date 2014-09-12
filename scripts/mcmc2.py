@@ -59,7 +59,7 @@ class ExpLogNormPrior(object):
 
 
 class MCMC(object):
-    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixture=False):
+    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixtureWithScew=0):
         self.priors = priors
         self.log_likelihood = log_likelihood
         self.thinning = thinning
@@ -74,7 +74,7 @@ class MCMC(object):
         self.current_prior = self.log_prior(self.current_theta)
         self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
-        self.mixture=mixture
+        self.mixtureWithScew=mixtureWithScew
         self.rejections=0
         self.accepts=0
 
@@ -122,16 +122,32 @@ class MCMC(object):
             self.accepts+=1
         else: 
             self.rejections+=1
+            
+    def switchStep(self,temperature):
+        new_theta=self.switcher(self.current_theta)
+        new_prior = self.log_prior(new_theta)
+        new_log_likelihood = self.log_likelihood(new_theta)
+        new_posterior = new_prior + new_log_likelihood
 
+        if new_posterior > self.current_posterior or \
+                        random() < exp(new_posterior / temperature - self.current_posterior / temperature):
+            self.current_theta = new_theta
+            self.current_prior = new_prior
+            self.current_likelihood = new_log_likelihood
+            self.current_posterior = new_posterior
+            self.accepts+=1
+        else: 
+            self.rejections+=1
+        
 
     def sample(self, temperature=1.0):
         self.accepts=0
         self.rejections=0
         for _ in xrange(self.thinning):
-            if(randint(0,3)==1 and self.mixture):
-                self.step(temperature)
-            else:
+            if(randint(0,self.mixtureWithScew+1)==1):
                 self.ScewStep(temperature)
+            else:
+                self.step(temperature)
         return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections
     
     def transformToIdef(self, inarray):
