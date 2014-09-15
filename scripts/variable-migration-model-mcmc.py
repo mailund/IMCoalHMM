@@ -7,8 +7,9 @@ from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
-from numpy.random import random, randint
+from numpy.random import permutation, randint
 from copy import deepcopy
+from numpy import array
 
 def main():
     """
@@ -131,14 +132,28 @@ recombination rate."""
         return [a*x for a,x in zip(multiplyer, inarray)]
     
     def switchChooser(inarray):
+        if randint(0,2)==1:
+            return switchRows(inarray)
+        else: 
+            return switchColumns(inarray)
+    
+    def switchRows(inarray):
+        ans=[inarray[no_epochs*4]]*(no_epochs*4+1)
+        perm=permutation(no_epochs)
+        for i in range(len(perm)):
+            for j in range(4):#the four categories c1,c2,mig12,mig21
+                 ans[j*no_epochs+i]=inarray[j*no_epochs+perm[i]]
+        return array(ans)
+        
+    def switchColumns(inarray):
         ans=inarray
         length=(len(inarray)-1)
-        x=randint(4)
-        y=randint(4)
+        x=randint(no_epochs)
+        y=randint(no_epochs)
         epoch1,epoch2=min(x,y),max(x,y)
         for i in range(epoch1,epoch2+1):
-            ans[i],ans[no_epochs+i]=ans[no_epochs+i],ans[i]
-            ans[i+2*no_epochs], ans[i+3*no_epochs]=ans[i+3*no_epochs], ans[i+2*no_epochs]
+            ans[i],ans[no_epochs+i]=ans[no_epochs+i],ans[i] #coalescence rates
+            ans[i+2*no_epochs], ans[i+3*no_epochs]=ans[i+3*no_epochs], ans[i+2*no_epochs] #migration rates
         return ans
     
     # load alignments

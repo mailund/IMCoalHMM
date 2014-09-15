@@ -48,7 +48,7 @@ for sim in `eval echo {1..${no_sims}}`; do
     	
 
 
-	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-sim-${i}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 10 --thinning 1 --change_often 2 3 6 7 --switch 5 --scew 1
+	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-sim-${i}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 100 --thinning 1 --change_often 2 3 6 7 --switch 1 --scew 1
 	
 
 done
