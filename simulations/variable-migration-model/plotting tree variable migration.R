@@ -1,11 +1,13 @@
 setwd("~/Documents/variable migration")
 tr=read.table("INMmcmc-sim-1-chain.txt",header=TRUE)
 names=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject')
-par(mfrow=c(1,1))
+par(mfrow=c(3,4))
 for(i in 1:(length(tr[1,])-2)){
-  plot(tr[(1:100)*100,i], type='l', main=names[i])
+  plot(tr[,i], type='l', main=names[i])
 }
+plot(cumsum(tr)
 
+par(mfrow=c(1,1))
 drawingOfOne=function(vectorOfParams,cmin=FALSE,mmax=FALSE, sqrtroot=5){
   
   #making the empty frame
@@ -62,37 +64,19 @@ drawingOfOne=function(vectorOfParams,cmin=FALSE,mmax=FALSE, sqrtroot=5){
     x1rightRemember=x1right
     x2rightRemember=x2right
   }
+  text(x=-1,y=1, labels=c(round(vectorOfParams[numberOfEpochs*4+1],digits=4)))
   #...now we are here. Everyhting is plotted.
 }
 
-
+library(animation)
 oopt = ani.options(interval = 0.1, nmax = 250)
 mmax=max(tr[(1:250)*40,9:16])
 cmin=min(tr[(1:250)*40,1:8])
 ## use a loop to create images one by one
 for (i in 1:ani.options("nmax")) {
-  drawingOfOne(tr[i*40,1:17],mmax=mmax, cmin=cmin,sqrtroot=2)
+  drawingOfOne(tr[i*40,1:17],mmax=mmax, cmin=cmin,sqrtroot=4)
   ani.pause() ## pause for a while (
 }
-saveGIF({
-  ani.options(nmax = 30)
-  for (i in 1:ani.options("nmax")) {
-    drawingOfOne(tr[i*40,1:17],mmax=mmax, cmin=cmin,sqrtroot=2)
-    ani.pause() ## pause for a while (
-  }
-}, interval = 0.05, movie.name = "bm_demo.gif", ani.width = 600, ani.height = 600)
 
-oopt = ani.options(interval = 0.2, nmax = 10)
-## use a loop to create images one by one
-for (i in 1:ani.options("nmax")) {
-  drawingOfOne()
-  ani.pause() ## pause for a while (
-}
-## restore the options
-ani.options(oopt)
-saveGIF({
-  ani.options(nmax = 30)
-  brownian.motion(pch = 21, cex = 5, col = "red", bg = "yellow")
-}, interval = 0.05, movie.name = "bm_demo.gif", ani.width = 600, ani.height = 600)
-
-ma
+setwd("~/Simresults")
+tr=read.table("INMmcmc-2367-sim-2-chain.txt",header=TRUE)

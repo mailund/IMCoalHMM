@@ -172,7 +172,7 @@ recombination rate."""
         return log_likelihood_11(parameters) + log_likelihood_12(parameters) + log_likelihood_22(parameters)
 
     
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=1 , mixtureWithSwitch=1, switcher=switchChooser)
+    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
     
     
     with open(options.outfile, 'w') as outfile:
