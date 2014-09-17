@@ -141,17 +141,17 @@ recombination rate."""
         ans=[inarray[no_epochs*4]]*(no_epochs*4+1)
         draw=randint(0,6)
         if draw==0:
-            h=[1]
+            h=[0]
         elif draw==1:
-            h=[2]
+            h=[1]
         elif draw==2:
-            h=[1,2]
+            h=[0,1]
         elif draw==3:
-            h=[1,3]
+            h=[0,2]
         elif draw==4:
-            h=[2,4]
+            h=[1,3]
         else:
-            h=[1,2,3,4]
+            h=range(3)
         perm=permutation(no_epochs)
         for i in range(len(perm)):
             for j in h:#a subset of the four categories c1,c2,mig12,mig21

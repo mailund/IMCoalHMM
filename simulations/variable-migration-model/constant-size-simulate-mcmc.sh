@@ -36,7 +36,7 @@ for sim in `eval echo {1..${no_sims}}`; do
         ziphmmfile12=${simdir}/alignment.$chunk.12.ziphmm
         ziphmmfile22=${simdir}/alignment.$chunk.22.ziphmm
 	
-        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}
+        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 -n 1 0.5 -g 1 -1 -ma x 1 0.5 x ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}
         seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 	echo "data made"
         python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
