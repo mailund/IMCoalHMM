@@ -102,8 +102,8 @@ recombination rate."""
     for i in range(no_epochs):
         coalRate1Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
         coalRate2Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(LogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(LogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
 
     priors = coalRate1Priors+coalRate2Priors+migRate12Priors+migRate21Priors+recombRatePrior
 
