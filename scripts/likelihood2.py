@@ -27,10 +27,12 @@ class Likelihood(object):
     def __call__(self, *parameters):
         """Compute the log-likelihood at a set of parameters."""
         if not self.model.valid_parameters(*parameters):
-            return -float('inf')
+            return "help", "help",-float('inf')
 
         init_probs, trans_probs, emission_probs = self.model.build_hidden_markov_model(*parameters)
-        return trans_probs, init_probs, sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders)
+        bds=sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders) 
+        ans=(trans_probs,init_probs,bds)
+        return ans
 
 
 def maximum_likelihood_estimate(log_likelihood, initial_parameters,

@@ -3,13 +3,21 @@ from pyZipHMM import Forwarder
 
 from argparse import ArgumentParser
 from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel
-from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
+from likelihood2 import Likelihood
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log
 from numpy.random import permutation, randint
 from copy import deepcopy
 from numpy import array
+
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getWidth()):
+        for j in range(Matrix.getHeight()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
 
 def main():
     """
@@ -182,7 +190,10 @@ recombination rate."""
     log_likelihood_22 = Likelihood(model_22, forwarders_22)
 
     def log_likelihood(parameters):
-        return log_likelihood_11(parameters) + log_likelihood_12(parameters) + log_likelihood_22(parameters)
+        a1=log_likelihood_11(parameters)
+        a2=log_likelihood_12(parameters)
+        a3=log_likelihood_22(parameters)
+        return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
 
     
     mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
@@ -193,8 +204,16 @@ recombination rate."""
         for _ in xrange(options.samples):
             params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
-        print >> outfile, mcmc.current_transitionMatrix
-        print >> outfile, mcmc.current_initialDistribution
+            outfile.flush()
+            if _%2000==0:
+                for i in range(3):
+                    print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+                    print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        for i in range(3):
+            print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+            print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        outfile.flush()
+        
 
 if __name__ == '__main__':
     main()

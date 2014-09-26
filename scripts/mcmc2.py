@@ -3,7 +3,7 @@ Module for generic MCMC code but with some extensions to the original MCMC.
 
 """
 from pyZipHMM import Forwarder
-from IMCoalHMM.likelihood import Likelihood
+from likelihood2 import Likelihood
 
 from scipy.stats import norm, expon
 from numpy.random import random, randint
@@ -72,13 +72,18 @@ class MCMC(object):
 
         self.current_theta = array([pi.sample() for pi in self.priors])
         self.current_prior = self.log_prior(self.current_theta)
-        self.current_likelihood = self.log_likelihood(self.current_theta)
+        a=self.log_likelihood(self.current_theta)
+        for i in range(len(a)):
+            print a[i]
+        forget,forget2,self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
         self.mixtureWithScew=mixtureWithScew
         self.mixtureWithSwitch=mixtureWithSwitch
         self.switcher=switcher
         self.rejections=0
         self.accepts=0
+        self.current_transitionMatrix=forget
+        self.current_initialDistribution=forget2
 
     def log_prior(self, theta):
         log_prior = 0.0
@@ -93,14 +98,14 @@ class MCMC(object):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_prior = self.log_prior(new_theta)
-        new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_likelihood = new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
         else:
@@ -112,14 +117,14 @@ class MCMC(object):
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_theta= array(self.transformFromI(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
-        new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_likelihood = new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
         else: 
@@ -128,14 +133,14 @@ class MCMC(object):
     def switchStep(self,temperature):
         new_theta=self.switcher(self.current_theta)
         new_prior = self.log_prior(new_theta)
-        new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_likelihood = new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
         else: 
