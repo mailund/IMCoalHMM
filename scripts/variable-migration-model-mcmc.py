@@ -193,7 +193,8 @@ recombination rate."""
         for _ in xrange(options.samples):
             params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
-    
+        print >> outfile, mcmc.current_transitionMatrix
+        print >> outfile, mcmc.current_initialDistribution
 
 if __name__ == '__main__':
     main()
