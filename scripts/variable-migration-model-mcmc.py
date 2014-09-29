@@ -2,7 +2,7 @@
 from pyZipHMM import Forwarder
 
 from argparse import ArgumentParser
-from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel
+from variable_migration_model2 import VariableCoalAndMigrationRateModel
 from likelihood2 import Likelihood
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
