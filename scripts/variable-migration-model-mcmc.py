@@ -110,8 +110,8 @@ recombination rate."""
     for i in range(no_epochs):
         coalRate1Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
         coalRate2Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(ExpLogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(ExpLogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
 
     priors = coalRate1Priors+coalRate2Priors+migRate12Priors+migRate21Priors+recombRatePrior
 
@@ -205,7 +205,7 @@ recombination rate."""
             params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
             outfile.flush()
-            if _%2000==0:
+            if _%200==0:
                 for i in range(3):
                     print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                     print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
