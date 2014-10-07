@@ -14,11 +14,16 @@ sym_coal_mig_rate=$(bc -l <<< 2*${coal_mig_rate}) # times two because ms divides
 
 theta_years=$(( 4*$Ne*$gen ))
 coal_rho=$(bc -l <<< 4*$Ne*$rho_per_gen*$seg_length)
+tmax=$(bc -l <<< 7*$theta_years)
 
 # units in substitutions
 theta_subs=$(bc -l <<< $theta_years*$mu )
 rho_subs=$(bc -l <<< $rho_per_gen/$gen/$mu )
 
+echo $theta_subs
+echo $rho_subs
+echo $tmax
+echo $(bc -l <<< $coal_mig_rate/$theta_subs)
 
 for sim in `eval echo {1..${no_sims}}`; do
     
@@ -36,7 +41,7 @@ for sim in `eval echo {1..${no_sims}}`; do
         ziphmmfile12=${simdir}/alignment.$chunk.12.ziphmm
         ziphmmfile22=${simdir}/alignment.$chunk.22.ziphmm
 	
-        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 -n 1 0.5 -g 1 -1 -ma x 1 0.5 x ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}
+        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2  ${sym_coal_mig_rate}  | tail -n +4 | grep -v // > ${treefile}
         seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 	echo "data made"
         python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
@@ -48,7 +53,12 @@ for sim in `eval echo {1..${no_sims}}`; do
     	
 
 
-	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-sim-${i}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 100 --thinning 1 --change_often 2 3 6 7 --switch 1 --scew 1
+	out2="        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}"
+	out1="	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1 --thinning 1  --sd_multiplyer 0.005 --switch 2"
+	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm \
+		--samples 0 --thinning 1  --sd_multiplyer 0.05 --tmax $tmax --theta $theta_subs --migration-rate 250 --rho 0.4 --startWithGuess
+	echo $out1 >> INMmcmc-smallVar-sim-${sim}-chain.txt
+	echo $out2 >> INMmcmc-smallVar-sim-${sim}-chain.txt
 	
 
 done

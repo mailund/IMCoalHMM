@@ -1,4 +1,5 @@
-#!/uroalHMM.likelihood import Likelihood, maximum_likelihood_estimate
+"""Makes mcmc with the variable migration model"""
+
 from pyZipHMM import Forwarder
 
 from argparse import ArgumentParser
@@ -44,6 +45,7 @@ recombination rate."""
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 100.0),
+        ('tmax', 'maximum number of substitutions', 7*4*25000*1e-9)
     ]
 
     for parameter_name, description, default in optimized_params:
@@ -73,6 +75,7 @@ recombination rate."""
     parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
     parser.add_argument('--scew', default=0, type=int, help='this number is how many times between two scewsteps')
+    parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters')
     
     options = parser.parse_args()
 
@@ -182,9 +185,9 @@ recombination rate."""
     forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
     forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
 
-    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals)
-    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals)
+    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, options.tmax)
+    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, options.tmax)
+    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, options.tmax)
     log_likelihood_11 = Likelihood(model_11, forwarders_11)
     log_likelihood_12 = Likelihood(model_12, forwarders_12)
     log_likelihood_22 = Likelihood(model_22, forwarders_22)
@@ -195,9 +198,13 @@ recombination rate."""
         a3=log_likelihood_22(parameters)
         return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
 
-    
-    mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
-    
+    if not options.startWithGuess:
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
+    else:
+        thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
+        print thetaGuess
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
+
     
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects'])
@@ -205,7 +212,7 @@ recombination rate."""
             params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
             outfile.flush()
-            if _%200==0:
+            if _%max(int(options.samples/5),1)==0:
                 for i in range(3):
                     print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                     print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])

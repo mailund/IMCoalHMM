@@ -59,7 +59,7 @@ class ExpLogNormPrior(object):
 
 
 class MCMC(object):
-    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None):
+    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None):
         self.priors = priors
         self.log_likelihood = log_likelihood
         self.thinning = thinning
@@ -69,12 +69,13 @@ class MCMC(object):
         else:
             self.transformFromI=transformFromI
             self.transformToI=transformToI
-
-        self.current_theta = array([pi.sample() for pi in self.priors])
+            
+        if startVal is None:
+            self.current_theta = array([pi.sample() for pi in self.priors])
+        else:
+            self.current_theta=array(startVal)
+            
         self.current_prior = self.log_prior(self.current_theta)
-        a=self.log_likelihood(self.current_theta)
-        for i in range(len(a)):
-            print a[i]
         forget,forget2,self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
         self.mixtureWithScew=mixtureWithScew

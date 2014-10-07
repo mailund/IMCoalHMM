@@ -7,7 +7,7 @@ from numpy import zeros, matrix, identity
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
-from IMCoalHMM.break_points import psmc_break_points
+from IMCoalHMM.break_points import psmc_break_points, uniform_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
 
@@ -92,7 +92,7 @@ class VariableCoalAndMigrationRateModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, intervals):
+    def __init__(self, initial_configuration, intervals, tmax):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -112,6 +112,7 @@ class VariableCoalAndMigrationRateModel(Model):
 
         self.intervals = intervals
         self.no_states = sum(intervals)
+        self.tmax=tmax
 
     def unpack_parameters(self, parameters):
         """Unpack the rate parameters for the model from the linear representation
@@ -142,7 +143,8 @@ class VariableCoalAndMigrationRateModel(Model):
         # and it will depend on the starting point. This is a compromise at least.
         coal_rates_1, coal_rates_2, _, _, _ = self.unpack_parameters(parameters)
         mean_coal_rates = [(c1+c2)/2.0 for c1, c2 in zip(coal_rates_1, coal_rates_2)]
-        break_points = psmc_break_points(self.no_states,mu=1,t_max=8) #0.08 is a hunch because on simulated data (10^6 base pairs) mu=10^-9 was too way little and mu=1 was a little too much
+        break_points = psmc_break_points(self.no_states,t_max=self.tmax)
+        #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
         return coalescence_points(break_points, self._map_rates_to_intervals(mean_coal_rates))
 
     def build_ctmc_system(self, *parameters):
@@ -176,6 +178,7 @@ class VariableCoalAndMigrationRateModel(Model):
             for _ in xrange(states_in_interval):
                 ctmcs.append(ctmc)
 
-        break_points = psmc_break_points(self.no_states, mu=1,t_max=8)
+        break_points = psmc_break_points(self.no_states, t_max=self.tmax)
+        #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
 
         return VariableCoalAndMigrationRateCTMCSystem(self.initial_state, ctmcs, break_points)
