@@ -171,12 +171,12 @@ class VariableCoalAndMigrationRateModel(Model):
 
         ctmcs = []
         for epoch, states_in_interval in enumerate(self.intervals):
-            rates = make_rates_table_migration(coal_rates_1[epoch], coal_rates_2[epoch],
-                                               mig_rates_12[epoch], mig_rates_21[epoch],
-                                               recomb_rate)
+            rates = make_rates_table_migration(coal_rates_1[epoch], coal_rates_2[epoch], recomb_rate,
+                                               mig_rates_12[epoch], mig_rates_21[epoch])
             ctmc = make_ctmc(self.migration_state_space, rates)
             for _ in xrange(states_in_interval):
                 ctmcs.append(ctmc)
+
 
         break_points = psmc_break_points(self.no_states, t_max=self.tmax)
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)

@@ -6,7 +6,7 @@ coal_mig_rate=0.5
 
 no_sims=1 #no_sims=2
 no_chains=1 #no_chains=3
-no_pieces=10
+no_pieces=2
 
 Ne=20000
 gen=25
@@ -45,8 +45,8 @@ for sim in `eval echo {1..${no_sims}}`; do
     treefile=${simdir}/trees.nwk
 	for piece in `eval echo {1..${no_pieces}}`; do  
 		mkdir ${simdir}/${piece} -p  
-		seqfile[$piece]=${simdir}/${piece}/alignment.phylip
-		ziphmmfile[$piece]=${simdir}/${piece}/alignment.ziphmm
+		seqfile[$piece]=${simdir}/alignment.${piece}.phylip
+		ziphmmfile[$piece]=${simdir}/alignment.${piece}.ziphmm
 	done
     
 
@@ -67,9 +67,8 @@ for sim in `eval echo {1..${no_sims}}`; do
     done
 
 	for i in `eval echo {1..2}`; do
-        	python /home/svendvn/workspace/IMCoalHMM/scripts/initial-migration-model-mcmc.py ${ziphmmfile[1]} ${ziphmmfile[2]} ${ziphmmfile[3]} ${ziphmmfile[4]} \
-  		${ziphmmfile[5]} ${ziphmmfile[6]} ${ziphmmfile[7]} ${ziphmmfile[8]} ${ziphmmfile[9]} ${ziphmmfile[10]} \
-		-o INMmcmc-sim-${i}-chain.txt --samples 1 -k 1 --sd_multiplyer 0.2 --transform $i --mixture 
+        	python /home/svendvn/workspace/IMCoalHMM/scripts/initial-migration-model-mcmc.py ${simdir}/*.ziphmm \
+		-o INMmcmc-sim-${i}-chain.txt --samples 1000 -k 1 --sd_multiplyer 0.2 
 		echo "finished transform" $i
 	done
 	echo "now finished " ${chains}

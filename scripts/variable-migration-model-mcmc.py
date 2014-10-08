@@ -45,7 +45,7 @@ recombination rate."""
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 100.0),
-        ('tmax', 'maximum number of substitutions', 7*4*25000*1e-9)
+        ('tmax', 'maximum number of substitutions', 7*4*20000*25)
     ]
 
     for parameter_name, description, default in optimized_params:
@@ -202,7 +202,6 @@ recombination rate."""
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
         thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
-        print thetaGuess
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
 
     

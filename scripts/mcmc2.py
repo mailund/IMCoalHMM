@@ -12,7 +12,13 @@ from numpy import array
 
 from multiprocessing import Process, Queue
 
-
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getWidth()):
+        for j in range(Matrix.getHeight()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
 
 class LogNormPrior(object):
     """Prior and proposal distribution. The prior is a log-normal and steps are a
@@ -75,6 +81,7 @@ class MCMC(object):
         else:
             self.current_theta=array(startVal)
             
+        
         self.current_prior = self.log_prior(self.current_theta)
         forget,forget2,self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood
@@ -85,6 +92,7 @@ class MCMC(object):
         self.accepts=0
         self.current_transitionMatrix=forget
         self.current_initialDistribution=forget2
+            
 
     def log_prior(self, theta):
         log_prior = 0.0
