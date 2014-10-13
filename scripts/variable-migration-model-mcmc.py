@@ -11,6 +11,7 @@ from math import log
 from numpy.random import permutation, randint
 from copy import deepcopy
 from numpy import array
+from random import gammavariate
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -75,7 +76,7 @@ recombination rate."""
     parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
     parser.add_argument('--scew', default=0, type=int, help='this number is how many times between two scewsteps')
-    parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters')
+    parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     
     options = parser.parse_args()
 
