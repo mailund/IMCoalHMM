@@ -1,6 +1,6 @@
 
 from IMCoalHMM.statespace_generator import CoalSystem
-from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_between, compute_upto
+from IMCoalHMM.transitions import projection_matrix, compute_between, compute_upto
 from IMCoalHMM.CTMC import make_ctmc
 from numpy import zeros, matrix
 
@@ -85,7 +85,10 @@ def compute_upto0(epoch_1, epoch_2, tau1):
 
 
 def compute_through(epoch_2, epoch_3, break_points_12, break_points_123):
-    """Computes the matrices for moving through an interval"""
+    """Computes the matrices for moving through an interval.
+
+    :rtype: list[matrix]
+    """
     through_12 = [None] * len(break_points_12)
     through_123 = [None] * (len(break_points_123) - 1)
 
@@ -218,8 +221,8 @@ class ILSCTMCSystem(object):
         """
         return self.between_[(i, j)]
 
-epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1.0, 1.0, 1.0, 0.4))
-epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1.0, 1.0, 0.4))
-epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1.0, 0.4))
+epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1000.0, 1000.0, 1000.0, 0.4))
+epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1000.0, 1000.0, 0.4))
+epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
 
 system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
