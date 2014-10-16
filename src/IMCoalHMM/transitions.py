@@ -239,7 +239,7 @@ def compute_transition_probabilities(ctmc):
 
     assert_almost_equal(joint.sum(), 1.0)
 
-    initial_prob_vector = Matrix(no_states, 1)
+    initial_prob_vector = Matrix(no_states, 1.0)
     transition_matrix = Matrix(no_states, no_states)
     for i in xrange(no_states):
         initial_prob_vector[i, 0] = joint[i, ].sum()
