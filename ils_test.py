@@ -35,7 +35,7 @@ class Isolation1(ILSSystem):
         self.compute_state_space()
 
 
-def make_rates_table_isolation_3(coal_rate_1, coal_rate_2, coal_rate_3, recombination_rate):
+def make_rates_table_3(coal_rate_1, coal_rate_2, coal_rate_3, recombination_rate):
     """Builds the rates table from the CTMC for the two-samples system
     for an isolation period."""
     table = dict()
@@ -48,7 +48,7 @@ def make_rates_table_isolation_3(coal_rate_1, coal_rate_2, coal_rate_3, recombin
     return table
 
 
-def make_rates_table_isolation_2(coal_rate_12, coal_rate_3, recombination_rate):
+def make_rates_table_2(coal_rate_12, coal_rate_3, recombination_rate):
     """Builds the rates table from the CTMC for the two-samples system
     for an isolation period."""
     table = dict()
@@ -59,7 +59,7 @@ def make_rates_table_isolation_2(coal_rate_12, coal_rate_3, recombination_rate):
     return table
 
 
-def make_rates_table_isolation_1(coal_rate_123, recombination_rate):
+def make_rates_table_1(coal_rate_123, recombination_rate):
     """Builds the rates table from the CTMC for the two-samples system
     for an isolation period."""
     table = dict()
@@ -84,15 +84,6 @@ def compute_upto0(epoch_1, epoch_2, tau1):
     return epoch_1.probability_matrix(tau1) * projection_32
 
 
-class ComputeThroughInterval(object):
-    def __init__(self, single, break_points):
-        self.single = single
-        self.break_points = break_points
-
-    def __call__(self, i):
-        return self.single.probability_matrix(self.break_points[i + 1] - self.break_points[i])
-
-
 def compute_through(epoch_2, epoch_3, break_points_12, break_points_123):
     """Computes the matrices for moving through an interval"""
     through_12 = [None] * len(break_points_12)
@@ -107,8 +98,7 @@ def compute_through(epoch_2, epoch_3, break_points_12, break_points_123):
     for i in range(len(break_points_12) - 1):
         through_12[i] = epoch_2.probability_matrix(break_points_12[i + 1] - break_points_12[i])
     through_12[len(break_points_12)-1] = \
-        epoch_2.probability_matrix(break_points_123[0] - break_points_12[-1]) * \
-            projection_21
+        epoch_2.probability_matrix(break_points_123[0] - break_points_12[-1]) * projection_21
 
     # Through epoch 3
     for i in range(len(break_points_123) - 1):
@@ -119,21 +109,17 @@ def compute_through(epoch_2, epoch_3, break_points_12, break_points_123):
     # simplifies the HMM transition probability code as it avoids a special case
     # for the last interval.
     # noinspection PyCallingNonCallable
-    pseudo_through = matrix(zeros((len(epoch_3.state_space.states),
-                                   len(epoch_3.state_space.states))))
+    pseudo_through = matrix(zeros((len(epoch_3.state_space.states), len(epoch_3.state_space.states))))
     pseudo_through[:, epoch_3.state_space.end_states[0]] = 1.0
     through_123.append(pseudo_through)
 
     return through_12 + through_123
 
 
-class ILSCTMCSystem(CTMCSystem):
+class ILSCTMCSystem(object):
     """Wrapper around CTMC transition matrices for the ILS model."""
 
     def __init__(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, break_points_12, break_points_123):
-        super(ILSCTMCSystem, self).__init__(no_hmm_states=len(break_points_12)+len(break_points_123),
-                                            initial_ctmc_state=epoch_1_ctmc.state_space.init_index)
-
         self.epoch_1 = epoch_1_ctmc
         self.epoch_2 = epoch_2_ctmc
         self.epoch_3 = epoch_3_ctmc
@@ -150,9 +136,90 @@ class ILSCTMCSystem(CTMCSystem):
         else:
             return self.epoch_3.state_space
 
+    @property
+    def initial(self):
+        """The initial state index in the bottom-most matrix.
 
-epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_isolation_3(1.0, 1.0, 1.0, 0.4))
-epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_isolation_2(1.0, 1.0, 0.4))
-epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_isolation_1(1.0, 0.4))
+        :returns: the state space index of the initial state.
+        :rtype: int
+        """
+        return self.epoch_1.init_index
 
-system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1,2,3], [4,5,6])
+    def begin_states(self, i):
+        """Begin states for interval i.
+
+        :param i: interval index
+        :type i: int
+
+        :returns: List of the begin states for the state space in interval i.
+        :rtype: list
+        """
+        return self.get_state_space(i).begin_states
+
+    # FIXME: replace by the states for the ILS model
+    def left_states(self, i):
+        """Left states for interval i.
+
+        :param i: interval index
+        :type i: int
+
+        :returns: List of the left states for the state space in interval i.
+        :rtype: list
+        """
+        return self.get_state_space(i).left_states
+
+    def end_states(self, i):
+        """End states for interval i.
+
+        :param i: interval index
+        :type i: int
+
+        :returns: List of the end states for the state space in interval i.
+        :rtype: list
+        """
+        return self.get_state_space(i).end_states
+
+    def through(self, i):
+        """Returns a probability matrix for going through interval i.
+
+        :param i: interval index
+        :type i: int
+
+        :returns: Probability transition matrix for moving through interval i. [i]
+        :rtype: matrix
+        """
+        return self.through_[i]
+
+    def upto(self, i):
+        """Returns a probability matrix for going up to, but not
+        through, interval i. [...][i
+
+        :param i: interval index
+        :type i: int
+
+        :returns: Probability transition matrix for moving from time 0
+         up to, but not through, interval i. [...][i
+        :rtype: matrix
+        """
+        return self.upto_[i]
+
+    def between(self, i, j):
+        """Returns a probability matrix for going from the
+        end of interval i up to (but not through) interval j. i][...][j
+
+        :param i: interval index
+        :type i: int
+        :param j: interval index. i < j
+        :type i: int
+
+        :returns: Probability transition matrix for moving from the end
+         of interval i to the beginning of interval j: i][...][j
+        :rtype: matrix
+        """
+        return self.between_[(i, j)]
+
+epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1.0, 1.0, 1.0, 0.4))
+epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1.0, 1.0, 0.4))
+epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1.0, 0.4))
+
+system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
