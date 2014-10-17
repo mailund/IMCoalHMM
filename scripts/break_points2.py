@@ -84,7 +84,6 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
     no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover
     points1= [expon.ppf((float(i) / no_statesOfExponentialCover)*coveredByExp,scale=beta1) for i in xrange(no_statesOfExponentialCover)]
     toPoint=gamma.cdf(points1[-1],scale=beta2*1.5,a=alpha)
-    print toPoint
     points2= [gamma.ppf((float(i)/(no_statesOfGammaCover+1))*(1-toPoint)+toPoint, scale=beta2*1.5,a=alpha) for i in xrange(no_statesOfGammaCover+1)]
     points = points1+points2[1:]
     return points

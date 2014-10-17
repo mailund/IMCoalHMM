@@ -144,7 +144,7 @@ class VariableCoalAndMigrationRateModel(Model):
         coal_rates_1, coal_rates_2, _, _, _ = self.unpack_parameters(parameters)
         mean_coal_rates = [(c1+c2)/2.0 for c1, c2 in zip(coal_rates_1, coal_rates_2)]
         #break_points = psmc_break_points(self.no_states,t_max=self.tmax)
-        break_points=break_points=gamma_break_points(self.no_states,beta1=0.001,alpha=2,beta2=1.0/(750))
+        break_points=gamma_break_points(self.no_states,beta1=0.001,alpha=2,beta2=0.001333333)
         return coalescence_points(break_points, self._map_rates_to_intervals(mean_coal_rates))
 
     def build_ctmc_system(self, *parameters):
@@ -179,7 +179,7 @@ class VariableCoalAndMigrationRateModel(Model):
 
 
         #break_points = psmc_break_points(self.no_states, t_max=self.tmax)
-        break_points=gamma_break_points(self.no_states,beta1=0.001,alpha=2,beta2=1.0/(750))
+        break_points=gamma_break_points(self.no_states,beta1=0.001,alpha=2,beta2=0.001333333)
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
 
         return VariableCoalAndMigrationRateCTMCSystem(self.initial_state, ctmcs, break_points)

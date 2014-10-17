@@ -56,7 +56,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 	out2="        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}"
 	out1="	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1 --thinning 1  --sd_multiplyer 0.005 --switch 2"
 	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm \
-		--samples 0 --thinning 1  --sd_multiplyer 0.05 --tmax $tmax --theta $theta_subs --migration-rate 250 --rho 0.4 --startWithGuess
+		--samples 2 --thinning 1  --sd_multiplyer 0.05 --switch 2
 	echo $out1 >> INMmcmc-smallVar-sim-${sim}-chain.txt
 	echo $out2 >> INMmcmc-smallVar-sim-${sim}-chain.txt
 	
