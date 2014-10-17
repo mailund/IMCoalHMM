@@ -5,9 +5,10 @@
 
 from argparse import ArgumentParser
 
-from IMCoalHMM.likelihood import Likelihood
+from likelihood2 import Likelihood
 from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
+
 
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
@@ -17,6 +18,17 @@ from numpy import array, dot
 
 import sys
 
+
+def printPyZipHMM(Matrix):
+    """
+    This is copied from variable-migration-model to make a test
+    """
+    finalString=""
+    for i in range(Matrix.getWidth()):
+        for j in range(Matrix.getHeight()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
 
 def transform(params):
     """
@@ -182,9 +194,9 @@ and uniform coalescence and recombination rates."""
                                                             options.ancestral_states),
                                     forwarders)
         if options.transform==1:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI, mixture=options.mixture)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI)#, mixture=options.mixture)
         elif options.transform==2:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI2, transformFromI=transformFromI2, mixture=options.mixture)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI2, transformFromI=transformFromI2)#, mixture=options.mixture)
         else:
             parser.error("wrong transformation number")
 
@@ -221,8 +233,9 @@ and uniform coalescence and recombination rates."""
                 params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
                 outfile.flush()
-                if _%20==0:
-                    print str(_)
+                if _%int(options.samples/5)==0:
+                    print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix)
+                    print >> outfile, printPyZipHMM(mcmc.current_initialDistribution)
 
     if options.mc3:
         mcmc.terminate()

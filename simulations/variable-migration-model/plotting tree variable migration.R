@@ -3,12 +3,21 @@ tr=read.table("INMmcmc-sim-1-chain.txt",header=TRUE)
 names=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject')
 par(mfrow=c(4,4))
 for(i in 1:(length(tr[1,])-2)){
-  plot(tr[(1:1000)*10,i], type='l', main=names[i])
+  
   if(substring(names[i],2,2)=="c"){
+    plot(tr[,i], type='l', main=names[i], ylim=c(0,0.01))
     abline(h=0.002,col='red')
   }
   else if(substring(names[i],3,3)=="m"){
+    plot(tr[,i], type='l', main=names[i],ylim=c(0,500))
     abline(h=250,col="red")
+  }
+  else if(substring(names[i],1,1)=="r"){
+    plot(tr[,i], type='l', main=names[i])
+    abline(h=0.4,col="red")
+  }
+  else{
+    plot(tr[,i], type='l', main=names[i])
   }
 }
 plot(tr[(1:1000)*10,1],type='l', ylim=c(0,1))
@@ -78,17 +87,18 @@ drawingOfOne=function(vectorOfParams,cmax=FALSE,mmax=FALSE, sqrtroot=5){
 par(mfrow=c(1,1))
 library(animation)
 oopt = ani.options(interval = 0.1, nmax = 250)
-mmax=max(tr[(1:250)*40,9:16])
-cmax=max(tr[(1:250)*40,1:8])
+mmax=max(tr[(1:250)*4,9:16])
+cmax=max(tr[(1:250)*4,1:8])
 ## use a loop to create images one by one
 for (i in 1:ani.options("nmax")) {
-  drawingOfOne(tr[i*40,1:17],mmax=mmax, cmax=cmax,sqrtroot=4)
+  drawingOfOne(tr[i*4,1:17],mmax=mmax, cmax=cmax,sqrtroot=1)
   ani.pause() ## pause for a while (
 }
 
-setwd("~/Simresults/t4")
-tr=read.table("INMmcmc-switchMuch-sim-2-chain.txt",header=TRUE, fill=TRUE)
-tr[10000:1000,]
+setwd("~/Simresults/t9")
+tr=read.table("INMmcmc-smallVar-sim-1-chain.txt",header=TRUE, fill=TRUE)
+tr=read.table("INMmcmc-QuitesmallVar-sim-1-chain.txt",header=TRUE, fill=TRUE)
+tr=read.table("INMmcmc-VerysmallVar-sim-1-chain.txt",header=TRUE, fill=TRUE)
 tr=tr[1:10000,]
 tr=apply(tr,c(1,2),as.numeric)
 exp(-1)
@@ -99,3 +109,16 @@ mean(tr[,length(tr[1,])])
 t=tr[,length(tr[1,])]
 
 cov(log(tr))
+
+setwd("~/Simresults/t14")
+tr=read.table("INMmcmc-var-sim-1-chain.txt",header=TRUE, fill=TRUE)
+tr=tr[1:(length(tr[,1])-2),]
+tr2=as.matrix(tr)
+tr=tr2[which(as.vector(sapply(tr2[,20],as.numeric))<0),]
+tr=apply(tr, c(1,2), as.numeric)
+tr=tr[,-1]
+typeof(tr[,20])
+typeof(c(2,3,1,1,1))
+print(tr[,20])
+plot(jitter(sapply(tr[,21],as.numeric)/100), pch=22, cex=0.3)
+mean(sapply(tr[,21],as.numeric)/100)
