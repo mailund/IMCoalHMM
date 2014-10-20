@@ -39,7 +39,7 @@ def process_tree(line):
     s = line.strip().split("[")[1].split("]")
     return int(s[0]), s[1]
 
-def count_tmrca(subs=4*25*20000*1e-9, filename='forest.nwk'):
+def count_tmrca(subs=4*25*20000*1e-9, filename='forest.nwk', align3=True):
     """
     This function returns a list of coalescences between 
     """
@@ -53,10 +53,13 @@ def count_tmrca(subs=4*25*20000*1e-9, filename='forest.nwk'):
         count, tree = process_tree(line)
         tmrca = visitor.get_TMRCA(tree)
         one_two.append(tmrca[(1,2)]*subs)
-        three_four.append(tmrca[(3,4)]*subs)
-        one_three.append(tmrca[(1,3)]*subs)
+        if align3:
+            three_four.append(tmrca[(3,4)]*subs)
+            one_three.append(tmrca[(1,3)]*subs)
         counts.append(count)
     f.close()
-
-    return one_two, three_four, one_three,counts
+    if align3:
+        return one_two, three_four, one_three,counts
+    else:
+        return one_two,counts
     

@@ -7,13 +7,6 @@ Created on Oct 20, 2014
 from bisect import bisect
 from math import log
 
-def printPyZipHMM(Matrix):
-    finalString=""
-    for i in range(Matrix.getWidth()):
-        for j in range(Matrix.getHeight()):
-            finalString=finalString+" "+str(Matrix[i,j])
-        finalString=finalString+"\n"
-    return finalString
 
 
 class Coal_times_log_lik(object):

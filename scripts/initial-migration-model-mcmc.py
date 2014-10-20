@@ -3,10 +3,12 @@
 """Script for estimating parameters in an initial migration model.
 """
 
+from perfectLikelihood import Coal_times_log_lik
+from newick_count import count_tmrca
 from argparse import ArgumentParser
 
 from likelihood2 import Likelihood
-from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
+from isolation_with_migration_model2 import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
 
@@ -93,12 +95,17 @@ and uniform coalescence and recombination rates."""
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     parser.add_argument("--mixture", help="Every third is sampled from the standard distribution where log increments are independent N(0,sd=0.1)", action="store_true")
 
+    parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
+    parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
+
+
     meta_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
         ('migration-period', 'time period where the populations exchanged genes', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
-        ('migration-rate', 'migration rate in number of migrations per substitution', 200.0)
+        ('migration-rate', 'migration rate in number of migrations per substitution', 200.0),
+        ('Ngmu4', 'substitutions pr 4ngmu year', 4*25*20000*1e-9)
     ]
 
     for parameter_name, description, default in meta_params:
@@ -110,14 +117,15 @@ and uniform coalescence and recombination rates."""
     parser.add_argument('alignments', nargs='*', help='Alignments in ZipHMM format')
 
     options = parser.parse_args()
-    if len(options.alignments) < 1 and not (options.sample_priors or options.mcmc_priors):
-        parser.error("Input alignment not provided!")
+    if not options.use_trees_as_data:
+        if len(options.alignments) < 1 and not (options.sample_priors or options.mcmc_priors):
+            parser.error("Input alignment not provided!")
 
-    if len(options.alignments) > 0 and options.mcmc_priors:
-        parser.error("You should not provide alignments to the command line when sampling from the prior")
+        if len(options.alignments) > 0 and options.mcmc_priors:
+            parser.error("You should not provide alignments to the command line when sampling from the prior")
 
-    if options.logfile and not options.mc3:
-        parser.error("the --logfile option is only valid together with the --mc3 option.")
+        if options.logfile and not options.mc3:
+            parser.error("the --logfile option is only valid together with the --mc3 option.")
 
     def transformToI(inarray):
         inarray=map(log,inarray)
@@ -189,10 +197,15 @@ and uniform coalescence and recombination rates."""
                    switching=options.thinning/10,
                    temperature_scale=options.temperature_scale)
     else:
-        forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
-        log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
-                                                            options.ancestral_states),
-                                    forwarders)
+        if options.use_trees_as_data:
+            cT,counts=count_tmrca(subs=options.Ngmu4, filename=options.treefile, align3=False) #align3 is false, because we only want one alignment. 
+            IMmodel=IsolationMigrationModel(options.migration_states, options.ancestral_states)
+            log_likelihood=Coal_times_log_lik(times=cT,counts=counts,model=IMmodel)
+        else:
+            forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+            log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
+                                                            options.ancestral_states),forwarders)
+                                    
         if options.transform==1:
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=transformToI, transformFromI=transformFromI)#, mixture=options.mixture)
         elif options.transform==2:
