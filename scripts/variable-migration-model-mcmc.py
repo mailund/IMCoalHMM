@@ -1,6 +1,8 @@
 """Makes mcmc with the variable migration model"""
 
 from pyZipHMM import Forwarder
+from newick_count import count_tmrca
+from perfectLikelihood import Coal_times_log_lik
 
 from argparse import ArgumentParser
 from variable_migration_model2 import VariableCoalAndMigrationRateModel
@@ -46,7 +48,7 @@ recombination rate."""
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 100.0),
-        ('tmax', 'maximum number of substitutions', 7*4*20000*25)
+        ('Ngmu4', 'substitutions per 4Ng years', 4*20000*25*1e-9) #it is only used when we use trees as input data. 
     ]
 
     for parameter_name, description, default in optimized_params:
@@ -72,20 +74,24 @@ recombination rate."""
     parser.add_argument('-a22', '--alignments22', nargs='+',
                         help='Alignments of two sequences from the second population')
     
+    parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
+    
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
     parser.add_argument('--scew', default=0, type=int, help='this number is how many times between two scewsteps')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
+    parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     
     options = parser.parse_args()
-
-    if len(options.alignments11) < 1:
-        parser.error("Input alignment for the 11 system not provided!")
-    if len(options.alignments12) < 1:
-        parser.error("Input alignment for the 12 system not provided!")
-    if len(options.alignments22) < 1:
-        parser.error("Input alignment for the 22 system not provided!")
+    if not options.use_trees_as_data:
+        if len(options.alignments11) < 1:
+            parser.error("Input alignment for the 11 system not provided!")
+        if len(options.alignments12) < 1:
+            parser.error("Input alignment for the 12 system not provided!")
+        if len(options.alignments22) < 1:
+            parser.error("Input alignment for the 22 system not provided!")
+        
         
     
 
@@ -114,8 +120,8 @@ recombination rate."""
     for i in range(no_epochs):
         coalRate1Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
         coalRate2Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(LogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(LogNormPrior(log(init_mig), proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
+        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
 
     priors = coalRate1Priors+coalRate2Priors+migRate12Priors+migRate21Priors+recombRatePrior
 
@@ -182,16 +188,24 @@ recombination rate."""
         return ans
     
     # load alignments
-    forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
-    forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
-    forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
-
-    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, options.tmax)
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, options.tmax)
-    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, options.tmax)
-    log_likelihood_11 = Likelihood(model_11, forwarders_11)
-    log_likelihood_12 = Likelihood(model_12, forwarders_12)
-    log_likelihood_22 = Likelihood(model_22, forwarders_22)
+    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
+    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals)
+    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals)
+    
+    if options.use_trees_as_data:
+        leftT,rightT,combinedT,counts=count_tmrca(subs=options.Ngmu4,filename=options.treefile)
+        
+        log_likelihood_11=Coal_times_log_lik(times=leftT,counts=counts, model=model_11)
+        log_likelihood_12=Coal_times_log_lik(times=combinedT,counts=counts, model=model_12)
+        log_likelihood_22=Coal_times_log_lik(times=rightT,counts=counts, model=model_22)
+    else:
+        forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
+        forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
+        forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
+        
+        log_likelihood_11 = Likelihood(model_11, forwarders_11)
+        log_likelihood_12 = Likelihood(model_12, forwarders_12)
+        log_likelihood_22 = Likelihood(model_22, forwarders_22)
 
     def log_likelihood(parameters):
         a1=log_likelihood_11(parameters)
@@ -208,11 +222,11 @@ recombination rate."""
     
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects'])
-        for _ in xrange(options.samples):
+        for j in xrange(options.samples):
             params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
             print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
             outfile.flush()
-            if _%max(int(options.samples/5),1)==0:
+            if j%max(int(options.samples/5),1)==0:
                 for i in range(3):
                     print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                     print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])

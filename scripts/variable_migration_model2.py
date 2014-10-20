@@ -9,7 +9,7 @@ from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points
-from IMCoalHMM.model import Model
+from model2 import Model
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -68,6 +68,8 @@ class VariableCoalAndMigrationRateCTMCSystem(CTMCSystem):
 
         # Even though we have different CTMCs they have the same state space
         self.state_space = ctmcs[0].state_space
+        
+        self.break_points=break_points
 
         self.through_ = _compute_through(ctmcs, break_points)
 
@@ -92,7 +94,7 @@ class VariableCoalAndMigrationRateModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, intervals, tmax):
+    def __init__(self, initial_configuration, intervals):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -112,7 +114,6 @@ class VariableCoalAndMigrationRateModel(Model):
 
         self.intervals = intervals
         self.no_states = sum(intervals)
-        self.tmax=tmax
 
     def unpack_parameters(self, parameters):
         """Unpack the rate parameters for the model from the linear representation
