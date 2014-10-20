@@ -39,13 +39,7 @@ class Coal_times_log_lik(object):
         for j in xrange(len(self.times)):
             t[j]=bisect(break_points,self.times[j])-1
 
-        a=log(init_probs[0,t[0]])
-        print a
-        b=self.counts[0]
-        print b
-        c=log(trans_probs[t[0],t[0]])
-        print c
-        loglik=a+b*c
+        loglik=log(init_probs[0,t[0]])+self.counts[0]*log(trans_probs[t[0],t[0]])
         for i in xrange(1,len(t)):
             loglik+=log(trans_probs[t[i-1],t[i]])+log(trans_probs[t[i],t[i]])*self.counts[i]
         ans=(trans_probs,init_probs,loglik)
