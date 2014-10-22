@@ -4,7 +4,7 @@ Created on Oct 22, 2014
 @author: svendvn
 '''
 
-from math import log, exp
+from math import log, exp,sqrt
 
 class Global_scaling(object):
     '''
@@ -30,14 +30,14 @@ class Global_scaling(object):
         '''
         print self.theta
         print params[0]
-        return [exp(log(x)/self.theta) for x in params]
+        return [exp(log(x)/sqrt(self.theta)) for x in params]
     
      
     def after_transform(self, params):   
         '''
         this takes a vector from scaled space and transforms it back
         '''
-        return [exp(log(x)*self.theta) for x in params]
+        return [exp(log(x)*sqrt(self.theta)) for x in params]
         
     def update_alpha(self, accept):
         '''
