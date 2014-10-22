@@ -216,7 +216,8 @@ recombination rate."""
 
     if not options.startWithGuess:
         if options.scew>0:
-            adap=Global_scaling()
+            var=options.sd_multiplyer
+            adap=Global_scaling(params=[options.scewArgument, 10])
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
         else:
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
