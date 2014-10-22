@@ -13,7 +13,7 @@ from math import log
 from numpy.random import permutation, randint
 from copy import deepcopy
 from numpy import array
-from random import gammavariate
+from global_scaling import Global_scaling
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -79,7 +79,8 @@ recombination rate."""
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
-    parser.add_argument('--scew', default=0, type=int, help='this number is how many times between two scewsteps')
+    parser.add_argument('--scew', default=0, type=int, help='this number tells if you should use scew steps')
+    parser.add_argument('--scewArgument', default=1.0, type=float, help='this number is the power of the harmonical decrease in scew with adaption')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     
@@ -214,17 +215,21 @@ recombination rate."""
         return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
 
     if not options.startWithGuess:
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transformToI=makeSomeBig, transformFromI=makeSomeSmall, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
+        if options.scew>0:
+            adap=Global_scaling()
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
+        else:
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
         thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
 
     
     with open(options.outfile, 'w') as outfile:
-        print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects'])
+        print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta'])
         for j in xrange(options.samples):
-            params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
-            print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
+            params, prior, likelihood, posterior, accepts, rejects,adapParam = mcmc.sample()
+            print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
             outfile.flush()
             if j%max(int(options.samples/5),1)==0:
                 for i in range(3):

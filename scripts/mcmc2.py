@@ -65,17 +65,12 @@ class ExpLogNormPrior(object):
 
 
 class MCMC(object):
-    def __init__(self, priors, log_likelihood, thinning, transformToI=None, transformFromI=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None):
+    def __init__(self, priors, log_likelihood, thinning, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None):
         self.priors = priors
         self.log_likelihood = log_likelihood
         self.thinning = thinning
-        if transformToI is None:
-            self.transformFromI=self.transformFromIdef
-            self.transformToI=self.transformToIdef
-        else:
-            self.transformFromI=transformFromI
-            self.transformToI=transformToI
-            
+        self.transform = transferminator
+        self.adapParam='none'            
         if startVal is None:
             self.current_theta = array([pi.sample() for pi in self.priors])
         else:
@@ -122,9 +117,9 @@ class MCMC(object):
         
             
     def ScewStep(self, temperature=1.0):
-        propPar=self.transformToI(self.current_theta)
+        propPar=self.transform.first_transform(self.current_theta)
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
-        new_theta= array(self.transformFromI(new_thetaTmp))
+        new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
@@ -136,8 +131,10 @@ class MCMC(object):
             self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
+            self.adapParam=self.transform.update_alpha(True)
         else: 
             self.rejections+=1
+            self.adapParam=self.transform.update_alpha(False)
             
     def switchStep(self,temperature):
         new_theta=self.switcher(self.current_theta)
@@ -160,13 +157,13 @@ class MCMC(object):
         self.accepts=0
         self.rejections=0
         for _ in xrange(self.thinning):
-            if(randint(0,self.mixtureWithScew+1)==1):
-                self.ScewStep(temperature)
-            elif(randint(0,self.mixtureWithSwitch+1)==1):
+            if(randint(0,self.mixtureWithSwitch+1)==1):
                 self.switchStep(temperature)
+            elif(self.mixtureWithScew>0):
+                self.ScewStep(temperature)
             else:
                 self.step(temperature)
-        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam
     
     def transformToIdef(self, inarray):
         return inarray
