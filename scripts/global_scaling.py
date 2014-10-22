@@ -29,8 +29,6 @@ class Global_scaling(object):
         '''
         this takes a vector and transforms it into the scaled space
         '''
-        print self.theta
-        print params[0]
         return [exp(log(x)/sqrt(self.theta)) for x in params]
     
      
@@ -46,7 +44,7 @@ class Global_scaling(object):
         We want: accept=True <=> the proposal based on alpha was accepted. 
         '''
         #0.234 has some special meaning in mcmc acceptance probabilities.
-        self.theta = max(0.01,self.theta+self.multip/self.count**self.alpha*(float(accept)*1.0-(1.0-float(accept))/9.0))
+        self.theta = max(0.1,self.theta+self.multip/self.count**self.alpha*(float(accept)*1.0-(1.0-float(accept))/9.0))
         self.count+=1
         return self.theta
         
