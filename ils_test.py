@@ -5,10 +5,29 @@ from IMCoalHMM.CTMC import make_ctmc
 from numpy import zeros, matrix
 
 
+# For debugging...
+def pretty_state(state):
+    def pretty_lineage(lineage):
+        return '{{{}}}'.format(','.join(str(x) for x in lineage))
+    return '{{{}}}'.format(', '.join(pretty_lineage(lineage) for lineage in state))
+
+
+def extract_lineages(state):
+    left = frozenset(nuc[0] for pop, nuc in state if nuc[0])
+    right = frozenset(nuc[1] for pop, nuc in state if nuc[1])
+    return left, right
+
+
 class ILSSystem(CoalSystem):
     def __init__(self):
         super(ILSSystem, self).__init__()
+        self.state_type = dict()
         self.transitions = [[('R', self.recombination)], [('C', self.coalesce)]]
+
+    def sort_states(self):
+        for state, index in self.states.items():
+            left, right = extract_lineages(state)
+            self.state_type.setdefault((left, right), []).append(index)
 
 
 class Isolation3(ILSSystem):
@@ -17,6 +36,7 @@ class Isolation3(ILSSystem):
         self.init = frozenset([(sample, (frozenset([sample]), frozenset([sample]))) for sample in [1, 2, 3]])
         self.compute_state_space()
         self.init_index = self.states[self.init]
+        self.sort_states()
 
 
 class Isolation2(ILSSystem):
@@ -25,6 +45,7 @@ class Isolation2(ILSSystem):
         self.init = frozenset([(population, (frozenset([sample]), frozenset([sample])))
                                for population, sample in zip([12, 12, 3], [1, 2, 3])])
         self.compute_state_space()
+        self.sort_states()
 
 
 class Isolation1(ILSSystem):
@@ -33,6 +54,7 @@ class Isolation1(ILSSystem):
         self.init = frozenset([(population, (frozenset([sample]), frozenset([sample])))
                                for population, sample in zip([123, 123, 123], [1, 2, 3])])
         self.compute_state_space()
+        self.sort_states()
 
 
 def make_rates_table_3(coal_rate_1, coal_rate_2, coal_rate_3, recombination_rate):
@@ -148,39 +170,10 @@ class ILSCTMCSystem(object):
         """
         return self.epoch_1.init_index
 
-    def begin_states(self, i):
-        """Begin states for interval i.
-
-        :param i: interval index
-        :type i: int
-
-        :returns: List of the begin states for the state space in interval i.
-        :rtype: list
+    def get_states(self, i, state_type):
+        """Extract the states of the given state_type for interval i.
         """
-        return self.get_state_space(i).begin_states
-
-    # FIXME: replace by the states for the ILS model
-    def left_states(self, i):
-        """Left states for interval i.
-
-        :param i: interval index
-        :type i: int
-
-        :returns: List of the left states for the state space in interval i.
-        :rtype: list
-        """
-        return self.get_state_space(i).left_states
-
-    def end_states(self, i):
-        """End states for interval i.
-
-        :param i: interval index
-        :type i: int
-
-        :returns: List of the end states for the state space in interval i.
-        :rtype: list
-        """
-        return self.get_state_space(i).end_states
+        return self.get_state_space(i).state_type[state_type]
 
     def through(self, i):
         """Returns a probability matrix for going through interval i.
@@ -226,3 +219,54 @@ epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1000.0, 1000.0, 0.4))
 epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
 
 system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
+
+
+STATE_B = frozenset([frozenset([1]), frozenset([2]), frozenset([3])])
+STATE_12 = frozenset([frozenset([1, 2]), frozenset([3])])
+STATE_13 = frozenset([frozenset([1, 3]), frozenset([2])])
+STATE_23 = frozenset([frozenset([2, 3]), frozenset([1])])
+STATE_E = frozenset([frozenset([1, 2, 3])])
+
+ALL_STATES = [STATE_B, STATE_12, STATE_13, STATE_23, STATE_E]
+
+MARGINAL_PATHS = [
+    [STATE_B, STATE_E],
+    [STATE_B, STATE_12, STATE_E],
+    [STATE_B, STATE_13, STATE_E],
+    [STATE_B, STATE_23, STATE_E],
+]
+
+
+def path_merger(left, right):
+    if len(left) == 1:
+        yield [(left[0], r) for r in right]
+    elif len(right) == 1:
+        yield [(l, right[0]) for l in left]
+    else:
+        for tail in path_merger(left[1:], right):
+            yield [(left[0], right[0])] + tail
+        for tail in path_merger(left, right[1:]):
+            yield [(left[0], right[0])] + tail
+        for tail in path_merger(left[1:], right[1:]):
+            yield [(left[0], right[0])] + tail
+
+
+JOINT_PATHS = []
+for left in MARGINAL_PATHS:
+    for right in MARGINAL_PATHS:
+        JOINT_PATHS.extend(path_merger(left, right))
+
+
+
+for path in JOINT_PATHS:
+    for step in path:
+        print pretty_state(step[0]), '|', pretty_state(step[1])
+    print '###'
+
+
+
+
+#for s in epoch_3_ctmc.state_space.states:
+#    left, right = extract_lineages(s)
+#    print pretty_state(left), "|", pretty_state(right)
+#    print left == state_B
