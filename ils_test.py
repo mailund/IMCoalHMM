@@ -27,6 +27,54 @@ def pretty_time_path(path):
     return " ::: ".join(steps)
 
 
+# Handling states and paths for ILS model.
+STATE_B = frozenset([frozenset([1]), frozenset([2]), frozenset([3])])
+STATE_12 = frozenset([frozenset([1, 2]), frozenset([3])])
+STATE_13 = frozenset([frozenset([1, 3]), frozenset([2])])
+STATE_23 = frozenset([frozenset([2, 3]), frozenset([1])])
+STATE_E = frozenset([frozenset([1, 2, 3])])
+
+ALL_STATES = [STATE_B, STATE_12, STATE_13, STATE_23, STATE_E]
+MARGINAL_PATHS = [
+    [STATE_B, STATE_E],
+    [STATE_B, STATE_12, STATE_E],
+    [STATE_B, STATE_13, STATE_E],
+    [STATE_B, STATE_23, STATE_E],
+]
+
+
+def path_merger(left, right):
+    if len(left) == 1:
+        yield [(left[0], r) for r in right]
+    elif len(right) == 1:
+        yield [(l, right[0]) for l in left]
+    else:
+        for tail in path_merger(left[1:], right):
+            yield [(left[0], right[0])] + tail
+        for tail in path_merger(left, right[1:]):
+            yield [(left[0], right[0])] + tail
+        for tail in path_merger(left[1:], right[1:]):
+            yield [(left[0], right[0])] + tail
+
+JOINT_PATHS = []
+for left in MARGINAL_PATHS:
+    for right in MARGINAL_PATHS:
+        JOINT_PATHS.extend(path_merger(left, right))
+
+
+def time_path(path, x, y):
+    assert len(path) > 1
+
+    first, second = path[0], path[1]
+    if len(path) == 2:
+        for break_point in range(x, y):
+            yield [(first, break_point, second)]
+    else:
+        for break_point in range(x, y):
+            for continuation in time_path(path[1:], break_point+1, y):
+                yield [(first, break_point, second)] + continuation
+
+
 # extract left and right lineages for a state
 def extract_lineages(state):
     left = frozenset(nuc[0] for pop, nuc in state if nuc[0])
@@ -170,6 +218,8 @@ class ILSCTMCSystem(object):
         self.upto_ = compute_upto(compute_upto0(self.epoch_1, self.epoch_2, self.break_points_12[0]), self.through_)
         self.between_ = compute_between(self.through_)
 
+        self.valid_paths_ = None
+
     def get_state_space(self, i):
         if i < len(self.break_points_12):
             return self.epoch_2.state_space
@@ -239,52 +289,19 @@ class ILSCTMCSystem(object):
                 return False
         return True
 
+    def make_valid_paths(self):
+        no_intervals = len(self.through_)
+        self.valid_paths_ = []
+        for path in JOINT_PATHS:
+            for timed_path in time_path(path, 0, no_intervals):
+                if self.valid_system_path(timed_path):
+                    self.valid_paths_.append(timed_path)
 
-STATE_B = frozenset([frozenset([1]), frozenset([2]), frozenset([3])])
-STATE_12 = frozenset([frozenset([1, 2]), frozenset([3])])
-STATE_13 = frozenset([frozenset([1, 3]), frozenset([2])])
-STATE_23 = frozenset([frozenset([2, 3]), frozenset([1])])
-STATE_E = frozenset([frozenset([1, 2, 3])])
-
-ALL_STATES = [STATE_B, STATE_12, STATE_13, STATE_23, STATE_E]
-MARGINAL_PATHS = [
-    [STATE_B, STATE_E],
-    [STATE_B, STATE_12, STATE_E],
-    [STATE_B, STATE_13, STATE_E],
-    [STATE_B, STATE_23, STATE_E],
-]
-
-
-def path_merger(left, right):
-    if len(left) == 1:
-        yield [(left[0], r) for r in right]
-    elif len(right) == 1:
-        yield [(l, right[0]) for l in left]
-    else:
-        for tail in path_merger(left[1:], right):
-            yield [(left[0], right[0])] + tail
-        for tail in path_merger(left, right[1:]):
-            yield [(left[0], right[0])] + tail
-        for tail in path_merger(left[1:], right[1:]):
-            yield [(left[0], right[0])] + tail
-
-JOINT_PATHS = []
-for left in MARGINAL_PATHS:
-    for right in MARGINAL_PATHS:
-        JOINT_PATHS.extend(path_merger(left, right))
-
-
-def time_path(path, x, y):
-    assert len(path) > 1
-
-    first, second = path[0], path[1]
-    if len(path) == 2:
-        for break_point in range(x, y):
-            yield [(first, break_point, second)]
-    else:
-        for break_point in range(x, y):
-            for continuation in time_path(path[1:], break_point+1, y):
-                yield [(first, break_point, second)] + continuation
+    @property
+    def valid_paths(self):
+        if self.valid_paths_ is None:
+            self.make_valid_paths()
+        return self.valid_paths_
 
 
 
@@ -332,14 +349,5 @@ epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
 system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
 
 
-
-for path in time_path(JOINT_PATHS[1], 0, 6):
-    print pretty_time_path(path)
-
-print '-' * 60
-
-for path in time_path(JOINT_PATHS[1], 0, 6):
-    if system.valid_system_path(path):
-        print pretty_time_path(path)
-
+print len(system.valid_paths)
 
