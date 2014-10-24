@@ -12,6 +12,22 @@ def pretty_state(state):
     return '{{{}}}'.format(', '.join(pretty_lineage(lineage) for lineage in state))
 
 
+def pretty_pair(step):
+    return '{} | {}'.format(pretty_state(step[0]), pretty_state(step[1]))
+
+
+def pretty_path(path):
+    return ' -> '.join(pretty_pair(step) for step in path)
+
+
+def pretty_time_path(path):
+    steps = []
+    for first, time, second in path:
+        steps.append("{} [{}] {}".format(pretty_pair(first), time, pretty_pair(second)))
+    return " ::: ".join(steps)
+
+
+# extract left and right lineages for a state
 def extract_lineages(state):
     left = frozenset(nuc[0] for pop, nuc in state if nuc[0])
     right = frozenset(nuc[1] for pop, nuc in state if nuc[1])
@@ -82,8 +98,7 @@ def make_rates_table_2(coal_rate_12, coal_rate_3, recombination_rate):
 
 
 def make_rates_table_1(coal_rate_123, recombination_rate):
-    """Builds the rates table from the CTMC for the two-samples system
-    for an isolation period."""
+    """Builds the rates table from the CTMC for the two-samples system for an isolation period."""
     table = dict()
     table[('C', 123, 123)] = coal_rate_123
     table[('R', 123, 123)] = recombination_rate
@@ -173,7 +188,11 @@ class ILSCTMCSystem(object):
     def get_states(self, i, state_type):
         """Extract the states of the given state_type for interval i.
         """
-        return self.get_state_space(i).state_type[state_type]
+        state_type_table = self.get_state_space(i).state_type
+        if state_type in state_type_table:
+            return state_type_table[state_type]
+        else:
+            return None
 
     def through(self, i):
         """Returns a probability matrix for going through interval i.
@@ -214,11 +233,11 @@ class ILSCTMCSystem(object):
         """
         return self.between_[(i, j)]
 
-epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1000.0, 1000.0, 1000.0, 0.4))
-epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1000.0, 1000.0, 0.4))
-epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
-
-system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
+    def valid_system_path(self, timed_path):
+        for x, i, y in timed_path:
+            if self.get_states(i, x) is None or self.get_states(i+1, y) is None:
+                return False
+        return True
 
 
 STATE_B = frozenset([frozenset([1]), frozenset([2]), frozenset([3])])
@@ -228,7 +247,6 @@ STATE_23 = frozenset([frozenset([2, 3]), frozenset([1])])
 STATE_E = frozenset([frozenset([1, 2, 3])])
 
 ALL_STATES = [STATE_B, STATE_12, STATE_13, STATE_23, STATE_E]
-
 MARGINAL_PATHS = [
     [STATE_B, STATE_E],
     [STATE_B, STATE_12, STATE_E],
@@ -250,19 +268,53 @@ def path_merger(left, right):
         for tail in path_merger(left[1:], right[1:]):
             yield [(left[0], right[0])] + tail
 
-
 JOINT_PATHS = []
 for left in MARGINAL_PATHS:
     for right in MARGINAL_PATHS:
         JOINT_PATHS.extend(path_merger(left, right))
 
 
+def time_path(path, x, y):
+    assert len(path) > 1
 
+    first, second = path[0], path[1]
+    if len(path) == 2:
+        for break_point in range(x, y):
+            yield [(first, break_point, second)]
+    else:
+        for break_point in range(x, y):
+            for continuation in time_path(path[1:], break_point+1, y):
+                yield [(first, break_point, second)] + continuation
+
+
+
+
+
+
+
+#for path in JOINT_PATHS:
+#    for step in path:
+#        print pretty_state(step[0]), '|', pretty_state(step[1])
+#    print '###'
+
+
+## sanity check: marginalize the joint paths
+left_paths, right_paths = set(), set()
 for path in JOINT_PATHS:
-    for step in path:
-        print pretty_state(step[0]), '|', pretty_state(step[1])
-    print '###'
+    left_full = [left for left, right in path]
+    right_full = [right for left, right in path]
 
+    left = [left_full[0]]
+    for i in range(1, len(left_full)):
+        if left_full[i-1] != left_full[i]:
+            left.append(left_full[i])
+    right = [right_full[0]]
+    for i in range(1, len(right_full)):
+        if right_full[i-1] != right_full[i]:
+            right.append(right_full[i])
+
+    left_paths.add(tuple(left))
+    right_paths.add(tuple(right))
 
 
 
@@ -270,3 +322,24 @@ for path in JOINT_PATHS:
 #    left, right = extract_lineages(s)
 #    print pretty_state(left), "|", pretty_state(right)
 #    print left == state_B
+
+
+
+epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1000.0, 1000.0, 1000.0, 0.4))
+epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1000.0, 1000.0, 0.4))
+epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
+
+system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
+
+
+
+for path in time_path(JOINT_PATHS[1], 0, 6):
+    print pretty_time_path(path)
+
+print '-' * 60
+
+for path in time_path(JOINT_PATHS[1], 0, 6):
+    if system.valid_system_path(path):
+        print pretty_time_path(path)
+
+
