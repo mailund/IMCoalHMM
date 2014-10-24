@@ -27,6 +27,13 @@ def pretty_time_path(path):
     return " ::: ".join(steps)
 
 
+def pretty_marginal_time_path(path):
+    steps = []
+    for first, time, second in path:
+        steps.append("{} [{}] {}".format(pretty_state(first), time, pretty_state(second)))
+    return " ::: ".join(steps)
+
+
 # Handling states and paths for ILS model.
 STATE_B = frozenset([frozenset([1]), frozenset([2]), frozenset([3])])
 STATE_12 = frozenset([frozenset([1, 2]), frozenset([3])])
@@ -219,6 +226,10 @@ class ILSCTMCSystem(object):
         self.between_ = compute_between(self.through_)
 
         self.valid_paths_ = None
+        self.tree_map = None
+
+        self.make_valid_paths()
+        self.index_marginal_trees()
 
     def get_state_space(self, i):
         if i < len(self.break_points_12):
@@ -299,47 +310,30 @@ class ILSCTMCSystem(object):
 
     @property
     def valid_paths(self):
-        if self.valid_paths_ is None:
-            self.make_valid_paths()
         return self.valid_paths_
 
+    @staticmethod
+    def get_marginal_time_path(time_path, margin):
+        marginal_path = []
+        for x, i, y in time_path:
+            xx, yy = x[margin], y[margin]
+            if xx != yy:
+                marginal_path.append((xx, i, yy))
+        return tuple(marginal_path)
 
+    def index_marginal_trees(self):
+        self.tree_map = {}
+        index = 0
+        for path in self.valid_paths:
+            tree = self.get_marginal_time_path(path, 0)
+            if tree not in self.tree_map:
+                self.tree_map[tree] = index
+                index += 1
 
-
-
-
-
-#for path in JOINT_PATHS:
-#    for step in path:
-#        print pretty_state(step[0]), '|', pretty_state(step[1])
-#    print '###'
-
-
-## sanity check: marginalize the joint paths
-left_paths, right_paths = set(), set()
-for path in JOINT_PATHS:
-    left_full = [left for left, right in path]
-    right_full = [right for left, right in path]
-
-    left = [left_full[0]]
-    for i in range(1, len(left_full)):
-        if left_full[i-1] != left_full[i]:
-            left.append(left_full[i])
-    right = [right_full[0]]
-    for i in range(1, len(right_full)):
-        if right_full[i-1] != right_full[i]:
-            right.append(right_full[i])
-
-    left_paths.add(tuple(left))
-    right_paths.add(tuple(right))
-
-
-
-#for s in epoch_3_ctmc.state_space.states:
-#    left, right = extract_lineages(s)
-#    print pretty_state(left), "|", pretty_state(right)
-#    print left == state_B
-
+    def get_path_indices(self, path):
+        left_tree = self.get_marginal_time_path(path, 0)
+        right_tree = self.get_marginal_time_path(path, 1)
+        return self.tree_map[left_tree], self.tree_map[right_tree]
 
 
 epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1000.0, 1000.0, 1000.0, 0.4))
@@ -350,4 +344,6 @@ system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 
 
 
 print len(system.valid_paths)
-
+for path in system.valid_paths:
+    print system.get_path_indices(path)
+    print pretty_time_path(path)
