@@ -2,7 +2,9 @@
 from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.transitions import projection_matrix, compute_between, compute_upto
 from IMCoalHMM.CTMC import make_ctmc
-from numpy import zeros, matrix
+from numpy import zeros, matrix, ix_
+from numpy.testing import assert_almost_equal
+from pyZipHMM import Matrix
 
 
 # For debugging...
@@ -64,9 +66,9 @@ def path_merger(left, right):
             yield [(left[0], right[0])] + tail
 
 JOINT_PATHS = []
-for left in MARGINAL_PATHS:
-    for right in MARGINAL_PATHS:
-        JOINT_PATHS.extend(path_merger(left, right))
+for _left in MARGINAL_PATHS:
+    for _right in MARGINAL_PATHS:
+        JOINT_PATHS.extend(path_merger(_left, _right))
 
 
 def time_path(path, x, y):
@@ -205,7 +207,7 @@ def compute_through(epoch_2, epoch_3, break_points_12, break_points_123):
     # for the last interval.
     # noinspection PyCallingNonCallable
     pseudo_through = matrix(zeros((len(epoch_3.state_space.states), len(epoch_3.state_space.states))))
-    pseudo_through[:, epoch_3.state_space.end_states[0]] = 1.0
+    pseudo_through[:, epoch_3.state_space.state_type[(STATE_E, STATE_E)]] = 1.0
     through_123.append(pseudo_through)
 
     return through_12 + through_123
@@ -225,8 +227,11 @@ class ILSCTMCSystem(object):
         self.upto_ = compute_upto(compute_upto0(self.epoch_1, self.epoch_2, self.break_points_12[0]), self.through_)
         self.between_ = compute_between(self.through_)
 
+        self.init_index = self.epoch_1.state_space.init_index
+
         self.valid_paths_ = None
         self.tree_map = None
+        self.reverse_tree_map = None
 
         self.make_valid_paths()
         self.index_marginal_trees()
@@ -244,7 +249,7 @@ class ILSCTMCSystem(object):
         :returns: the state space index of the initial state.
         :rtype: int
         """
-        return self.epoch_1.init_index
+        return self.init_index
 
     def get_states(self, i, state_type):
         """Extract the states of the given state_type for interval i.
@@ -266,7 +271,7 @@ class ILSCTMCSystem(object):
         """
         return self.through_[i]
 
-    def upto(self, i):
+    def up_to(self, i):
         """Returns a probability matrix for going up to, but not
         through, interval i. [...][i
 
@@ -296,7 +301,13 @@ class ILSCTMCSystem(object):
 
     def valid_system_path(self, timed_path):
         for x, i, y in timed_path:
-            if self.get_states(i, x) is None or self.get_states(i+1, y) is None:
+            if self.get_states(i, x) is None:
+                # This should always be an obtainable state since we start in it.
+                return False
+            if self.get_states(i+1, y) is None or self.get_states(i, y) is None:
+                # Although we only need to index these states at point i+1 we need to know
+                # that they are also at the end of interval i since otherwise they would
+                # have zero probability anyway
                 return False
         return True
 
@@ -313,9 +324,9 @@ class ILSCTMCSystem(object):
         return self.valid_paths_
 
     @staticmethod
-    def get_marginal_time_path(time_path, margin):
+    def get_marginal_time_path(timed_path, margin):
         marginal_path = []
-        for x, i, y in time_path:
+        for x, i, y in timed_path:
             xx, yy = x[margin], y[margin]
             if xx != yy:
                 marginal_path.append((xx, i, yy))
@@ -330,20 +341,60 @@ class ILSCTMCSystem(object):
                 self.tree_map[tree] = index
                 index += 1
 
+        self.reverse_tree_map = [None] * len(self.tree_map)
+        for tree, i in self.tree_map.items():
+            self.reverse_tree_map[i] = tree
+
     def get_path_indices(self, path):
         left_tree = self.get_marginal_time_path(path, 0)
         right_tree = self.get_marginal_time_path(path, 1)
         return self.tree_map[left_tree], self.tree_map[right_tree]
+
+    def get_path_probability(self, path):
+        x, i, y = path[0]
+
+        up_to = self.up_to(i)[self.initial, self.get_states(i, x)]
+        through = self.through(i)[ix_(self.get_states(i, x), self.get_states(i+1, y))]
+        probability = up_to * through
+
+        for x, j, y in path[1:]:
+            between = self.between(i, j)[ix_(self.get_states(i+1, x), self.get_states(j, x))]
+            through = self.through(j)[ix_(self.get_states(j, x), self.get_states(j+1, y))]
+            probability = probability*between*through
+            i = j
+
+        return probability.sum()
+
+    def make_joint_matrix(self):
+        no_states = len(self.tree_map)
+        joint = matrix(zeros((no_states, no_states)))
+        for path in self.valid_paths:
+            i, j = self.get_path_indices(path)
+            joint[i, j] = self.get_path_probability(path)
+        return joint
+
+
+    def compute_transition_probabilities(self):
+        no_states = len(self.tree_map)
+        joint = self.make_joint_matrix()
+        assert_almost_equal(joint.sum(), 1.0)
+
+        initial_prob_vector = Matrix(no_states, 1)
+        transition_matrix = Matrix(no_states, no_states)
+        for i in xrange(no_states):
+            initial_prob_vector[i, 0] = joint[i, ].sum()
+            print pretty_marginal_time_path(self.reverse_tree_map[i]), initial_prob_vector[i, 0]
+            for j in xrange(no_states):
+                transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i, 0]
+
+        return initial_prob_vector, transition_matrix
 
 
 epoch_1_ctmc = make_ctmc(Isolation3(), make_rates_table_3(1000.0, 1000.0, 1000.0, 0.4))
 epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(1000.0, 1000.0, 0.4))
 epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(1000.0, 0.4))
 
-system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1, 2, 3], [4, 5, 6])
+system = ILSCTMCSystem(epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, [1e-7, 5e-7, 1e-6], [1e-3, 1e-2, 1e-1])
 
+pi, trans = system.compute_transition_probabilities()
 
-print len(system.valid_paths)
-for path in system.valid_paths:
-    print system.get_path_indices(path)
-    print pretty_time_path(path)
