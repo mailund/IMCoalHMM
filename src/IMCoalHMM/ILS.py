@@ -285,7 +285,6 @@ class ILSModel(Model):
     def __init__(self, no_12_intervals, no_123_intervals):
         """Construct the model.
 
-
         This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters."""
         super(ILSModel, self).__init__()
