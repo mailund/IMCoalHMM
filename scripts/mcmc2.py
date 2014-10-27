@@ -124,8 +124,11 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-
-        alpha=min(1, exp(new_posterior / temperature - self.current_posterior / temperature))
+        
+        if new_posterior > self.current_posterior:
+            alpha=1
+        else:
+            alpha=min(1, exp(new_posterior / temperature - self.current_posterior / temperature))
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
