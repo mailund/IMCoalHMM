@@ -38,7 +38,6 @@ class AM4_scaling(object):
         We record the mean. 
         '''
         self.formerX=map(log,params)
-        print self.formerX
         return params
     
      
@@ -47,9 +46,7 @@ class AM4_scaling(object):
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
-        print self.theta
         self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)
-        print self.latterX
         return map(exp,self.latterX)
         
     def update_alpha(self, accept, alphaXY):
