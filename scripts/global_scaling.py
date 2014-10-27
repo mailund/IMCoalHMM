@@ -38,10 +38,12 @@ class Global_scaling(object):
         '''
         return [exp(log(x)*sqrt(self.theta)) for x in params]
         
-    def update_alpha(self, accept):
+    def update_alpha(self, accept,_):
         '''
         This updates alpha based on whether or not 'accept' is true or false. 
         We want: accept=True <=> the proposal based on alpha was accepted. 
+        
+        Other algorithms return two values, that's why we ignore one input. 
         '''
         #0.234 has some special meaning in mcmc acceptance probabilities.
         self.theta = max(0.1,self.theta+self.multip/self.count**self.alpha*(float(accept)*1.0-(1.0-float(accept))/9.0))

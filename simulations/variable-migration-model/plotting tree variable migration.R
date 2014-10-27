@@ -1,7 +1,7 @@
 setwd("~/Documents/variable migration")
 tr=read.table("INMmcmc-sim-1-chain.txt",header=TRUE)
 names=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject')
-par(mfrow=c(4,4))
+par(mfrow=c(5,4))
 for(i in 1:(length(tr[1,])-2)){
   
   if(substring(names[i],2,2)=="c"){
@@ -9,7 +9,7 @@ for(i in 1:(length(tr[1,])-2)){
     abline(h=0.002,col='red')
   }
   else if(substring(names[i],3,3)=="m"){
-    plot(tr[,i], type='l', main=names[i],ylim=c(0,500))
+    plot(tr[,i], type='l', main=names[i],ylim=c(0,1000))
     abline(h=250,col="red")
   }
   else if(substring(names[i],1,1)=="r"){
@@ -20,6 +20,7 @@ for(i in 1:(length(tr[1,])-2)){
     plot(tr[,i], type='l', main=names[i])
   }
 }
+plot(tr[,length(tr[1,])], type='l')
 plot(tr[(1:1000)*10,1],type='l', ylim=c(0,1))
 plot(cumsum(tr)
 
@@ -87,11 +88,11 @@ drawingOfOne=function(vectorOfParams,cmax=FALSE,mmax=FALSE, sqrtroot=5){
 par(mfrow=c(1,1))
 library(animation)
 oopt = ani.options(interval = 0.1, nmax = 250)
-mmax=max(tr[(1:250)*4,9:16])
-cmax=max(tr[(1:250)*4,1:8])
+mmax=max(tr[(1:250)*40,9:16])
+cmax=max(tr[(1:250)*40,1:8])
 ## use a loop to create images one by one
 for (i in 1:ani.options("nmax")) {
-  drawingOfOne(tr[i*4,1:17],mmax=mmax, cmax=cmax,sqrtroot=1)
+  drawingOfOne(tr[i*40,1:17],mmax=mmax, cmax=cmax,sqrtroot=1)
   ani.pause() ## pause for a while (
 }
 
@@ -110,8 +111,8 @@ t=tr[,length(tr[1,])]
 
 cov(log(tr))
 
-setwd("~/Simresults/t14")
-tr=read.table("INMmcmc-var-sim-1-chain.txt",header=TRUE, fill=TRUE)
+setwd("~/Simresults/t19")
+tr=read.table("INMmcmc-.1-simAdapt-1-chain.txt",header=TRUE, fill=TRUE)
 tr=tr[1:(length(tr[,1])-2),]
 tr2=as.matrix(tr)
 tr=tr2[which(as.vector(sapply(tr2[,20],as.numeric))<0),]

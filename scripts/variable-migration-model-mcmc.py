@@ -14,6 +14,7 @@ from numpy.random import permutation, randint
 from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
+from alg4_scaling import AM4_scaling
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -217,7 +218,10 @@ recombination rate."""
     if not options.startWithGuess:
         if options.scew>0:
             var=options.sd_multiplyer
-            adap=Global_scaling(params=[options.scewArgument, 10])
+            if options.scew>1:
+                adap=AM4_scaling(size=17)
+            else:
+                adap=Global_scaling(params=[options.scewArgument, 10])
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
         else:
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)

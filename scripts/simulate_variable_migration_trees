@@ -10,12 +10,12 @@ from math import log
 from mcmc2 import ExpLogNormPrior, LogNormPrior
 from variable_migration_model2 import VariableCoalAndMigrationRateModel
 
-def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=100000, filename='trees.nwk'):
+def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10, filename='trees.nwk'):
     ''' 
     trans_probs and init_probs contain 3 matrices each. break_points should include 0 but not infinity
     '''
     no_states=len(break_points)
-    simTimes=[None]*3
+    simTimes=[0]*3
     
     
     #simulating the initial times
@@ -41,10 +41,11 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
             reps+=1
             change=False
             for i in range(3):
-                new=array(trans_probs[i][simTimes[i],]).cumsum().searchsorted(sample(1))[0]
-            if new != simTimes[i]:
-                simTimes[i]=new
-                change=True
+                new=array(trans_probs[i][simTimes[i],:]).cumsum().searchsorted(sample(1))[0]
+                print new
+                if new != simTimes[i]:
+                    simTimes[i]=new
+                    change=True
             if change:
                 stringToWrite="["+str(reps)+"]"+stringToWrite
                 print stringToWrite
