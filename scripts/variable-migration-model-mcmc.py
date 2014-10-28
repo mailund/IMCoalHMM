@@ -140,19 +140,6 @@ recombination rate."""
         theta_2 = tuple([2 / coal_rate for coal_rate in coal_rates_2])
         return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
     
-    multiplyerB=[1000]*17
-    multiplyer=[0.001]*17
-    print options.change_often
-    for i in options.change_often:
-        multiplyerB[int(float(i))]-=999
-        multiplyer[int(float(i))]*=1000
-    
-    def makeSomeBig(inarray):
-        return [a*x for a,x in zip(multiplyerB, inarray)]
-        
-    def makeSomeSmall(inarray):
-        return [a*x for a,x in zip(multiplyer, inarray)]
-    
     def switchChooser(inarray):
         if randint(0,2)==1:
             return switchRows(inarray)
