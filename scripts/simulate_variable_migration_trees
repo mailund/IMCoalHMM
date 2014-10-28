@@ -10,7 +10,15 @@ from math import log
 from mcmc2 import ExpLogNormPrior, LogNormPrior
 from variable_migration_model2 import VariableCoalAndMigrationRateModel
 
-def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10, filename='trees.nwk'):
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getWidth()):
+        for j in range(Matrix.getHeight()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
+
+def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=1000000, filename='trees.nwk'):
     ''' 
     trans_probs and init_probs contain 3 matrices each. break_points should include 0 but not infinity
     '''
@@ -24,7 +32,6 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10
         
     #makes coalescence points from breakpoints
     coalPoints1=coalescence_points(break_points,coal_rates)
-    print coalPoints1
     
     #getting the newickformat of the first tree. 
     stringToWrite=simTreeFromPoints(simTimes,coalPoints1)
@@ -32,8 +39,9 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10
     #simulates the next many trees
     reps=0
     
+    #print printPyZipHMM(trans_probs[0])
     trans_probs=translateToArray(trans_probs)
-    print trans_probs
+    #print trans_probs
     
     with open(filename, 'w') as fil:
         for _ in xrange(length):
@@ -42,7 +50,7 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10
             change=False
             for i in range(3):
                 new=array(trans_probs[i][simTimes[i],:]).cumsum().searchsorted(sample(1))[0]
-                print new
+                #print new
                 if new != simTimes[i]:
                     simTimes[i]=new
                     change=True
@@ -60,10 +68,12 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=2000.0, length=10
 def translateToArray(trans_probs):
     res=[]
     for element in trans_probs:
-        shell=[[0]*element.getWidth()]*element.getHeight()
+        shell=[]
+        for i in range(element.getWidth()):
+            shell.append([0]*element.getHeight())
         for i in range(element.getWidth()):
             for j in range(element.getHeight()):
-                shell[i][j]=element[i,j]
+                shell[i][j]=float(element[i,j])
         res.append(array(shell))
     return res
     
@@ -138,7 +148,7 @@ def main():
 
 
     optimized_params = [
-        ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
+        ('theta', 'effective population size in 4Ne substitutions', 2e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
         ('migration-rate', 'migration rate in number of migrations per substitution', 250.0),
         ('Ngmu4', 'substitutions per 4Ng years', 4*20000*25*1e-9) #it is only used when we use trees as input data. 

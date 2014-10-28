@@ -12,7 +12,7 @@ class Global_scaling(object):
     '''
 
 
-    def __init__(self,theta=1.0, params=[0.5,10]):
+    def __init__(self,theta=1.0, params=[0.5,10], alphaDesired=0.234):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 
         starting value. 
@@ -22,6 +22,7 @@ class Global_scaling(object):
         self.count=1
         self.alpha=params[0]
         self.multip=params[1]
+        self.alphaDesired=alphaDesired
         
         
     
@@ -38,7 +39,7 @@ class Global_scaling(object):
         '''
         return [exp(log(x)*sqrt(self.theta)) for x in params]
         
-    def update_alpha(self, accept,_):
+    def update_alpha(self, accept,alphaXY):
         '''
         This updates alpha based on whether or not 'accept' is true or false. 
         We want: accept=True <=> the proposal based on alpha was accepted. 
@@ -46,7 +47,8 @@ class Global_scaling(object):
         Other algorithms return two values, that's why we ignore one input. 
         '''
         #0.234 has some special meaning in mcmc acceptance probabilities.
-        self.theta = max(0.1,self.theta+self.multip/self.count**self.alpha*(float(accept)*1.0-(1.0-float(accept))/9.0))
+        gamma=self.multip/self.count**self.alpha
+        self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
         self.count+=1
         return self.theta
         

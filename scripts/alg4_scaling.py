@@ -4,9 +4,10 @@ Created on Oct 27, 2014
 @author: svendvn
 '''
 
-from math import log, exp,sqrt
+from math import log, exp
 from numpy.random import multivariate_normal
 from numpy import array,matrix,identity, outer
+from random import randrange
 
 class AM4_scaling(object):
     '''
@@ -65,6 +66,9 @@ class AM4_scaling(object):
         self.mean += gamma*(x-self.mean)
         self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
         self.count += 1
+        if randrange(5000)==10:
+            print "lambda-parameter: "+ str(self.theta)
+            print self.sigma
         
         
         return self.theta

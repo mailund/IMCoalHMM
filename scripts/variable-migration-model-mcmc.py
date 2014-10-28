@@ -78,10 +78,12 @@ recombination rate."""
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
-    parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
+    #parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
-    parser.add_argument('--scew', default=0, type=int, help='this number tells if you should use scew steps')
-    parser.add_argument('--scewArgument', default=1.0, type=float, help='this number is the power of the harmonical decrease in scew with adaption')
+    parser.add_argument('--adap', default=0, type=int, help='this number tells what adaption to use')
+    parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
+    parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
+    parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     
@@ -216,12 +218,12 @@ recombination rate."""
         return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
 
     if not options.startWithGuess:
-        if options.scew>0:
+        if options.adap>0:
             var=options.sd_multiplyer
-            if options.scew>1:
-                adap=AM4_scaling(size=17)
+            if options.adap>1:
+                adap=AM4_scaling(size=17, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
             else:
-                adap=Global_scaling(params=[options.scewArgument, 10])
+                adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
         else:
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
