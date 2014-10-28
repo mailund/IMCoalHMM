@@ -211,7 +211,7 @@ recombination rate."""
                 adap=AM4_scaling(size=17, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
             else:
                 adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.scew , mixtureWithSwitch=options.switch, switcher=switchChooser)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
         else:
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
