@@ -18,7 +18,7 @@ def printPyZipHMM(Matrix):
         finalString=finalString+"\n"
     return finalString
 
-def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=1000000, filename='/home/svendvn/', simAlign=False):
+def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=1000000, filename='/home/svendvn/', simAlign=False, subsRate=4*25*20000*1e-9):
     ''' 
     trans_probs and init_probs contain 3 matrices each. break_points should include 0 but not infinity
     '''
@@ -31,9 +31,10 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
         
     #makes coalescence points from breakpoints
     coalPoints1=coalescence_points(break_points,coal_rates)
+    coalPoints2=[i*subsRate for i in coalPoints1]
     
     #getting the newickformat of the first tree. 
-    stringToWrite=simTreeFromPoints(simTimes,coalPoints1)
+    stringToWrite=simTreeFromPoints(simTimes,coalPoints2)
     
     #simulates the next many trees
     reps=0
@@ -48,9 +49,9 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
         str3=""
         str4=""
         for _ in xrange(length):
-            c12=coalPoints1[simTimes[0]]
-            c13=coalPoints1[simTimes[1]]
-            c34=coalPoints1[simTimes[2]]
+            c12=coalPoints2[simTimes[0]]
+            c13=coalPoints2[simTimes[1]]
+            c34=coalPoints2[simTimes[2]]
             t12=random()<jk(c12)
             t13=random()<jk(c13)
             t34=random()<jk(c34)
@@ -81,7 +82,7 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
                     stringToWrite="["+str(reps)+"]"+stringToWrite
                     print stringToWrite
                     fil.write(stringToWrite+"\n")
-                    stringToWrite=simTreeFromPoints(simTimes,coalPoints1)
+                    stringToWrite=simTreeFromPoints(simTimes,coalPoints2)
                     reps=0
             #inserting the last line
             stringToWrite="["+str(reps)+"]"+stringToWrite
@@ -257,9 +258,9 @@ def main():
     print bre
     
     if options.type==1:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=True)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=True, subs=options.Ngmu4)
     else:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subs=options.Ngmu4)
     
 if __name__ == '__main__':
     main()
