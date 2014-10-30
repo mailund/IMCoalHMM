@@ -258,9 +258,9 @@ def main():
     print bre
     
     if options.type==1:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=True, subs=options.Ngmu4)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=True, subsRate=options.Ngmu4)
     else:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subs=options.Ngmu4)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
     
 if __name__ == '__main__':
     main()
