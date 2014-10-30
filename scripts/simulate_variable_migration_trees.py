@@ -31,7 +31,7 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
         
     #makes coalescence points from breakpoints
     coalPoints1=coalescence_points(break_points,coal_rates)
-    coalPoints2=[i*subsRate for i in coalPoints1]
+    coalPoints2=[i/subsRate for i in coalPoints1]
     
     #getting the newickformat of the first tree. 
     stringToWrite=simTreeFromPoints(simTimes,coalPoints2)
@@ -60,6 +60,10 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
             str2+=addOns[1]
             str3+=addOns[2]
             str4+=addOns[3]
+        print str1.count("C")
+        print str2.count("C")
+        print str3.count("C")
+        print str4.count("C")
         with open(filename+'alignment.phylip',"w") as fil:
             fil.write(" 4 "+str(length)+"\n")
             fil.write("1         "+str1+"\n")
@@ -264,8 +268,5 @@ def main():
     
 if __name__ == '__main__':
     main()
-    
-print simTreeFromPoints([1,1,2],[0.1,0.2,0.9]) 
-print simTreeFromPoints([2,1,2],[0.1,0.2,0.9]) 
 
     
