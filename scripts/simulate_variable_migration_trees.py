@@ -49,9 +49,9 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
         str3=""
         str4=""
         for _ in xrange(length):
-            c12=coalPoints2[simTimes[0]]
-            c13=coalPoints2[simTimes[1]]
-            c34=coalPoints2[simTimes[2]]
+            c12=coalPoints1[simTimes[0]]
+            c13=coalPoints1[simTimes[1]]
+            c34=coalPoints1[simTimes[2]]
             t12=random()<jk(c12)
             t13=random()<jk(c13)
             t34=random()<jk(c34)
