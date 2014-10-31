@@ -9,8 +9,8 @@ from variable_migration_model2 import VariableCoalAndMigrationRateModel
 from likelihood2 import Likelihood
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
-from math import log
-from numpy.random import permutation, randint
+from math import log,floor
+from numpy.random import permutation, randint, random
 from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
@@ -142,41 +142,59 @@ recombination rate."""
     
     def switchChooser(inarray):
         if randint(0,2)==1:
-            return switchRows(inarray)
+            return weightedSwitchColumns(inarray)
         else: 
             return switchColumns(inarray)
     
-    def switchRows(inarray):
-        ans=[inarray[no_epochs*4]]*(no_epochs*4+1)
-        draw=randint(0,6)
-        if draw==0:
-            h=[0]
-        elif draw==1:
-            h=[1]
-        elif draw==2:
-            h=[0,1]
-        elif draw==3:
-            h=[0,2]
-        elif draw==4:
-            h=[1,3]
-        else:
-            h=range(3)
-        perm=permutation(no_epochs)
-        for i in range(len(perm)):
-            for j in h:#a subset of the four categories c1,c2,mig12,mig21
-                 ans[j*no_epochs+i]=inarray[j*no_epochs+perm[i]]
-        return array(ans)
+    def weightedSwitchColumns(inarray):
+        ans=deepcopy(inarray)
+        length=(len(inarray)-1)
+        x=randint(no_epochs)
+        y=randint(no_epochs)
+        epoch1,epoch2=min(x,y),max(x,y)
+        for i in range(epoch1,epoch2+1):
+            u=random()
+            v=randint(3)
+            if v==0:
+                ans[i],ans[no_epochs+i]=(ans[no_epochs+i]+ans[i])*u,(ans[no_epochs+i]+ans[i])*(1-u)  #coalescence rates
+                ans[i+2*no_epochs], ans[i+3*no_epochs]=(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*u,(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*(1-u) #migration rates
+            elif v==1:
+                ans[i],ans[no_epochs+i]=(ans[no_epochs+i]+ans[i])*u,(ans[no_epochs+i]+ans[i])*(1-u)  #coalescence rates
+            else:
+                ans[i+2*no_epochs], ans[i+3*no_epochs]=(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*u,(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*(1-u) #migration rates
+        return ans, "col"+str(epoch1)+"-"+str(epoch2)+"w"+str(v)+"-"+str(int(u*5.0))
+
+    #THIS HAS VERY FEW ACCEPTS SO ABANDONED. 
+#    def switchRows(inarray):
+#        ans=[inarray[no_epochs*4]]*(no_epochs*4+1)
+#        draw=randint(0,6)
+#        if draw==0:
+#            h=[0]
+#        elif draw==1:
+#            h=[1]
+#        elif draw==2:
+#            h=[0,1]
+#        elif draw==3:
+#            h=[0,2]
+#        elif draw==4:
+#            h=[1,3]
+#        else:
+#            h=range(3)
+#        perm=permutation(no_epochs)
+#        for i in range(len(perm)):
+#            for j in h:#a subset of the four categories c1,c2,mig12,mig21
+#                 ans[j*no_epochs+i]=inarray[j*no_epochs+perm[i]]
+#        return array(ans), "row"+str(draw)+"-"+str(perm)
         
     def switchColumns(inarray):
-        ans=inarray
-        length=(len(inarray)-1)
+        ans=deepcopy(inarray)
         x=randint(no_epochs)
         y=randint(no_epochs)
         epoch1,epoch2=min(x,y),max(x,y)
         for i in range(epoch1,epoch2+1):
             ans[i],ans[no_epochs+i]=ans[no_epochs+i],ans[i] #coalescence rates
             ans[i+2*no_epochs], ans[i+3*no_epochs]=ans[i+3*no_epochs], ans[i+2*no_epochs] #migration rates
-        return ans
+        return ans, "col"+str(epoch1)+"-"+str(epoch2)
     
     # load alignments
     model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
@@ -232,6 +250,13 @@ recombination rate."""
         for i in range(3):
             print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
             print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        acc=mcmc.getSwitchStatistics()
+        print >> outfile, "Accepted switches"
+        for i in acc[0]:
+            print >> outfile, str(i)+"    "+str(acc[0][i])
+        print >> outfile, "Rejected switches"
+        for i in acc[1]:
+            print >> outfile, str(i)+"    "+str(acc[1][i])
         outfile.flush()
         
 

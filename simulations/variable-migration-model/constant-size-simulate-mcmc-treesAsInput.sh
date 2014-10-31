@@ -41,7 +41,7 @@ for sim in `eval echo {1..${no_sims}}`; do
         ziphmmfile12=${simdir}/alignment.$chunk.12.ziphmm
         ziphmmfile22=${simdir}/alignment.$chunk.22.ziphmm
 	
-        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2  ${sym_coal_mig_rate}  | tail -n +4 | grep -v // > ${treefile}
+        python /home/svendvn/workspace/IMCoalHMM/scripts/simulate_variable_migration_trees.py -o ${simdir}/ --type 0
 	echo "trees made"        
 	#seq-gen -q -mHKY -l ${seg_length} -s ${theta_subs} -p $(( $seg_length / 10 )) < ${treefile} > ${seqfile}
 	#echo "data made"
