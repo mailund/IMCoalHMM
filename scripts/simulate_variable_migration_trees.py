@@ -60,6 +60,8 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
             str2+=addOns[1]
             str3+=addOns[2]
             str4+=addOns[3]
+            for i in range(3):
+                simTimes[i]=array(trans_probs[i][simTimes[i],:]).cumsum().searchsorted(sample(1))[0]
         print str1.count("C")
         print str2.count("C")
         print str3.count("C")
