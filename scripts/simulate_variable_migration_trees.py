@@ -103,7 +103,6 @@ def adds(n1,n2,n3):
     if not n1 and not n2 and not n3:
         return ("A","A","A","A")
     else:
-        print '.'
         if not n1 and not n2 and n3:
             return ("A","A","A","C")
         elif n1 and not n2 and not n3:
