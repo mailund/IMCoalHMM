@@ -8,6 +8,8 @@ from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
 from IMCoalHMM.CTMC import make_ctmc
+from IMCoalHMM.emissions import coalescence_points
+from IMCoalHMM.break_points import uniform_break_points, exp_break_points
 
 
 class Admixture(CoalSystem):
@@ -19,23 +21,16 @@ class Admixture(CoalSystem):
 
         super(Admixture, self).__init__()
 
-        self.transitions = [[('R', self.recombination)],
-                            [('C', self.coalesce)]]
+        self.transitions = [[('R', self.recombination)], [('C', self.coalesce)]]
 
-        # We need various combinations of initial states to make sure we build the full reachable
-        # state space.
-        left_1 = [frozenset([(1, (frozenset([1]), frozenset([])))]),
-                  frozenset([(2, (frozenset([1]), frozenset([])))])]
-        right_1 = [frozenset([(1, (frozenset([]), frozenset([1])))]),
-                   frozenset([(2, (frozenset([]), frozenset([1])))])]
-        left_2 = [frozenset([(1, (frozenset([2]), frozenset([])))]),
-                  frozenset([(2, (frozenset([2]), frozenset([])))])]
-        right_2 = [frozenset([(1, (frozenset([]), frozenset([2])))]),
-                   frozenset([(2, (frozenset([]), frozenset([2])))])]
+        # We need various combinations of initial states to make sure we build the full reachable state space.
+        left_1 = [frozenset([(1, (frozenset([1]), frozenset([])))]), frozenset([(2, (frozenset([1]), frozenset([])))])]
+        right_1 = [frozenset([(1, (frozenset([]), frozenset([1])))]), frozenset([(2, (frozenset([]), frozenset([1])))])]
+        left_2 = [frozenset([(1, (frozenset([2]), frozenset([])))]), frozenset([(2, (frozenset([2]), frozenset([])))])]
+        right_2 = [frozenset([(1, (frozenset([]), frozenset([2])))]), frozenset([(2, (frozenset([]), frozenset([2])))])]
         self.init = [l1 | r1 | l2 | r2 for l1 in left_1 for r1 in right_1 for l2 in left_2 for r2 in right_2]
 
         self.compute_state_space()
-
 
 
 def make_rates_table_admixture(coal_rate_1, coal_rate_2, recomb_rate):
@@ -47,8 +42,6 @@ def make_rates_table_admixture(coal_rate_1, coal_rate_2, recomb_rate):
     table[('R', 1, 1)] = recomb_rate
     table[('R', 2, 2)] = recomb_rate
     return table
-
-
 
 
 ## Helper functions
@@ -188,28 +181,6 @@ class AdmixtureCTMCSystem12(CTMCSystem):
             return self.ancestral.state_space
 
 
-isolation_state_space = Isolation()
-middle_state_space = Admixture()
-ancestral_state_space = Single()
-
-isolation_rates = make_rates_table_isolation(1200.0, 1200.0, 0.4)
-middle_rates = make_rates_table_admixture(1200.0, 1200.0, 0.4)
-ancestral_rates = make_rates_table_single(1200.0, 0.4)
-
-isolation_ctmc = make_ctmc(isolation_state_space, isolation_rates)
-middle_ctmc = make_ctmc(middle_state_space, middle_rates)
-ancestral_ctmc = make_ctmc(ancestral_state_space, ancestral_rates)
-
-system = AdmixtureCTMCSystem12(isolation_ctmc, middle_ctmc, ancestral_ctmc, 0.1, 0.0, [1e-6, 2e-6, 5e-6], [1e-5, 1e-4, 2e-4])
-
-
-
-
-
-
-
-
-
 ## Class that can construct HMMs ######################################
 class AdmixtureModel(Model):
     """Class wrapping the code that generates an isolation model HMM
@@ -220,7 +191,7 @@ class AdmixtureModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, isolation_intervals, middle_intervals, ancestral_intervals):
+    def __init__(self, initial_configuration, no_isolation_intervals, no_middle_intervals, no_ancestral_intervals):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -231,26 +202,79 @@ class AdmixtureModel(Model):
         self.initial_state = initial_configuration
 
         self.isolation_state_space = Isolation()
-        self.middle_state_space = Isolation()  # FIXME
+        self.middle_state_space = Admixture()
         self.ancestral_state_space = Single()
 
-        self.no_states = isolation_intervals + middle_intervals + ancestral_intervals
+        self.no_isolation_states = no_isolation_intervals
+        self.no_middle_states = no_middle_intervals
+        self.no_ancestral_states = no_ancestral_intervals
+        self.no_states = no_isolation_intervals + no_middle_intervals + no_ancestral_intervals
 
-    def unpack_parameters(self, parameters):
-        """Unpack the rate parameters for the model from the linear representation
-        used in optimizations to the specific rate parameters.
-        """
-        # FIXME
-        pass
+    def get_middle_break_points(self, tau_1, tau_2, coal_21, coal_22):
+        # FIXME: this should take into account the coalescence rate in each epoch and use a truncated exponential
+        #mean_coal = (coal_21 + coal_22) / 2.0
+        return uniform_break_points(self.no_middle_states, tau_1, tau_1 + tau_2)
+
+    def get_ancestral_break_points(self, tau_1, tau_2, coal_a):
+        return exp_break_points(self.no_ancestral_states, coal_a, tau_1 + tau_2)
+
+    def emission_points_12(self, *parameters):
+        """Time points to emit from."""
+        tau_1, tau_2, coal_11, coal_12, coal_21, coal_22, coal_a, _, _, _ = parameters
+        middle_points = coalescence_points(self.get_middle_break_points(tau_1, tau_2, coal_21, coal_22),
+                                           (coal_21+coal_22)/2.0)
+        ancestral_points = coalescence_points(self.get_ancestral_break_points(tau_1, tau_2, coal_a), coal_a)
+        return middle_points + ancestral_points
 
     def emission_points(self, *parameters):
         """Time points to emit from."""
-        # FIXME
-        pass
+        # FIXME: should depend on initial state
+        return self.emission_points_12(*parameters)
 
     def build_ctmc_system(self, *parameters):
         """Construct CTMCs and compute HMM matrices given the admixture time, split time time,
         and the rates.
         """
-        # FIXME
-        return AdmixtureCTMCSystem12(self.initial_state, ctmcs, break_points)
+        tau_1, tau_2, coal_11, coal_12, coal_21, coal_22, coal_a, recomb, p, q = parameters
+
+        isolation_rates = make_rates_table_isolation(coal_11, coal_12, recomb)
+        middle_rates = make_rates_table_admixture(coal_21, coal_22, recomb)
+        ancestral_rates = make_rates_table_single(coal_a, recomb)
+
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
+        middle_ctmc = make_ctmc(self.middle_state_space, middle_rates)
+        ancestral_ctmc = make_ctmc(self.ancestral_state_space, ancestral_rates)
+
+        middle_break_points = self.get_middle_break_points(tau_1, tau_2, coal_21, coal_22)
+        ancestral_break_points = self.get_ancestral_break_points(tau_1, tau_2, coal_a)
+
+        # FIXME: depends on initial configuration option to the model...
+        return AdmixtureCTMCSystem12(isolation_ctmc, middle_ctmc, ancestral_ctmc, p=p, q=q,
+                                     middle_break_points=middle_break_points,
+                                     ancestral_break_points=ancestral_break_points)
+
+
+
+model = AdmixtureModel(AdmixtureModel.INITIAL_12, 0, 3, 3)
+parameters = (0.0001, 0.0001, 1200.0, 1200.0, 1200.0, 1200.0, 1200.0, 0.4, 0.1, 0.0)
+pi, trans_probs, emis_probs = model.build_hidden_markov_model(parameters)
+
+print pi.getHeight(), pi.getWidth()
+print trans_probs.getHeight(), trans_probs.getWidth()
+
+s = 0.0
+for i in xrange(pi.getHeight()):
+    print 'pi[{}] == {}'.format(i, pi[0,i])
+    s += pi[0,i]
+print s
+print
+
+for i in xrange(trans_probs.getHeight()):
+    print 'T[{},]'.format(i),
+    s = 0.0
+    for j in xrange(trans_probs.getWidth()):
+        print trans_probs[i, j],
+        s += trans_probs[i, j]
+    print
+    print s
+print
