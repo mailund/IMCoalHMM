@@ -85,7 +85,7 @@ class VariableCoalAndMigrationRateCTMCSystem(CTMCSystem):
 ## Class that can construct HMMs ######################################
 class VariableCoalAndMigrationRateModel(Model):
     """Class wrapping the code that generates an isolation model HMM
-    with variable coalescence rates in the different intervals."""
+        with variable coalescence rates in the different intervals."""
 
     # Determines which initial state to start the CTMCs in
     INITIAL_11 = 0
