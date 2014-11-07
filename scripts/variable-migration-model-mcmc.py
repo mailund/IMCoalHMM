@@ -142,11 +142,12 @@ recombination rate."""
     
     def switchChooser(inarray):
         if randint(0,2)==1:
-            return weightedSwitchColumns(inarray)
+            return simpleConstant12Rate(inarray)
         else: 
             return switchColumns(inarray)
     
     def weightedSwitchColumns(inarray):
+        '''This is not perfect for large datasets'''
         ans=deepcopy(inarray)
         length=(len(inarray)-1)
         x=randint(no_epochs)
@@ -163,6 +164,29 @@ recombination rate."""
             else:
                 ans[i+2*no_epochs], ans[i+3*no_epochs]=(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*u,(ans[i+3*no_epochs]+ ans[i+2*no_epochs])*(1-u) #migration rates
         return ans, "col"+str(epoch1)+"-"+str(epoch2)+"w"+str(v)+"-"+str(int(u*5.0))
+    
+    
+    indexOfInterest=[(1,8),(2,9),(3,10),(5,12),(6,13),(7,14)]
+    def simpleConstant12Rate(inarray):
+        ans=deepcopy(inarray)
+        #draws a subset to be reweighted
+        rstring="scr"
+        for n in range(6):
+            if random()<0.5:
+                rstring+="-"+str(indexOfInterest[n])
+                u=random()
+                if random()<0.5:
+                    rstring+=str(int(u*5.0))
+                    ans[indexOfInterest[n][0]]*=u
+                    ans[indexOfInterest[n][1]]/=u
+                else:
+                    rstring+=str(int(u*5.0))
+                    ans[indexOfInterest[n][1]]*=u
+                    ans[indexOfInterest[n][0]]/=u
+        return ans, rstring
+                
+    
+    
 
     #THIS HAS VERY FEW ACCEPTS SO ABANDONED. 
 #    def switchRows(inarray):

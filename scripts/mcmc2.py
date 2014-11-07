@@ -183,6 +183,13 @@ class MCMC(object):
                 self.step(temperature)
         return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam
     
+    def orderSample(self, params):
+        new_prior = self.log_prior(params)
+        self.current_transitionMatrix, self.current_initialDistribution, new_log_likelihood = self.log_likelihood(params)
+        new_posterior = new_prior + new_log_likelihood
+        acc=random() < exp(new_posterior-self.current_posterior)
+        return params, new_prior, new_log_likelihood, new_posterior,acc,1-acc, self.adapParam 
+        
     def transformToIdef(self, inarray):
         return inarray
     
