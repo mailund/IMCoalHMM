@@ -20,6 +20,8 @@ def printPyZipHMM(Matrix):
         finalString=finalString+"\n"
     return finalString
 
+
+
 class LogNormPrior(object):
     """Prior and proposal distribution. The prior is a log-normal and steps are a
     random walk in log-space."""

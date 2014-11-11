@@ -153,10 +153,10 @@ def simTreeFromPoints(times, coalPoints, names=["1","2","3","4"]):
             substring="("+names[3]+":"+str(c34)+",("+names[0]+":"+str(c13)+","+names[2]+":"+str(c13)+"):"+str(c34-c13)+"):"
         else:
             substring="("+names[0]+":"+str(c13)+",("+names[2]+":"+str(c34)+","+names[3]+":"+str(c34)+"):"+str(c13-c34)+"):"
-        res=("("+names[1]+":"+str(c12)+","+substring+str(c12-c13)+")")
+        res=("("+names[1]+":"+str(c12)+","+substring+str(c12-max(c13,c34))+")")
     elif times[2]>times[1] and times[2]>times[0]:
         times.reverse()
-        namesTwo=["3","4","1","2"]
+        namesTwo=[names[2],names[3],names[0],names[1]]
         return simTreeFromPoints(times,coalPoints, namesTwo)
     elif times[0]==times[1] and times[0]==times[2]:
         res=("(("+names[0]+":"+str(c12/2)+","+names[3]+":"+str(c12/2)+"):" +str(c12/2) + ",("+names[1]+":"
@@ -182,7 +182,7 @@ def simTreeFromPoints(times, coalPoints, names=["1","2","3","4"]):
              +str(c24)+","+names[3]+":"+str(c24)+ "):" +str(c12-c24)+")")
     elif times[2]==times[1]:
         times.reverse()
-        namesTwo=["3","4","1","2"]
+        namesTwo=[names[2],names[3],names[0],names[1]]
         return simTreeFromPoints(times,coalPoints, namesTwo)
     else:
         assert False, "We should never reach this point!"
@@ -268,6 +268,30 @@ def main():
         simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
     
 if __name__ == '__main__':
-    main()
+    #main()
+    print simTreeFromPoints([1,1,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print ""
+    
+    print simTreeFromPoints([1,1,0],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([0,1,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([1,0,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print ""
+    
+    print simTreeFromPoints([1,0,0],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([0,1,0],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([0,0,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print ""
+    
+    print simTreeFromPoints([0,2,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([0,1,2],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([2,0,1],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([1,0,2],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([2,1,0],[1.0,2.0,3.0], names=["A","B","C","D"])
+    print simTreeFromPoints([1,2,0],[1.0,2.0,3.0], names=["A","B","C","D"])
+    
+    
+    
+    
+    
 
     
