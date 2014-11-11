@@ -86,6 +86,7 @@ recombination rate."""
     parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
+    parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
     
     options = parser.parse_args()
     if not options.use_trees_as_data:
@@ -166,6 +167,7 @@ recombination rate."""
         return ans, "col"+str(epoch1)+"-"+str(epoch2)+"w"+str(v)+"-"+str(int(u*5.0))
     
     
+    #This also has too few accepts. 
     indexOfInterest=[(1,8),(2,9),(3,10),(5,12),(6,13),(7,14)]
     def simpleConstant12Rate(inarray):
         ans=deepcopy(inarray)
@@ -264,23 +266,29 @@ recombination rate."""
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta'])
         for j in xrange(options.samples):
-            params, prior, likelihood, posterior, accepts, rejects,adapParam = mcmc.sample()
-            print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
+            params, prior, likelihood, posterior, accepts, rejects,adapParam,latestInit = mcmc.sample()
+            if options.record_steps:
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))+\
+                    printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
+            else:
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
             outfile.flush()
-            if j%max(int(options.samples/5),1)==0:
-                for i in range(3):
-                    print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
-                    print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
-        for i in range(3):
-            print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
-            print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
-        acc=mcmc.getSwitchStatistics()
-        print >> outfile, "Accepted switches"
-        for i in acc[0]:
-            print >> outfile, str(i)+"    "+str(acc[0][i])
-        print >> outfile, "Rejected switches"
-        for i in acc[1]:
-            print >> outfile, str(i)+"    "+str(acc[1][i])
+            if not options.record_steps:
+                if j%max(int(options.samples/5),1)==0:
+                    for i in range(3):
+                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        if not options.record_steps:
+            for i in range(3):
+                print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+                print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+            acc=mcmc.getSwitchStatistics()
+            print >> outfile, "Accepted switches"
+            for i in acc[0]:
+                print >> outfile, str(i)+"    "+str(acc[0][i])
+            print >> outfile, "Rejected switches"
+            for i in acc[1]:
+                print >> outfile, str(i)+"    "+str(acc[1][i])
         outfile.flush()
         
 

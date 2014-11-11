@@ -89,6 +89,7 @@ class MCMC(object):
         self.accepts=0
         self.current_transitionMatrix=forget
         self.current_initialDistribution=forget2
+        self.latest_initialDistribution=forget2
             
 
     def log_prior(self, theta):
@@ -104,7 +105,7 @@ class MCMC(object):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_prior = self.log_prior(new_theta)
-        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
 
         
@@ -112,7 +113,7 @@ class MCMC(object):
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
         else:
@@ -120,12 +121,11 @@ class MCMC(object):
         
             
     def ScewStep(self, temperature=1.0):
-        print self.current_theta[0]
         propPar=self.transform.first_transform(self.current_theta)
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
-        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
 
         if new_posterior > self.current_posterior:
@@ -136,7 +136,7 @@ class MCMC(object):
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
             self.adapParam=self.transform.update_alpha(True, alpha)
@@ -147,14 +147,14 @@ class MCMC(object):
     def switchStep(self,temperature):
         new_theta,whatSwitch=self.switcher(self.current_theta)
         new_prior = self.log_prior(new_theta)
-        new_transitionMatrix, new_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
         
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
             self.current_theta = new_theta
             self.current_prior = new_prior
-            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, new_initialDistribution, new_log_likelihood
+            self.current_transitionMatrix, self.current_initialDistribution, self.current_likelihood = new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood
             self.current_posterior = new_posterior
             self.accepts+=1
             if whatSwitch in self.acceptedSwitches:
@@ -181,7 +181,8 @@ class MCMC(object):
                 self.ScewStep(temperature)
             else:
                 self.step(temperature)
-        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_initialDistribution
+    
     
     def orderSample(self, params):
         new_prior = self.log_prior(params)
