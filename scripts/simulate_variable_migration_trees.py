@@ -268,7 +268,7 @@ def main():
         simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
     
 if __name__ == '__main__':
-    #main()
+    main()
     print simTreeFromPoints([1,1,1],[1.0,2.0,3.0], names=["A","B","C","D"])
     print ""
     
