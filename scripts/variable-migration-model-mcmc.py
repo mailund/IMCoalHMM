@@ -266,9 +266,9 @@ recombination rate."""
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta'])
         for j in xrange(options.samples):
-            params, prior, likelihood, posterior, accepts, rejects,adapParam,latestInit = mcmc.sample()
+            params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
             if options.record_steps:
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))+\
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
             else:
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))

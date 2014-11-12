@@ -72,7 +72,8 @@ class MCMC(object):
         self.log_likelihood = log_likelihood
         self.thinning = thinning
         self.transform = transferminator
-        self.adapParam='none'    
+        self.adapParam='none'
+        self.latest_squaredJumpSize=0.0    
         if startVal is None:
             self.current_theta = array([pi.sample() for pi in self.priors])
         else:
@@ -106,6 +107,7 @@ class MCMC(object):
     def step(self, temperature=1.0):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
+        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
@@ -129,6 +131,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
+        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
 
         if new_posterior > self.current_posterior:
             alpha=1
@@ -151,6 +154,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
+        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
         
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
@@ -183,7 +187,7 @@ class MCMC(object):
                 self.ScewStep(temperature)
             else:
                 self.step(temperature)
-        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_initialDistribution
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize, self.latest_initialDistribution
     
     
     def orderSample(self, params):
