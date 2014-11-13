@@ -107,7 +107,7 @@ class MCMC(object):
     def step(self, temperature=1.0):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
-        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
+        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
@@ -131,7 +131,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
+        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
 
         if new_posterior > self.current_posterior:
             alpha=1
@@ -154,7 +154,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=[(i-j)**2 for i,j in zip(self.current_theta,new_theta)]
+        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
         
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
@@ -208,7 +208,7 @@ class RemoteMCMC(object):
     """ MCMC that is designed to run in another process for parallel execution.
     """
 
-    def __init__(self, priors, input_files, model, thinning):
+    def __init__(self, priors, input_files, model, thinning,log_likelihood, transferminator, mixtureWithScew,mixtureWithSwitch, switcher=None, startVal=None):
         self.priors = priors
         self.input_files = input_files
         self.model = model
