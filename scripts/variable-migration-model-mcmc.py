@@ -75,6 +75,9 @@ recombination rate."""
     parser.add_argument('-a22', '--alignments22', nargs='+',
                         help='Alignments of two sequences from the second population')
     
+    parser.add_argument('--mc3', action='store_true', default=False, help='this will use mc3 method to ')
+    parser.add_argument('--mc3_chains', type=int, default=8, help='the number of parallel chains to run in mc3')
+    
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
@@ -247,8 +250,41 @@ recombination rate."""
         a2=log_likelihood_12(parameters)
         a3=log_likelihood_22(parameters)
         return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
+    
+    def likelihoodWrapper():
+        if options.use_trees_as_data:
+            leftT,rightT,combinedT,counts=count_tmrca(subs=options.Ngmu4,filename=options.treefile)
+            
+            log_likelihood_11=Coal_times_log_lik(times=leftT,counts=counts, model=model_11)
+            log_likelihood_12=Coal_times_log_lik(times=combinedT,counts=counts, model=model_12)
+            log_likelihood_22=Coal_times_log_lik(times=rightT,counts=counts, model=model_22)
+        else:
+            forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments11]
+            forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
+            forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments22]
+            
+            log_likelihood_11 = Likelihood(model_11, forwarders_11)
+            log_likelihood_12 = Likelihood(model_12, forwarders_12)
+            log_likelihood_22 = Likelihood(model_22, forwarders_22)
+        def log_likelihood(parameters):
+            a1=log_likelihood_11(parameters)
+            a2=log_likelihood_12(parameters)
+            a3=log_likelihood_22(parameters)
+            return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
+        return log_likelihood
+    
 
-    if not options.startWithGuess:
+
+    if options.mc3:
+        no_chains=options.mc3_chains
+        adapts=[]
+        for i in range(no_chains):
+            if options.adap>0:
+                adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+        mcmc=MC3(priors,models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+                 no_chains=no_chains, thinning=options.thinning, switching=max(1,int(options.thinning/10)), transferminator=adapts, 
+                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)           
+    elif not options.startWithGuess:
         if options.adap>0:
             var=options.sd_multiplyer
             if options.adap>1:

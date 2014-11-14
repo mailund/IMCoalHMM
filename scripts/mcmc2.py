@@ -12,6 +12,8 @@ from numpy import array
 
 from multiprocessing import Process, Queue
 
+from global_scaling import Global_scaling
+
 def printPyZipHMM(Matrix):
     finalString=""
     for i in range(Matrix.getWidth()):
@@ -107,7 +109,7 @@ class MCMC(object):
     def step(self, temperature=1.0):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
-        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
+        self.latest_squaredJumpSize=sum([(log(i)-log(j))**2 for i,j in zip(self.current_theta,new_theta)])
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
@@ -131,7 +133,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
+        self.latest_squaredJumpSize=sum([(log(i)-log(j))**2 for i,j in zip(self.current_theta,new_theta)])
 
         if new_posterior > self.current_posterior:
             alpha=1
@@ -154,7 +156,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=sum([(i-j)**2 for i,j in zip(self.current_theta,new_theta)])
+        self.latest_squaredJumpSize=sum([(log(i)-log(j))**2 for i,j in zip(self.current_theta,new_theta)])
         
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
@@ -180,6 +182,7 @@ class MCMC(object):
     def sample(self, temperature=1.0):
         self.accepts=0
         self.rejections=0
+        print self.latest_squaredJumpSize
         for _ in xrange(self.thinning):
             if(randint(0,self.mixtureWithSwitch+1)==1):
                 self.switchStep(temperature)
@@ -208,19 +211,41 @@ class RemoteMCMC(object):
     """ MCMC that is designed to run in another process for parallel execution.
     """
 
-    def __init__(self, priors, input_files, model, thinning,log_likelihood, transferminator, mixtureWithScew,mixtureWithSwitch, switcher=None, startVal=None):
+    def __init__(self, priors, model, input_files, thinning, **kwargs):
+        self.transferminator=kwargs["transferminator"]
+        self.mixtureWithScew=kwargs["mixtureWithScew"]
+        self.mixtureWithSwitch=kwargs["mixtureWithSwitch"]
+        self.switcher=kwargs["switcher"]
+        self.startVal=kwargs["startVal"]
         self.priors = priors
-        self.input_files = input_files
-        self.model = model
+        self.model=model
+        self.input_files=input_files
         self.thinning = thinning
         self.chain = None
         self.task_queue = Queue()
         self.response_queue = Queue()
 
     def _set_chain(self):
-        forwarders = [Forwarder.fromDirectory(arg) for arg in self.input_files]
-        log_likelihood = Likelihood(self.model, forwarders)
-        self.chain = MCMC(priors=self.priors, log_likelihood=log_likelihood, thinning=self.thinning)
+        forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[0]]
+        forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[1]]
+        forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[2]]
+        
+        log_likelihood_11 = Likelihood(self.model[0], forwarders_11)
+        log_likelihood_12 = Likelihood(self.model[1], forwarders_12)
+        log_likelihood_22 = Likelihood(self.model[2], forwarders_22)
+
+        def log_likelihood(parameters):
+            a1=log_likelihood_11(parameters)
+            a2=log_likelihood_12(parameters)
+            a3=log_likelihood_22(parameters)
+            return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
+        
+        ag=Global_scaling()
+    
+        self.chain = MCMC(priors=self.priors, log_likelihood=log_likelihood, thinning=self.thinning,
+                           transferminator=ag, mixtureWithScew=self.mixtureWithScew,
+                           mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
+                           startVal=self.startVal)
 
     def __call__(self):
         self._set_chain()
@@ -232,8 +257,8 @@ class RemoteMCMC(object):
 class RemoteMCMCProxy(object):
     """Local handle to a remote MCMC object."""
 
-    def __init__(self, priors, input_files, model, thinning):
-        self.remote_chain = RemoteMCMC(priors, input_files, model, thinning)
+    def __init__(self, priors, models,input_files, thinning, **kwargs):
+        self.remote_chain = RemoteMCMC(priors, models,input_files, thinning, **kwargs)
         self.remote_process = Process(target=self.remote_chain)
         self.current_theta = None
         self.current_prior = None
@@ -256,10 +281,21 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, input_files, model, no_chains, thinning, switching, temperature_scale):
-
+    def __init__(self, priors, models, input_files, no_chains, thinning, switching, temperature_scale=1, **kwargs):
+        if not "transferminator" in kwargs:
+            kwargs["transferminator"]=[None]*no_chains
+        if not "mixtureWithScew" in kwargs:
+            kwargs["mixtureWithScew"]=0
+        if not "mixtureWithSwitch" in kwargs:
+            kwargs["mixtureWithSwitch"]=0
+        if not "switcher" in kwargs:
+            kwargs["switcher"]=None
+        if not "startVal" in kwargs:
+            kwargs["startVal"]=None
         self.no_chains = no_chains
-        self.chains = [RemoteMCMCProxy(priors, input_files, model, switching) for _ in xrange(no_chains)]
+        self.chains = [RemoteMCMCProxy(priors, models,input_files, thinning, transferminator=kwargs["transferminator"][i], 
+                                       mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
+                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"]) for i in xrange(no_chains)]
         self.thinning = thinning
         self.switching = switching
         self.temperature_scale = temperature_scale
