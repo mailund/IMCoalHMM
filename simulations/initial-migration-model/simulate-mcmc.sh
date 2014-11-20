@@ -39,8 +39,8 @@ echo -e "${subs_isolation_time}\t${subs_migration_time}\t${subs_theta}\t${subs_r
 
 for sim in `eval echo {1..${no_sims}}`; do
     
-		mkdir /home/svendvn/IMCoalHMM-simulations.3 -p
-	simdir=/home/svendvn/IMCoalHMM-simulations.3
+		mkdir /home/svendvn/IMCoalHMM-simulations.4 -p
+	simdir=/home/svendvn/IMCoalHMM-simulations.4
     #simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
     treefile=${simdir}/trees.nwk
 	for piece in `eval echo {1..${no_pieces}}`; do  
@@ -68,7 +68,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 
 	for i in `eval echo {1..2}`; do
         	python /home/svendvn/workspace/IMCoalHMM/scripts/initial-migration-model-mcmc.py ${simdir}/*.ziphmm \
-		-o INMmcmc-sim-${i}-chain.txt --samples 1000 -k 1 --sd_multiplyer 0.2 
+		-o INMmcmc-sim-${i}-chain.txt --samples 4 -k 20 --sd_multiplyer 0.2 --mc3
 		echo "finished transform" $i
 	done
 	echo "now finished " ${chains}

@@ -5,7 +5,8 @@ from newick_count import count_tmrca
 from perfectLikelihood import Coal_times_log_lik
 
 from argparse import ArgumentParser
-from variable_migration_model2 import VariableCoalAndMigrationRateModel
+from variable_migration_model2 import VariableCoalAndMigrationRateModel #til mcmc2
+#from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel #til mcmc3
 from likelihood2 import Likelihood
 
 from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
@@ -282,7 +283,7 @@ recombination rate."""
             if options.adap>0:
                 adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         mcmc=MC3(priors,models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                 no_chains=no_chains, thinning=options.thinning, switching=max(1,int(options.thinning/10)), transferminator=adapts, 
+                 no_chains=options.mc3_chains, thinning=options.thinning, switching=max(1,int(options.thinning/10)), transferminator=adapts, 
                  mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)           
     elif not options.startWithGuess:
         if options.adap>0:
@@ -300,21 +301,32 @@ recombination rate."""
 
     
     with open(options.outfile, 'w') as outfile:
-        print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta'])
+        if not options.mc3:
+            print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'adapParam','latestjump'])
+        else:
+            basenames=names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta','latestjump']
+            print >> outfile, '\t'.join(basenames*options.mc3_chains)+'\t'+'flips'
         for j in xrange(options.samples):
-            params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
             if options.record_steps:
+                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
+            elif options.mc3:
+                all=mcmc.sample()
+                for i in range(options.mc3_chains):
+                    params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump=all[i]
+                    outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+'\t')
+                print >> outfile,str(all[-1])
             else:
+                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
             outfile.flush()
-            if not options.record_steps:
+            if not options.record_steps and not options.mc3:
                 if j%max(int(options.samples/5),1)==0:
                     for i in range(3):
                         print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                         print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
-        if not options.record_steps:
+        if not options.record_steps and not options.mc3:
             for i in range(3):
                 print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                 print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
@@ -326,6 +338,8 @@ recombination rate."""
             for i in acc[1]:
                 print >> outfile, str(i)+"    "+str(acc[1][i])
         outfile.flush()
+    if options.mc3:
+        mcmc.terminate()
         
 
 if __name__ == '__main__':

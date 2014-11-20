@@ -8,11 +8,10 @@ from likelihood2 import Likelihood
 from scipy.stats import norm, expon
 from numpy.random import random, randint
 from math import log, exp
-from numpy import array
+from numpy import array, sum
 
 from multiprocessing import Process, Queue
 
-from global_scaling import Global_scaling
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -182,7 +181,19 @@ class MCMC(object):
     def sample(self, temperature=1.0):
         self.accepts=0
         self.rejections=0
-        print self.latest_squaredJumpSize
+        for _ in xrange(self.thinning):
+            if(randint(0,self.mixtureWithSwitch+1)==1):
+                self.switchStep(temperature)
+            elif(self.mixtureWithScew>0):
+                self.ScewStep(temperature)
+            else:
+                self.step(temperature)
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize
+    
+    
+    def sampleRecordInitialDistributionJumps(self, temperature=1.0):
+        self.accepts=0
+        self.rejections=0
         for _ in xrange(self.thinning):
             if(randint(0,self.mixtureWithSwitch+1)==1):
                 self.switchStep(temperature)
@@ -191,6 +202,7 @@ class MCMC(object):
             else:
                 self.step(temperature)
         return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize, self.latest_initialDistribution
+    
     
     
     def orderSample(self, params):
@@ -205,6 +217,7 @@ class MCMC(object):
     
     def transformFromIdef(self,inarray):
         return inarray
+
 
 
 class RemoteMCMC(object):
@@ -224,35 +237,36 @@ class RemoteMCMC(object):
         self.chain = None
         self.task_queue = Queue()
         self.response_queue = Queue()
+        print "made remote mcmc"
 
     def _set_chain(self):
+        
+        
         forwarders_11 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[0]]
         forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[1]]
         forwarders_22 = [Forwarder.fromDirectory(alignment) for alignment in self.input_files[2]]
-        
+        #         
         log_likelihood_11 = Likelihood(self.model[0], forwarders_11)
         log_likelihood_12 = Likelihood(self.model[1], forwarders_12)
         log_likelihood_22 = Likelihood(self.model[2], forwarders_22)
-
+# 
         def log_likelihood(parameters):
             a1=log_likelihood_11(parameters)
             a2=log_likelihood_12(parameters)
             a3=log_likelihood_22(parameters)
             return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
-        
-        ag=Global_scaling()
-    
+
         self.chain = MCMC(priors=self.priors, log_likelihood=log_likelihood, thinning=self.thinning,
-                           transferminator=ag, mixtureWithScew=self.mixtureWithScew,
+                           transferminator=self.transferminator, mixtureWithScew=self.mixtureWithScew,
                            mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
                            startVal=self.startVal)
 
     def __call__(self):
+        print "called remote mcmc"
         self._set_chain()
         while True:
             temperature = self.task_queue.get()
             self.response_queue.put(self.chain.sample(temperature))
-
 
 class RemoteMCMCProxy(object):
     """Local handle to a remote MCMC object."""
@@ -260,6 +274,7 @@ class RemoteMCMCProxy(object):
     def __init__(self, priors, models,input_files, thinning, **kwargs):
         self.remote_chain = RemoteMCMC(priors, models,input_files, thinning, **kwargs)
         self.remote_process = Process(target=self.remote_chain)
+        #self.remote_process=Process(target=remoteMCMC, args=(priors, models, input_files, thinning))
         self.current_theta = None
         self.current_prior = None
         self.current_likelihood = None
@@ -271,11 +286,12 @@ class RemoteMCMCProxy(object):
         self.remote_chain.task_queue.put(temperature)
 
     def remote_complete(self):
-        self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior = \
+        self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize = \
             self.remote_chain.response_queue.get()
 
     def remote_terminate(self):
         self.remote_process.terminate()
+       
 
 
 class MC3(object):
@@ -305,12 +321,16 @@ class MC3(object):
             return 1.0
         else:
             return chain_no * self.temperature_scale
+        
+    def chainValues(self, temp):
+        return self.chains[temp].current_theta, self.chains[temp].current_prior, self.chains[temp].current_likelihood, self.chains[temp].current_posterior, self.chains[temp].accepts, self.chains[temp].rejections, self.chains[temp].adapParam, self.chains[temp].latest_squaredJumpSize
 
     def sample(self):
         """Sample after running "thinning" steps with a proposal for switching chains at each
         "switching" step."""
 
-        for _ in xrange(int(float(self.thinning) / self.switching)):
+        flips=""
+        for index in xrange(int(float(self.thinning) / self.switching)):
 
             for chain_no, chain in enumerate(self.chains):
                 chain.remote_start(self.chain_temperature(chain_no))
@@ -328,9 +348,8 @@ class MC3(object):
                 new = chain_j.current_posterior / temperature_i + chain_i.current_posterior / temperature_j
                 if new > current or random() < exp(new - current):
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
-
-        return self.chains[0].current_theta, self.chains[0].current_prior, \
-               self.chains[0].current_likelihood, self.chains[0].current_posterior
+                    flips+=str(index)+":"+str(i)+"-"+str(j)+","
+        return tuple( self.chainValues(t) for t in range(self.no_chains))+(flips,)
 
     def terminate(self):
         for chain in self.chains:
