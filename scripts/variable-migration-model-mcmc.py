@@ -16,7 +16,6 @@ from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
 from alg4_scaling import AM4_scaling
-from pympler.asizeof import asizeof
 
 def printPyZipHMM(Matrix):
     finalString=""
