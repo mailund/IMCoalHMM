@@ -16,6 +16,7 @@ from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
 from alg4_scaling import AM4_scaling
+from pympler.asizeof import asizeof
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -77,7 +78,7 @@ recombination rate."""
                         help='Alignments of two sequences from the second population')
     
     parser.add_argument('--mc3', action='store_true', default=False, help='this will use mc3 method to ')
-    parser.add_argument('--mc3_chains', type=int, default=8, help='the number of parallel chains to run in mc3')
+    parser.add_argument('--mc3_chains', type=int, default=3, help='the number of parallel chains to run in mc3')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
@@ -307,8 +308,10 @@ recombination rate."""
             basenames=names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta','latestjump']
             print >> outfile, '\t'.join(basenames*options.mc3_chains)+'\t'+'flips'
         for j in xrange(options.samples):
+            if j>10:
+                pass
             if options.record_steps:
-                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
+                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sampleRecordInitialDistributionJumps()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
             elif options.mc3:
@@ -317,8 +320,12 @@ recombination rate."""
                     params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump=all[i]
                     outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+'\t')
                 print >> outfile,str(all[-1])
+                print "forwarders"+str(asizeof(forwarders_11))
+                print "mcmc"+str(asizeof(mcmc))
+                print "adapts"+str(asizeof(adapts))
+                print "outfile"+str(asizeof(outfile))
             else:
-                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sample()
+                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump= mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
             outfile.flush()
             if not options.record_steps and not options.mc3:
