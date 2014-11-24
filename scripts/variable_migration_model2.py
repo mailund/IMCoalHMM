@@ -5,7 +5,7 @@ migration and coalescence.
 from numpy import zeros, matrix, identity
 
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
-from IMCoalHMM.CTMC import make_ctmc
+from CTMC2 import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points

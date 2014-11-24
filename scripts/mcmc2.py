@@ -6,7 +6,7 @@ from pyZipHMM import Forwarder
 from likelihood2 import Likelihood
 
 from scipy.stats import norm, expon
-from numpy.random import random, randint
+from numpy.random import random, randint,seed
 from math import log, exp
 from numpy import array, sum
 from break_points2 import gamma_break_points
@@ -248,11 +248,13 @@ class RemoteMCMC(object):
     """
 
     def __init__(self, priors, model, input_files, thinning, **kwargs):
+        seed()
         self.transferminator=kwargs["transferminator"]
         self.mixtureWithScew=kwargs["mixtureWithScew"]
         self.mixtureWithSwitch=kwargs["mixtureWithSwitch"]
         self.switcher=kwargs["switcher"]
         self.startVal=kwargs["startVal"]
+        print self.startVal
         self.priors = priors
         self.model=model
         self.input_files=input_files

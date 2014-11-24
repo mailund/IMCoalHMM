@@ -283,8 +283,8 @@ recombination rate."""
             if options.adap>0:
                 adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         mcmc=MC3(priors,models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                 no_chains=options.mc3_chains, thinning=options.thinning, switching=max(1,int(options.thinning/10)), transferminator=adapts, 
-                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)           
+                 no_chains=options.mc3_chains, thinning=options.thinning, switching=max(2,int(options.thinning/10)), transferminator=adapts, 
+                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)           
     elif not options.startWithGuess:
         if options.adap>0:
             var=options.sd_multiplyer
@@ -319,10 +319,6 @@ recombination rate."""
                     params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump=all[i]
                     outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+'\t')
                 print >> outfile,str(all[-1])
-                print "forwarders"+str(asizeof(forwarders_11))
-                print "mcmc"+str(asizeof(mcmc))
-                print "adapts"+str(asizeof(adapts))
-                print "outfile"+str(asizeof(outfile))
             else:
                 params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump= mcmc.sample()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
