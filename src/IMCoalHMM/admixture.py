@@ -265,7 +265,7 @@ print trans_probs.getHeight(), trans_probs.getWidth()
 s = 0.0
 for i in xrange(pi.getHeight()):
     print 'pi[{}] == {}'.format(i, pi[0,i])
-    s += pi[0,i]
+    s += pi[0, i]
 print s
 print
 
