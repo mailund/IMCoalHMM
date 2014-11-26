@@ -310,8 +310,8 @@ recombination rate."""
             if j>10:
                 pass
             if options.record_steps:
-                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestInit = mcmc.sampleRecordInitialDistributionJumps()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+\
+                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestSuggest,latestInit = mcmc.sampleRecordInitialDistributionJumps()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)+transform(latestSuggest)))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
             elif options.mc3:
                 all=mcmc.sample()

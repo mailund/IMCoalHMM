@@ -95,6 +95,7 @@ class MCMC(object):
         self.current_transitionMatrix=forget
         self.current_initialDistribution=forget2
         self.latest_initialDistribution=forget2
+        self.latest_suggestedTheta=[0]*len(self.current_theta)
             
 
     def log_prior(self, theta):
@@ -124,6 +125,7 @@ class MCMC(object):
             self.accepts+=1
         else:
             self.rejections+=1
+        self.latest_suggestedTheta=new_theta
             
             
     def calcSquaredJump(self, thBefore, thAfter):
@@ -172,6 +174,7 @@ class MCMC(object):
         else: 
             self.rejections+=1
             self.adapParam=self.transform.update_alpha(False,alpha)
+        self.latest_suggestedTheta=new_theta
             
     def switchStep(self,temperature):
         new_theta,whatSwitch=self.switcher(self.current_theta)
@@ -197,6 +200,7 @@ class MCMC(object):
                 self.rejectedSwitches[whatSwitch]+=1
             else:
                 self.rejectedSwitches[whatSwitch]=1
+        self.latest_suggestedTheta
     
     def getSwitchStatistics(self):
         return self.acceptedSwitches, self.rejectedSwitches
@@ -224,7 +228,7 @@ class MCMC(object):
                 self.ScewStep(temperature)
             else:
                 self.step(temperature)
-        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize, self.latest_initialDistribution
+        return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.adapParam, self.latest_squaredJumpSize, self.latest_suggestedTheta,self.latest_initialDistribution
     
     
     
