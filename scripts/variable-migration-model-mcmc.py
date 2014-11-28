@@ -297,7 +297,11 @@ recombination rate."""
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
         thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
+        if options.adap>0:
+            adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap)
+        else:
+            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
 
     
     with open(options.outfile, 'w') as outfile:
