@@ -338,7 +338,7 @@ class MC3(object):
         if not "startVal" in kwargs:
             kwargs["startVal"]=None
         self.no_chains = no_chains
-        self.chains = [RemoteMCMCProxy(priors, models,input_files, thinning, transferminator=kwargs["transferminator"][i], 
+        self.chains = [RemoteMCMCProxy(priors, models,input_files, switching, transferminator=kwargs["transferminator"][i], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
                                        switcher=kwargs["switcher"], startVal=kwargs["startVal"]) for i in xrange(no_chains)]
         self.thinning = thinning

@@ -79,6 +79,7 @@ recombination rate."""
     
     parser.add_argument('--mc3', action='store_true', default=False, help='this will use mc3 method to ')
     parser.add_argument('--mc3_chains', type=int, default=3, help='the number of parallel chains to run in mc3')
+    parser.add_argument('--mc3_switching', type=int, default=2, help='the number of switches per thinning period')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
