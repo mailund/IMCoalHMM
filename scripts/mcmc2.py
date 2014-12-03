@@ -379,7 +379,6 @@ class MC3(object):
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
             
-            print flips
             
         return tuple( self.chainValues(t) for t in range(self.no_chains))+(flips,)
 

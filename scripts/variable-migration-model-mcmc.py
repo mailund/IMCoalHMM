@@ -16,6 +16,7 @@ from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
 from alg4_scaling import AM4_scaling
+from datetime import datetime
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -304,6 +305,7 @@ recombination rate."""
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
 
     
+    print "before starting to simulate"
     with open(options.outfile, 'w') as outfile:
         if not options.mc3:
             print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'adapParam','latestjump'])
@@ -311,6 +313,7 @@ recombination rate."""
             basenames=names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta','latestjump']
             print >> outfile, '\t'.join(basenames*options.mc3_chains)+'\t'+'flips'
         for j in xrange(options.samples):
+            print "sample "+str(j)+" time: " + str(datetime.now())
             if j>10:
                 pass
             if options.record_steps:
