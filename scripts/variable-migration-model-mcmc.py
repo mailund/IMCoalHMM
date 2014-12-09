@@ -9,7 +9,7 @@ from variable_migration_model2 import VariableCoalAndMigrationRateModel #til mcm
 #from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel #til mcmc3
 from likelihood2 import Likelihood
 
-from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
+from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log,floor
 from numpy.random import permutation, randint, random
 from copy import deepcopy
@@ -284,9 +284,15 @@ recombination rate."""
         for i in range(no_chains):
             if options.adap>0:
                 adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-        mcmc=MC3(priors,models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                 no_chains=options.mc3_chains, thinning=options.thinning, switching=max(2,int(options.thinning/10)), transferminator=adapts, 
-                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)           
+        print likelihoodWrapper()
+        if options.adap>0:
+            mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+                no_chains=options.mc3_chains, thinning=options.thinning, switching=1, transferminator=adapts, 
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
+        else:
+            mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+                no_chains=options.mc3_chains, thinning=options.thinning, switching=1, #transferminator=adapts, 
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif not options.startWithGuess:
         if options.adap>0:
             var=options.sd_multiplyer

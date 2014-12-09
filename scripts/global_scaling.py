@@ -38,6 +38,9 @@ class Global_scaling(object):
         this takes a vector from scaled space and transforms it back
         '''
         return [exp(log(x)*sqrt(self.theta)) for x in params]
+    
+    def setTheta(self, new_theta):
+        self.theta=new_theta
         
     def update_alpha(self, accept,alphaXY):
         '''
