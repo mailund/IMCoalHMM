@@ -343,15 +343,11 @@ class MC3(object):
         self.count+=1
         gamma=0.9/self.count**self.alpha
         tempChange = exp(gamma*(acceptProb-0.234))
-        print tempChange
         diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
-        print "Diffs"
-        print diffs
         diffs[index]*=tempChange
         self.temperature_scale=[1.0]*self.no_chains
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]
-        print self.temperature_scale
     
     def sample(self):
         """Sample after running "thinning" steps with a proposal for switching chains at each
@@ -381,6 +377,8 @@ class MC3(object):
                 self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
                 flips+=str(index)+":"+str(i)+"-"+str(j)+","
             self.updateTemperature(i,acceptProb)
+            if i==0:
+                print self.temperature_scale
                     
             
             
