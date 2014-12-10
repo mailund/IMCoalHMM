@@ -155,7 +155,14 @@ class MCMC(object):
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
-        new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        try:
+            new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)    
+        except AssertionError as e:
+            print "The model has tried to move outside of its stabile values at temperature "+str(temperature)
+            print "Ignoring step-proposal"
+            print "Worry a little"
+            print str(e)
+            return
         new_posterior = new_prior + new_log_likelihood
         self.latest_squaredJumpSize=self.calcSquaredJump(self.current_theta, new_theta)
 
@@ -332,6 +339,7 @@ class MC3(object):
         print self.temperature_scale
         self.count=1
         self.alpha=0.5
+        self.orgChains=self.no_chains
 
     def chain_temperature(self, chain_no):
         return self.temperature_scale[chain_no]
@@ -348,6 +356,14 @@ class MC3(object):
         self.temperature_scale=[1.0]*self.no_chains
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]
+            
+        #The very hot chains produces very unlikely events, which 
+        #sometimes will throw an AssertionError deeper into the code. 
+        #The assertion will produce a warning and the step ignored, but
+        #we don't want too many of those in order to keep ercodicity. 
+        if self.temperature_scale[self.no_chains-1]>2000:
+            self.no_chains-=1
+            print "\n"+"Dropped temperature "+str(self.temperature_scale[self.no_chains])+" for good." +"\n"
     
     def sample(self):
         """Sample after running "thinning" steps with a proposal for switching chains at each
@@ -356,10 +372,10 @@ class MC3(object):
         flips=""
         for index in xrange(int(float(self.thinning) / self.switching)):
 
-            for chain_no, chain in enumerate(self.chains):
-                chain.remote_start(self.chain_temperature(chain_no))
-            for chain in self.chains:
-                chain.remote_complete()
+            for chain_no in range(self.no_chains):
+                self.chains[chain_no].remote_start(self.chain_temperature(chain_no))
+            for chain_no in range(self.no_chains):
+                self.chains[chain_no].remote_complete()
 
             i = randint(0, self.no_chains-1)
             j = i+1
@@ -383,7 +399,7 @@ class MC3(object):
             
             
             
-        return tuple( self.chainValues(t) for t in range(self.no_chains))+(flips,)
+        return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)
 
     def terminate(self):
         for chain in self.chains:
