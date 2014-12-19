@@ -158,10 +158,7 @@ class MCMC(object):
         try:
             new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)    
         except AssertionError as e:
-            print "The model has tried to move outside of its stabile values at temperature "+str(temperature)
-            print "Ignoring step-proposal"
-            print "Worry a little"
-            print str(e)
+            print "The model has tried to move outside of its stabile values at temperature "+str(temperature)+ " "+str(e)[0:10]+"..."
             return
         new_posterior = new_prior + new_log_likelihood
         self.latest_squaredJumpSize=self.calcSquaredJump(self.current_theta, new_theta)

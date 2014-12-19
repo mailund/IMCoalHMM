@@ -1,25 +1,47 @@
 names=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject','adapParam')
-plCall=function(){
+plCall=function(names=names,title="", hist=FALSE,...){
   par(mfrow=c(5,4))
   indexVec=(1:1000)*10
   for(i in 1:(length(tr[1,]))){
     
     if(substring(names[i],2,2)=="c" && substring(names[i],1,1)!="a"){
-      plot(tr[,i], type='l', main=names[i], ylim=c(0,0.01))
-      abline(h=0.002,col='red')
+      if(!hist){
+        plot(tr[,i], type='l', main=names[i],sub=title, ylim=c(0,0.01),...)
+        abline(h=0.002,col='red')
+      }
+      else{
+        hist(tr[,i], main=names[i], sub=title,...)
+        abline(v=0.002, col='red')
+      }
+      
     }
     else if(substring(names[i],3,3)=="m"){
-      plot(tr[,i], type='l', main=names[i],ylim=c(0,1000))
-      abline(h=250,col="red")
+      if(!hist){
+        plot(tr[,i], type='l', main=names[i],sub=title,ylim=c(0,2000),...)
+        abline(h=500,col="red")
+      }
+      else{
+        hist(tr[,i], main=names[i],sub=title,...)
+        abline(v=500,col="red")
+      }
+      
     }
     else if(substring(names[i],2,2)=="h"){
-      plot(tr[,i], type='l', main=names[i])
-      abline(h=0.4,col="red")
+      if(!hist){
+        plot(tr[,i], type='l', sub=title,main=names[i],...)
+        abline(h=0.4,col="red")
+      }
+      else{
+        hist(tr[,i], main=names[i],sub=title,...)
+        abline(v=0.4,col="red")
+      }
+      
     }
     else if(substring(names[i],1,2)=="ac"){
       mav <- function(x,n){filter(x,rep(1/n,n), sides=2)}
       y=mav(tr[,i],n=100)/max(tr[,i+1])
-      plot(y, type='l',main=names[i],ylim=c(0,0.5))
+      print(y)
+      plot(y, type='l',main=names[i],ylim=c(-0.1,1.1))
       abline(h=0.234, col='red')
       abline(h=0.05, col='red')
     }
@@ -28,13 +50,20 @@ plCall=function(){
       cat(".")
     }
     else if(substring(names[i],2,2)=='d'){
-      plot(log(tr[,i]), type='l', main=paste("log",names[i]))
+      plot(log(tr[,i]), type='l',sub=title, main=paste("log",names[i]))
     }
     else if(substring(names[i],1,2)=='po'){
-      plot(100:length(tr[,1]), tr[100:length(tr[,1]),i], type='l', main=names[i])
+      plot(100:length(tr[,1]), tr[100:length(tr[,1]),i], type='l',sub=title, main=names[i])
     }
     else{
-      plot(tr[,i], type='l', main=names[i])
+      plot(tr[,i], type='l',sub=title, main=names[i])
     }
   }
 }
+
+names2=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject')
+names2=c(names2, sapply(names2[1:17], function(x){paste("adapParam",x)}))
+plCall2=function(title="", hist=FALSE,...){
+  plCall(names=names2,title,hist,...)
+}
+  

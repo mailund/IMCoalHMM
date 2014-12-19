@@ -5,8 +5,8 @@ Created on Oct 27, 2014
 '''
 
 from math import log, exp
-from numpy.random import multivariate_normal
-from numpy import array,matrix,identity, outer
+from numpy.random import multivariate_normal, normal
+from numpy import array,matrix,identity, outer, diag
 from random import randrange
 
 class AM4_scaling(object):
@@ -15,13 +15,14 @@ class AM4_scaling(object):
     '''
 
 
-    def __init__(self,size , theta=1.0, params=[0.5,1], sigmaStart=None, alphaDesired=0.234):
+    def __init__(self,startVal=[1.0]*17, params=[0.5,1], sigmaStart=None, alphaDesired=0.234):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 
         starting value. 
         alpha is the power in the updating rule theta_{count+1}=max(0.0001,theta_{count}+1/count^alpha*(1_{accept}(true)*2-1))
         '''
-        self.theta=theta
+        self.theta=startVal[0]
+        size=len(startVal)
         if sigmaStart is None:
             self.sigma=matrix(identity(size))*0.1
         else:
@@ -47,7 +48,7 @@ class AM4_scaling(object):
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
-        self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)
+        self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)*0.9+0.1*normal(scale=self.theta, size=len(self.formerX))
         return map(exp,self.latterX)
         
     def update_alpha(self, accept, alphaXY):
@@ -66,11 +67,10 @@ class AM4_scaling(object):
         self.mean += gamma*(x-self.mean)
         self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
         self.count += 1
-        if randrange(5000)==10:
-            print "lambda-parameter: "+ str(self.theta)
-            print self.sigma
+        print "lambda-parameter: "+ str(self.theta)
+        print self.sigma
         
         
-        return self.theta
+        return [self.theta]
         
         

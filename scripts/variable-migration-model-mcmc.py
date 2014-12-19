@@ -17,6 +17,7 @@ from numpy import array
 from global_scaling import Global_scaling
 from alg4_scaling import AM4_scaling
 from datetime import datetime
+from marginal_scaling import MarginalScaler
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -296,8 +297,10 @@ recombination rate."""
     elif not options.startWithGuess:
         if options.adap>0:
             var=options.sd_multiplyer
-            if options.adap>1:
-                adap=AM4_scaling(size=17, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+            if options.adap==2:
+                adap=MarginalScaler(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+            elif options.adap==3:
+                adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
             else:
                 adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
             mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
@@ -335,13 +338,16 @@ recombination rate."""
                 print >> outfile,str(all[-1])
             else:
                 params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump= mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
+                if isinstance(adapParam,float): #checking the number of elements in adapParam actually
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
+                else:
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(adapParam)))
             outfile.flush()
-            if not options.record_steps and not options.mc3:
-                if j%max(int(options.samples/5),1)==0:
-                    for i in range(3):
-                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
-                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+#            if not options.record_steps and not options.mc3:
+#                if j%max(int(options.samples/5),1)==0:
+#                    for i in range(3):
+#                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+#                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
         if not options.record_steps and not options.mc3:
             for i in range(3):
                 print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
