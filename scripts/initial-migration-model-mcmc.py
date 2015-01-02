@@ -7,13 +7,13 @@ from perfectLikelihood import Coal_times_log_lik
 from newick_count import count_tmrca
 from argparse import ArgumentParser
 
-from likelihood2 import Likelihood
-from isolation_with_migration_model2 import IsolationMigrationModel
+from IMCoalHMM.likelihood import Likelihood
+from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
 
 
-from mcmc2 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
+from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log,exp
 
 from numpy import array, dot
@@ -226,8 +226,8 @@ and uniform coalescence and recombination rates."""
 
                 for _ in xrange(options.samples):
                     # Write main chain to output
-                    params, prior, likelihood, posterior,accepts,rejects = mcmc.sample()
-                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior,accpets,rejects)))
+                    params, prior, likelihood, posterior = mcmc.sample()
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                     outfile.flush()
 
                     # All chains written to the log
@@ -237,18 +237,18 @@ and uniform coalescence and recombination rates."""
                         likelihood = chain.current_likelihood
                         posterior = chain.current_posterior
                         print >> logfile, '\t'.join(map(str, (chain_no,) + transform(params) +
-                                                        (prior, likelihood, posterior, accepts, rejects)))
+                                                        (prior, likelihood, posterior)))
                     logfile.flush()
                     
 
         else:
             for _ in xrange(options.samples):
-                params, prior, likelihood, posterior, accepts, rejects = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)))
+                params, prior, likelihood, posterior = mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
                 outfile.flush()
-                if _%int(options.samples/5)==0:
-                    print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix)
-                    print >> outfile, printPyZipHMM(mcmc.current_initialDistribution)
+#                 if _%int(options.samples/5)==0:
+#                     print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix)
+#                     print >> outfile, printPyZipHMM(mcmc.current_initialDistribution)
 
     if options.mc3:
         mcmc.terminate()

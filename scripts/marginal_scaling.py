@@ -7,7 +7,7 @@ Created on Oct 22, 2014
 
 from scipy.stats import norm
 from math import log, exp,sqrt
-from random import random
+from random import random,randint
 
 class MarginalScaler(object):
     '''
@@ -26,7 +26,7 @@ class MarginalScaler(object):
         self.alpha=params[0]
         self.multip=params[1]
         self.alphaDesired=alphaDesired
-        self.marginal=-1
+        self.marginals=[0]*len(startVal)
         
         
     
@@ -43,13 +43,12 @@ class MarginalScaler(object):
         this takes a vector from scaled space and transforms it back
         '''
         self.second=[log(x) for x in params]
-        if random()<0.5:
-            print k
-            self.marginal=k
-            return [exp(x*sqrt(t)) if j==k else exp(f*sqrt(t)) for x,t,f,j in zip(self.second,self.thetas,self.first,range(len(self.thetas)))]
-        else:
-            self.marginal=-1
-            return [exp(x*sqrt(t)) for x,t in zip(self.second,self.thetas)]
+        self.marginals=[0]*len(params)
+        for i in range(len(params)):
+            self.marginals[i]=randint(0,1)
+        print self.marginals
+        return [exp(x*sqrt(t)) if self.marginals[j] else exp(f*sqrt(t)) for x,t,f,j in zip(self.second,self.thetas,self.first,range(len(self.thetas)))]
+
     
     def setTheta(self, new_theta):
         self.theta=new_theta
@@ -63,11 +62,9 @@ class MarginalScaler(object):
         '''
         #extremity is the probability of observing something less extreme than what is observed. If that probability is high, we want that sample to mean a lot.
         gamma=self.multip/self.count**self.alpha
-        print self.marginal
-        if self.marginal>=0:
-            self.thetas[self.marginal]=max(self.thetas[self.marginal]*exp(gamma*(alphaXY-self.alphaDesired)),0.001)
-        else:
-            self.thetas=[max(t*exp(gamma*(alphaXY-self.alphaDesired)),0.001) for t in self.thetas]
+        for n,indicator in enumerate(self.marginals):
+            if indicator==1:
+                self.thetas[n]=min(100,max(self.thetas[n]*exp(gamma*(alphaXY-self.alphaDesired)),0.001))
         
         
         print "thetas="+str(self.thetas)

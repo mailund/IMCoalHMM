@@ -48,7 +48,7 @@ class AM4_scaling(object):
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
-        self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)*0.9+0.1*normal(scale=self.theta, size=len(self.formerX))
+        self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)
         return map(exp,self.latterX)
         
     def update_alpha(self, accept, alphaXY):

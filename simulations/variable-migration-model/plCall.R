@@ -6,6 +6,12 @@ plCall=function(names=names,title="", hist=FALSE,...){
     
     if(substring(names[i],2,2)=="c" && substring(names[i],1,1)!="a"){
       if(!hist){
+        if(paste('adapParam',names[i])%in%names){
+          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))]
+        }
+        else{
+          title2=title
+        }
         plot(tr[,i], type='l', main=names[i],sub=title, ylim=c(0,0.01),...)
         abline(h=0.002,col='red')
       }
@@ -17,7 +23,13 @@ plCall=function(names=names,title="", hist=FALSE,...){
     }
     else if(substring(names[i],3,3)=="m"){
       if(!hist){
-        plot(tr[,i], type='l', main=names[i],sub=title,ylim=c(0,2000),...)
+        if(paste('adapParam',names[i])%in%names){
+          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))]
+        }
+        else{
+          title2=title
+        }
+        plot(tr[,i], type='l', main=names[i],sub=title2,ylim=c(0,2000),...)
         abline(h=500,col="red")
       }
       else{
@@ -61,8 +73,7 @@ plCall=function(names=names,title="", hist=FALSE,...){
   }
 }
 
-names2=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject')
-names2=c(names2, sapply(names2[1:17], function(x){paste("adapParam",x)}))
+names2=c(names, sapply(names[1:17], function(x){paste("adapParam",x)}))
 plCall2=function(title="", hist=FALSE,...){
   plCall(names=names2,title,hist,...)
 }
