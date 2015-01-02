@@ -283,8 +283,10 @@ recombination rate."""
         no_chains=options.mc3_chains
         adapts=[]
         for i in range(no_chains):
-            if options.adap>0:
+            if options.adap==1:
                 adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+            elif options.adap==2:
+                adapts.append(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
