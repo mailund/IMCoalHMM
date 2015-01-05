@@ -67,8 +67,6 @@ class AM4_scaling(object):
         self.mean += gamma*(x-self.mean)
         self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
         self.count += 1
-        print "lambda-parameter: "+ str(self.theta)
-        print self.sigma
         
         
         return [self.theta]

@@ -326,8 +326,6 @@ recombination rate."""
             print >> outfile, '\t'.join(basenames*options.mc3_chains)+'\t'+'flips'
         for j in xrange(options.samples):
             print "sample "+str(j)+" time: " + str(datetime.now())
-            if j>10:
-                pass
             if options.record_steps:
                 params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestSuggest,latestInit = mcmc.sampleRecordInitialDistributionJumps()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)+transform(latestSuggest)))+\
@@ -336,6 +334,8 @@ recombination rate."""
                 all=mcmc.sample()
                 for i in range(options.mc3_chains):
                     params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump=all[i]
+                    if not isinstance(adapParam, (float,int,basestring)):
+                        adapParam='\t'.join(map(str,adapParam))
                     outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+'\t')
                 print >> outfile,str(all[-1])
             else:

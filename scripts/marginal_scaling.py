@@ -46,7 +46,6 @@ class MarginalScaler(object):
         self.marginals=[0]*len(params)
         for i in range(len(params)):
             self.marginals[i]=randint(0,1)
-        print self.marginals
         return [exp(x*sqrt(t)) if self.marginals[j] else exp(f*sqrt(t)) for x,t,f,j in zip(self.second,self.thetas,self.first,range(len(self.thetas)))]
 
     
@@ -66,8 +65,6 @@ class MarginalScaler(object):
             if indicator==1:
                 self.thetas[n]=min(100,max(self.thetas[n]*exp(gamma*(alphaXY-self.alphaDesired)),0.001))
         
-        
-        print "thetas="+str(self.thetas)
         self.count+=1
         return self.thetas
         
