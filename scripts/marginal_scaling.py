@@ -21,20 +21,26 @@ class MarginalScaler(object):
         starting value. 
         alpha is the power in the updating rule theta_{count+1}=max(0.0001,theta_{count}+1/count^alpha*(1_{accept}(true)*2-1))
         '''
-        self.thetas=startVal
+        self.theta=sum(startVal)
+        self.thetas=[s/sum(startVal) for s in startVal]
         self.count=1
         self.alpha=params[0]
         self.multip=params[1]
         self.alphaDesired=alphaDesired
         self.marginals=[0]*len(startVal)
+    
+    def setAdapParam(self,val):
+        self.theta=val[0]
         
+    def getAdapParam(self):
+        return self.theta
         
     
     def first_transform(self, params):
         '''
         this takes a vector and transforms it into the scaled space
         '''
-        self.first=[log(x)/sqrt(t) for x,t in zip(params,self.thetas)]
+        self.first=[log(x)/sqrt(t*self.theta) for x,t in zip(params,self.thetas)]
         return [exp(j) for j in self.first]
     
      
@@ -43,14 +49,9 @@ class MarginalScaler(object):
         this takes a vector from scaled space and transforms it back
         '''
         self.second=[log(x) for x in params]
-        self.marginals=[0]*len(params)
-        for i in range(len(params)):
-            self.marginals[i]=randint(0,1)
-        return [exp(x*sqrt(t)) if self.marginals[j] else exp(f*sqrt(t)) for x,t,f,j in zip(self.second,self.thetas,self.first,range(len(self.thetas)))]
+        return [exp(x*sqrt(t)*self.theta) for x,t in zip(self.second,self.thetas)]
 
     
-    def setTheta(self, new_theta):
-        self.theta=new_theta
         
     def update_alpha(self, accept,alphaXY):
         '''
@@ -61,11 +62,13 @@ class MarginalScaler(object):
         '''
         #extremity is the probability of observing something less extreme than what is observed. If that probability is high, we want that sample to mean a lot.
         gamma=self.multip/self.count**self.alpha
-        for n,indicator in enumerate(self.marginals):
-            if indicator==1:
-                self.thetas[n]=min(100,max(self.thetas[n]*exp(gamma*(alphaXY-self.alphaDesired)),0.001))
-        
+        pExtremes=[1-2*(1-norm.cdf((i-j)*sqrt(10))) for i,j in zip(self.first,self.second)]
+        for n,p in enumerate(pExtremes):
+            self.thetas[n]=min(100,max(self.thetas[n]*exp(p*gamma*(alphaXY-self.alphaDesired)),0.001))
+        self.theta*=sum(self.thetas)
+        self.thetas=[s/sum(self.thetas) for s in self.thetas]
+
         self.count+=1
-        return self.thetas
+        return [self.theta],self.thetas
         
         

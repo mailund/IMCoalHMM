@@ -33,13 +33,18 @@ class AM4_scaling(object):
         self.mean=array([0]*size)
         self.alphaDesired=alphaDesired
         
+    
+    def setAdapParam(self, val):
+        self.theta=val
         
+    def getAdapParam(self):
+        return self.theta
     
     def first_transform(self, params): 
         '''
         We record the mean. 
         '''
-        self.formerX=map(log,params)
+        self.first=map(log,params)
         return params
     
      
@@ -48,7 +53,7 @@ class AM4_scaling(object):
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
-        self.latterX=multivariate_normal(self.formerX, self.theta*self.sigma)
+        self.second=multivariate_normal(self.first, self.theta*self.sigma)
         return map(exp,self.latterX)
         
     def update_alpha(self, accept, alphaXY):
@@ -57,9 +62,9 @@ class AM4_scaling(object):
         We want: accept=True <=> the proposal based on alpha was accepted. 
         '''
         if accept:
-            x=self.latterX
+            x=self.second
         else:
-            x=self.formerX
+            x=self.first
         
         gamma=self.multip/self.count**self.alpha
 
@@ -69,6 +74,6 @@ class AM4_scaling(object):
         self.count += 1
         
         
-        return [self.theta]
+        return [self.theta],0
         
         

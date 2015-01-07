@@ -9,7 +9,7 @@ from variable_migration_model2 import VariableCoalAndMigrationRateModel #til mcm
 #from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel #til mcmc3
 from likelihood2 import Likelihood
 
-from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior
+from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, MCG
 from math import log,floor
 from numpy.random import permutation, randint, random
 from copy import deepcopy
@@ -79,7 +79,8 @@ recombination rate."""
                         help='Alignments of two sequences from the second population')
     
     parser.add_argument('--mc3', action='store_true', default=False, help='this will use mc3 method to ')
-    parser.add_argument('--mc3_chains', type=int, default=3, help='the number of parallel chains to run in mc3')
+    parser.add_argument('--multiple_try', action='store_true',default=False, help='this will use the multiple-try method')
+    parser.add_argument('--parallels', type=int, default=3, help='the number of parallel chains to run in mc3 or number of tries in multiple-try')
     parser.add_argument('--mc3_switching', type=int, default=2, help='the number of switches per thinning period')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
@@ -280,7 +281,7 @@ recombination rate."""
 
 
     if options.mc3:
-        no_chains=options.mc3_chains
+        no_chains=options.parallels
         adapts=[]
         for i in range(no_chains):
             if options.adap==1:
@@ -290,12 +291,22 @@ recombination rate."""
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                no_chains=options.mc3_chains, thinning=options.thinning, switching=1, transferminator=adapts, 
+                no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
         else:
             mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                no_chains=options.mc3_chains, thinning=options.thinning, switching=1, #transferminator=adapts, 
+                no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
+    elif options.multiple_try:
+        if options.adap==1:
+            adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+        elif options.adap==2:
+            adap=(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+        elif options.adap==3:
+            adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+        else:
+            adap=None
+        mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
     elif not options.startWithGuess:
         if options.adap>0:
             var=options.sd_multiplyer
@@ -323,34 +334,30 @@ recombination rate."""
             print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'adapParam','latestjump'])
         else:
             basenames=names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta','latestjump']
-            print >> outfile, '\t'.join(basenames*options.mc3_chains)+'\t'+'flips'
+            print >> outfile, '\t'.join(basenames*options.parallels)+'\t'+'flips'
         for j in xrange(options.samples):
             print "sample "+str(j)+" time: " + str(datetime.now())
             if options.record_steps:
-                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump, latestSuggest,latestInit = mcmc.sampleRecordInitialDistributionJumps()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)+transform(latestSuggest)))+\
+                params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump, latestSuggest,latestInit = mcmc.sampleRecordInitialDistributionJumps()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)+(squaredJump,0))+transform(latestSuggest))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
             elif options.mc3:
                 all=mcmc.sample()
-                for i in range(options.mc3_chains):
-                    params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump=all[i]
-                    if not isinstance(adapParam, (float,int,basestring)):
-                        adapParam='\t'.join(map(str,adapParam))
-                    outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump)))+'\t')
+                print "all="+str(all)
+                for i in range(options.parallels):
+                    params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
+                    outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
                 print >> outfile,str(all[-1])
             else:
-                params, prior, likelihood, posterior, accepts, rejects,adapParam,squaredJump= mcmc.sample()
-                if isinstance(adapParam,float): #checking the number of elements in adapParam actually
-                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects,adapParam)))
-                else:
-                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(adapParam)))
+                params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump= mcmc.sample()
+                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
             outfile.flush()
 #            if not options.record_steps and not options.mc3:
 #                if j%max(int(options.samples/5),1)==0:
 #                    for i in range(3):
 #                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
 #                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
-        if not options.record_steps and not options.mc3:
+        if not options.record_steps and not options.mc3 and not options.multiple_try:
             for i in range(3):
                 print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                 print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
@@ -362,7 +369,7 @@ recombination rate."""
             for i in acc[1]:
                 print >> outfile, str(i)+"    "+str(acc[1][i])
         outfile.flush()
-    if options.mc3:
+    if options.mc3 or options.multiple_try:
         mcmc.terminate()
         
 
