@@ -212,11 +212,7 @@ class MCMC(object):
         
     
     def PropstepScew(self,bundleOfInfo):
-        print "temperature="+str(bundleOfInfo[0])
-        print "adapParam="+str(bundleOfInfo[1])
         if len(bundleOfInfo)>=3:
-            print "posterior="+str(bundleOfInfo[2])
-            print "theta="+str(bundleOfInfo[3])
             self.setSample(bundleOfInfo[2],bundleOfInfo[3])
         propPar=self.transform.first_transform(self.current_theta)
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
@@ -512,7 +508,6 @@ class MCG(object):
         pies[self.probs]=exp(self.current_posterior-max(posteriors))
         
         #We now calculate K, so that we make a good suggestion.
-        print zip(*(range(self.probs+1),standardizedLogJumps))
         Ks=self.pool.map(Kcalculator, zip(*(range(self.probs+1),[standardizedLogJumps]*(self.probs+1))))
         stationary=[k*p for k,p in zip(Ks,pies)]
         stationary=[s/sum(stationary) for s in stationary]
@@ -537,8 +532,6 @@ class MCG(object):
         s=sum(stationary[:-1])
         self.transferminator.setAdapParam(self.glob_scale)
         self.glob_scale, n=self.transferminator.update_alpha(PathChoice==self.probs ,s/(1+s))
-        print "glob_scale="+str(self.glob_scale)
-        print "n="+str(n)
         
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior, int(PathChoice==self.probs), int(PathChoice<self.probs),self.glob_scale,n,0
     
@@ -551,9 +544,7 @@ class MCG(object):
 def Kcalculator(listOfStandardizedLogsAndIndex):
     """listOfStandardized logs doesn't contain
     the point we are from, which is always [0,...,0]"""
-    print listOfStandardizedLogsAndIndex
     listOfStandardizedLogs=listOfStandardizedLogsAndIndex[1]
-    print listOfStandardizedLogs
     index=listOfStandardizedLogsAndIndex[0]
     listOfStandardizedLogs.append([0]*len(listOfStandardizedLogs[0]))
     ans=1
