@@ -6,7 +6,7 @@ from pyZipHMM import Forwarder
 from likelihood2 import Likelihood
 
 from scipy.stats import norm, expon
-from numpy.random import random, randint,seed,choice
+from numpy.random import random, randint,seed
 from math import log, exp,sqrt
 from numpy import array, sum,prod
 from break_points2 import gamma_break_points
@@ -14,7 +14,6 @@ from copy import deepcopy
 import operator
 
 from multiprocessing import Process, Queue,Pool
-from functools import partial
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -159,7 +158,6 @@ class MCMC(object):
         new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
-        print "new_theta="+str(new_theta)
         try:
             new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)    
         except AssertionError as e:
@@ -212,6 +210,7 @@ class MCMC(object):
         
     
     def PropstepScew(self,bundleOfInfo):
+        self.transform.setAdapParam(bundleOfInfo[1])
         if len(bundleOfInfo)>=3:
             self.setSample(bundleOfInfo[2],bundleOfInfo[3])
         propPar=self.transform.first_transform(self.current_theta)
@@ -241,16 +240,17 @@ class MCMC(object):
         return self.acceptedSwitches, self.rejectedSwitches
 
     def sample(self, temperature=1.0):
-        if not isinstance(temperature,float):#in some schemes we pass on more information
+        if self.multiple_try:
+            bundleOfInfo=temperature
+            if self.transform is not None:
+                return self.PropstepScew(bundleOfInfo)
+            else:
+                return self.Propstep(bundleOfInfo) #doesnot exist
+        elif not isinstance(temperature,float):#in some schemes we pass on more information
             bundleOfInfo=temperature
             if temperature[1] is not None and self.transform is not None:
                 self.transform.setAdapParam(temperature[1])
             temperature=temperature[0]
-        if self.multiple_try:
-            if self.transform is not None:
-                return self.PropstepScew(bundleOfInfo)
-            else:
-                return self.Propstep(bundleOfInfo)
         self.accepts=0
         self.rejections=0
         for _ in xrange(self.thinning):
@@ -473,7 +473,7 @@ class MCG(object):
         self.chains = [RemoteMCMCProxy(priors, likelihood,thinning, transferminator=transferminator, startVal=self.current_theta,multiple_try=True) for _ in xrange(probs)]
         self.temp=1.0
         self.probs=probs
-        self.glob_scale=transferminator.getAdapParam()
+        self.glob_scale=transferminator.getAdapParam(all=True)
         self.current_theta=None
         self.current_posterior=None
         self.current_prior=0
@@ -513,7 +513,7 @@ class MCG(object):
         stationary=[s/sum(stationary) for s in stationary]
         
         #we now make a PathChoice with probabilities just calculated
-        PathChoice=choice(range(self.probs+1),p=stationary)
+        PathChoice=random_distr(zip(range(self.probs+1),stationary))
         
         #some adaption schemes uses the before and after step, and in case it could use this:
         self.transferminator.first=self.current_theta
@@ -531,9 +531,11 @@ class MCG(object):
         #making the adaption
         s=sum(stationary[:-1])
         self.transferminator.setAdapParam(self.glob_scale)
-        self.glob_scale, n=self.transferminator.update_alpha(PathChoice==self.probs ,s/(1+s))
+
+        self.glob_scale=self.transferminator.update_alpha(PathChoice==self.probs ,s/(1+s))
         
-        return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior, int(PathChoice==self.probs), int(PathChoice<self.probs),self.glob_scale,n,0
+        return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
+                int(PathChoice==self.probs), int(PathChoice<self.probs),self.glob_scale[0],self.glob_scale[1],0
     
     
     def terminate(self):
@@ -553,3 +555,12 @@ def Kcalculator(listOfStandardizedLogsAndIndex):
             ans=ans*prod(norm.pdf(array(lis)+array(listOfStandardizedLogs[index]),scale=sqrt(0.1)))
     return ans
 
+def random_distr(l):
+    r = random()
+    s = 0
+    for item, prob in l:
+        s += prob
+        if s >= r:
+            return item
+    print "rounding error leading to last element being sent or an incorrect distribution has been passed on"
+    return l[-1]

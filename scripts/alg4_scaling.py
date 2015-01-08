@@ -35,9 +35,13 @@ class AM4_scaling(object):
         
     
     def setAdapParam(self, val):
-        self.theta=val
+        if len(val)>1:
+            self.sigma=val[1]
+        self.theta=val[0]
         
-    def getAdapParam(self):
+    def getAdapParam(self,all=False):
+        if all:
+            return self.theta, self.sigma
         return self.theta
     
     def first_transform(self, params): 

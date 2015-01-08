@@ -25,13 +25,15 @@ class Global_scaling(object):
         self.alphaDesired=alphaDesired
     
     def setAdapParam(self, val):
-        self.theta=val[0]
+        self.theta=val[0][0]
         
-    def getAdapParam(self):
+    def getAdapParam(self,all=True):
+        if all:
+            return [self.theta],[0]
         return [self.theta]
     
     def getStandardizedLogJumps(self):
-        return [(f-s)/sqrt(self.theta) for f,s in zip(self.first,self.second)]
+        return [(f-s) for f,s in zip(self.first,self.second)]
         
     
     def first_transform(self, params):
@@ -46,7 +48,7 @@ class Global_scaling(object):
         '''
         this takes a vector from scaled space and transforms it back
         '''
-        self.second=[log(x)*sqrt(self.theta) for x in params]
+        self.second=[log(x) for x in params]
         return [exp(log(x)*sqrt(self.theta)) for x in params]
         
     def update_alpha(self, accept,alphaXY):
