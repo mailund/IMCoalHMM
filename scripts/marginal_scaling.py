@@ -51,7 +51,6 @@ class MarginalScaler(object):
         this takes a vector and transforms it into the scaled space
         '''
         self.first=[log(x)/sqrt(t*self.theta) for x,t in zip(params,self.thetas)]
-        print [exp(j) for j in self.first]
         return [exp(j) for j in self.first]
     
      
@@ -60,7 +59,6 @@ class MarginalScaler(object):
         this takes a vector from scaled space and transforms it back
         '''
         self.second=[log(x) for x in params]
-        print [exp(x*sqrt(t)*self.theta) for x,t in zip(self.second,self.thetas)]
         return [exp(x*sqrt(t)*self.theta) for x,t in zip(self.second,self.thetas)]
 
     
@@ -78,13 +76,10 @@ class MarginalScaler(object):
         #jumpsCorrection is approximately the acceptance probability normalized so that it has mean one in a one dimensional case if we assume a normal target density.
         jumpsCorrection=[exp(-((i-j)**2)/self.power)*sqrt(1+2*0.01/self.power) for i,j in zip(self.first,self.second)]
         for n,e in enumerate(jumpsCorrection):
-            print e
             self.thetas[n]=min(100,max(self.thetas[n]*exp(gamma*(alphaXY-self.alphaDesired*e)),0.001))   #p is truncated in order to make every step evaulatable-
         self.theta*=sum(self.thetas)
         self.thetas=[s/sum(self.thetas) for s in self.thetas]
-        print "alphaXY="+str(alphaXY)
-        print "new theta="+str(self.theta)
-        print "new thetas="+str(self.thetas)
+
 
         self.count+=1
         return [self.theta],self.thetas
