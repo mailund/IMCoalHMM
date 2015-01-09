@@ -517,11 +517,9 @@ class MCG(object):
             return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
                 0, 1,self.glob_scale[0],self.glob_scale[1],0
         stationary=[s/sum(stationary) for s in stationary]
-        print stationary
         
         #we now make a PathChoice with probabilities just calculated
         PathChoice=random_distr(zip(range(self.probs+1),stationary))
-        print PathChoice
         
         #we translate so we always start at 0.
         self.transferminator.first=[0]*len(self.current_theta)
@@ -557,10 +555,8 @@ def Kcalculator(listOfStandardizedLogsAndIndex):
     listOfStandardizedLogs.append([0]*len(listOfStandardizedLogs[0]))
     ans=1
     for n,lis in enumerate(listOfStandardizedLogs):
-        print lis
         if not n==index:
             ans=ans*prod(norm.pdf(array(lis)+array(listOfStandardizedLogs[index]),scale=sqrt(0.1)))
-            print ans
     return ans
 
 def random_distr(l):
