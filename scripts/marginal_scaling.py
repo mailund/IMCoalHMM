@@ -28,14 +28,14 @@ class MarginalScaler(object):
         self.multip=params[1]
         self.alphaDesired=alphaDesired
         self.marginals=[0]*len(startVal)
-        self.power=0.1
+        self.power=0.002
     
     def setAdapParam(self,val):
         if len(val)>1:
             self.theta=val[0][0]
             self.thetas=val[1]
         else:
-            self.theta=val[0][0]
+            self.theta=val[0]
         
     def getAdapParam(self,all=False):
         if all:

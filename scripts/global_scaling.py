@@ -25,7 +25,10 @@ class Global_scaling(object):
         self.alphaDesired=alphaDesired
     
     def setAdapParam(self, val):
-        self.theta=val[0][0]
+        if len(val)>1: #in someone wants to set both swapAdapParam and nonSwapAdapParam
+            self.theta=val[0][0]
+        else:
+            self.theta=val[0]
         
     def getAdapParam(self,all=True):
         if all:
@@ -40,8 +43,8 @@ class Global_scaling(object):
         '''
         this takes a vector and transforms it into the scaled space
         '''
-        self.first=[log(x) for x in params]
-        return [exp(log(x)/sqrt(self.theta)) for x in params]
+        self.first=[log(x)/sqrt(self.theta) for x in params]
+        return [exp(f) for f in self.first]
     
      
     def after_transform(self, params):   

@@ -349,7 +349,7 @@ recombination rate."""
                 print >> outfile,str(all[-1])
             else:
                 params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump= mcmc.sample()
-                if j%20==0:#reducing output a little
+                if j%options.thinning==0:#reducing output a little
                     print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
             outfile.flush()
 #            if not options.record_steps and not options.mc3:

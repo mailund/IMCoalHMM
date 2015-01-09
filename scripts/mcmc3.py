@@ -510,32 +510,38 @@ class MCG(object):
         #We now calculate K, so that we make a good suggestion.
         Ks=self.pool.map(Kcalculator, zip(*(range(self.probs+1),[standardizedLogJumps]*(self.probs+1))))
         stationary=[k*p for k,p in zip(Ks,pies)]
+        if sum(stationary)==0:
+            print "The sum of all choices was 0."
+            print "Ks="+str(Ks)
+            print "pies="+str(pies)
+            return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
+                0, 1,self.glob_scale[0],self.glob_scale[1],0
         stationary=[s/sum(stationary) for s in stationary]
+        print stationary
         
         #we now make a PathChoice with probabilities just calculated
         PathChoice=random_distr(zip(range(self.probs+1),stationary))
+        print PathChoice
         
-        #some adaption schemes uses the before and after step, and in case it could use this:
-        self.transferminator.first=self.current_theta
-        
-        self.current_theta=thetas[PathChoice]
-        self.current_posterior=posteriors[PathChoice]
+        #we translate so we always start at 0.
+        self.transferminator.first=[0]*len(self.current_theta)
         
         if PathChoice<self.probs:
-            self.current_likelihood=self.chains[PathChoice]
-            self.current_prior=self.chains[PathChoice]
+            self.current_theta=thetas[PathChoice]
+            self.current_posterior=posteriors[PathChoice]
+            self.current_likelihood=self.chains[PathChoice].current_prior
+            self.current_prior=self.chains[PathChoice].current_prior
         
-        #adaption back
-        self.transferminator.second=self.current_theta
+        #some adaption schemes uses the before and after step, and in case we use the one with the highest probability which is not the previous state.
+        max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
+        self.transferminator.second=standardizedLogJumps[max_index]
         
         #making the adaption
-        s=sum(stationary[:-1])
         self.transferminator.setAdapParam(self.glob_scale)
-
-        self.glob_scale=self.transferminator.update_alpha(PathChoice==self.probs ,s/(1+s))
+        self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,1-stationary[-1])
         
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
-                int(PathChoice==self.probs), int(PathChoice<self.probs),self.glob_scale[0],self.glob_scale[1],0
+                int(PathChoice<self.probs), int(PathChoice==self.probs),self.glob_scale[0],self.glob_scale[1],0
     
     
     def terminate(self):
@@ -551,8 +557,10 @@ def Kcalculator(listOfStandardizedLogsAndIndex):
     listOfStandardizedLogs.append([0]*len(listOfStandardizedLogs[0]))
     ans=1
     for n,lis in enumerate(listOfStandardizedLogs):
+        print lis
         if not n==index:
             ans=ans*prod(norm.pdf(array(lis)+array(listOfStandardizedLogs[index]),scale=sqrt(0.1)))
+            print ans
     return ans
 
 def random_distr(l):
@@ -563,4 +571,5 @@ def random_distr(l):
         if s >= r:
             return item
     print "rounding error leading to last element being sent or an incorrect distribution has been passed on"
-    return l[-1]
+    print "r="+str(r)
+    return l[-1][0]
