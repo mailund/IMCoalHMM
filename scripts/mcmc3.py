@@ -45,6 +45,10 @@ class LogNormPrior(object):
     def proposal(self, x):
         log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
         return exp(log_step)
+    
+    def log_proposal_step(self):
+        return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
+        
 
 
 class ExpLogNormPrior(object):
@@ -67,6 +71,10 @@ class ExpLogNormPrior(object):
     def proposal(self, x):
         log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
         return exp(log_step)
+    
+    def log_proposal_step(self):
+        return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
+        
 
 
 class MCMC(object):
@@ -154,8 +162,8 @@ class MCMC(object):
         
             
     def ScewStep(self, temperature=1.0):
-        propPar=self.transform.first_transform(self.current_theta)
-        new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
+        self.transform.first_transform(self.current_theta)
+        new_thetaTmp = array([self.priors[i].log_proposal_step() for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
         try:
@@ -213,9 +221,11 @@ class MCMC(object):
         self.transform.setAdapParam(bundleOfInfo[1])
         if len(bundleOfInfo)>=3:
             self.setSample(bundleOfInfo[2],bundleOfInfo[3])
-        propPar=self.transform.first_transform(self.current_theta)
-        new_thetaTmp = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
+            
+        self.transform.first_transform(self.current_theta)
+        new_thetaTmp = array([self.priors[i].log_proposal_step() for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
+        
         new_prior = self.log_prior(new_theta)
         _, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior=new_log_likelihood+new_prior
@@ -397,7 +407,7 @@ class MC3(object):
         
     def chainValues(self, temp):
         return self.chains[temp].current_theta, self.chains[temp].current_prior, self.chains[temp].current_likelihood, self.chains[temp].current_posterior, self.chains[temp].accepts,\
-    self.chains[temp].rejections, self.chains[temp].nonSwapAdapParam, self.chains[temp].swapAdapParam, self.chains[temp].latest_squaredJumpSize
+    self.chains[temp].rejections, self.nsap[temp], self.chains[temp].swapAdapParam, self.chains[temp].latest_squaredJumpSize
 
     def updateTemperature(self, index, acceptProb):
         self.count+=1
@@ -532,7 +542,7 @@ class MCG(object):
         
         #some adaption schemes uses the before and after step, and in case we use the one with the highest probability which is not the previous state.
         max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
-        self.transferminator.second=standardizedLogJumps[max_index]
+        self.transferminator.jumps=standardizedLogJumps[max_index]
         
         #making the adaption
         self.transferminator.setAdapParam(self.glob_scale)

@@ -36,23 +36,23 @@ class Global_scaling(object):
         return [self.theta]
     
     def getStandardizedLogJumps(self):
-        return [(f-s) for f,s in zip(self.first,self.second)]
+        return self.jumps
         
     
     def first_transform(self, params):
         '''
         this takes a vector and transforms it into the scaled space
         '''
-        self.first=[log(x)/sqrt(self.theta) for x in params]
-        return [exp(f) for f in self.first]
+        self.first=[log(x) for x in params]
     
      
-    def after_transform(self, params):   
+    def after_transform(self, adds):   
         '''
         this takes a vector from scaled space and transforms it back
         '''
-        self.second=[log(x) for x in params]
-        return [exp(log(x)*sqrt(self.theta)) for x in params]
+        self.second=[f+a*sqrt(self.theta) for f,a,t in zip(self.first,adds)]
+        self.jumps=adds
+        return [exp(s) for s in self.second]
         
     def update_alpha(self, accept,alphaXY):
         '''
@@ -64,6 +64,7 @@ class Global_scaling(object):
         #0.234 has some special meaning in mcmc acceptance probabilities.
         gamma=self.multip/self.count**self.alpha
         self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
+        self.theta=min(10000,self.theta)
         self.count+=1
         return [self.theta],[0]
         
