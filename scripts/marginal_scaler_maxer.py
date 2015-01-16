@@ -81,7 +81,7 @@ class MarginalScalerMax(object):
         self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired)/(100*self.thetas[max_index]))
         
         
-        self.thetas=[s/sum(self.thetas) for s in self.thetas]
+        self.thetas=[max(s/sum(self.thetas),0.0001) for s in self.thetas]
         #vi vil holde sqrt(self.theta) under 100 og 1/sqrt(self.theta*min(self.thetas)) under 100 for at undgaa overflows
 
 
