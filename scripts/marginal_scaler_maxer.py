@@ -78,7 +78,7 @@ class MarginalScalerMax(object):
         max_index,_ = max(enumerate(self.jumps), key=operator.itemgetter(1))
         gammaMarg=self.multip/self.count2[max_index]**self.alpha
         self.theta*=exp(gamma*(alphaXY-self.alphaDesired))
-        self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired)/(100*self.thetas[max_index]))
+        self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired)/(1000*self.thetas[max_index]))
         
         
         self.thetas=[max(s/sum(self.thetas),0.0001) for s in self.thetas]
