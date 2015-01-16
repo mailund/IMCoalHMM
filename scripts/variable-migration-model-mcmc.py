@@ -18,6 +18,7 @@ from global_scaling import Global_scaling
 from alg4_scaling import AM4_scaling
 from datetime import datetime
 from marginal_scaling import MarginalScaler
+from marginal_scaler_maxer import MarginalScalerMax
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -288,6 +289,10 @@ recombination rate."""
                 adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
             elif options.adap==2:
                 adapts.append(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+            elif options.adap==3:
+                adapts.append(AM4_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+            elif options.adap==4:
+                adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
@@ -304,6 +309,8 @@ recombination rate."""
             adap=(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         elif options.adap==3:
             adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+        elif options.adap==4:
+            adap=(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
         else:
             adap=None
         mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)

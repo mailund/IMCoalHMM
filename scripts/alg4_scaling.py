@@ -4,9 +4,10 @@ Created on Oct 27, 2014
 @author: svendvn
 '''
 
-from math import log, exp
+from math import log, exp, sqrt
 from numpy.random import multivariate_normal, normal
-from numpy import array,matrix,identity, outer, diag
+from numpy import array,matrix,identity, outer
+from numpy.linalg import eig
 from random import randrange
 
 class AM4_scaling(object):
@@ -37,28 +38,36 @@ class AM4_scaling(object):
     def setAdapParam(self, val):
         if len(val)>1:
             self.sigma=val[1]
-        self.theta=val[0]
+            self.theta=val[0][0]
+        else:
+            self.theta=val[0]
         
     def getAdapParam(self,all=False):
         if all:
-            return self.theta, self.sigma
-        return self.theta
+            return [self.theta], self.sigma
+        return [self.theta]
+    
+    def getStandardizedLogJumps(self):
+        return None #this vector is not well defined here/useful here. 
     
     def first_transform(self, params): 
         '''
         We record the mean. 
         '''
         self.first=map(log,params)
-        return params
     
      
-    def after_transform(self, _):   
+    def after_transform(self, adds):   
         '''
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
-        self.second=multivariate_normal(self.first, self.theta*self.sigma)
-        return map(exp,self.latterX)
+        if self.count>100:
+            self.second=multivariate_normal(self.first, self.theta*self.sigma)
+        else:
+            self.second=[(f+a*sqrt(self.theta)) for f,a in zip(self.first,adds)]
+        print self.second
+        return map(exp,self.second)
         
     def update_alpha(self, accept, alphaXY):
         '''
@@ -76,8 +85,14 @@ class AM4_scaling(object):
         self.mean += gamma*(x-self.mean)
         self.theta *= exp(gamma*(alphaXY-self.alphaDesired))
         self.count += 1
+        if self.count==101:#we try to normalize self.theta
+            normalizer=len(self.first)*0.1/sum(eig(self.sigma)[0])
+            self.sigma*=normalizer
+        if self.count%20==0:
+            print self.sigma
+            print self.theta
         
         
-        return [self.theta],0
+        return [self.theta],[0]
         
         
