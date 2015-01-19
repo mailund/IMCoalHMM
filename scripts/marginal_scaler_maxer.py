@@ -16,7 +16,7 @@ class MarginalScalerMax(object):
     '''
 
 
-    def __init__(self,startVal=[0.1]*17, params=[0.5,10], alphaDesired=0.234):
+    def __init__(self,startVal=[0.1]*17, params=[0.5,10,True], alphaDesired=0.234):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 
         starting value. 
@@ -24,6 +24,7 @@ class MarginalScalerMax(object):
         '''
         self.theta=sum(startVal)
         self.thetas=[s/sum(startVal) for s in startVal]
+        self.mediorizing=params[2]
         self.count=1
         self.count2=[1]*len(startVal)
         self.alpha=params[0]
@@ -78,9 +79,11 @@ class MarginalScalerMax(object):
         max_index,_ = max(enumerate(self.jumps), key=operator.itemgetter(1))
         gammaMarg=self.multip/self.count2[max_index]**self.alpha
         self.theta*=exp(gamma*(alphaXY-self.alphaDesired))
-        self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired)/(1000*self.thetas[max_index]))
-        
-        
+        if self.mediorizing:
+            self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired)/(1000*self.thetas[max_index]))
+        else:
+            self.thetas[max_index]=max(0.001,self.thetas[max_index]+gammaMarg*(alphaXY-self.alphaDesired))
+                                       
         self.thetas=[max(s/sum(self.thetas),0.0001) for s in self.thetas]
         #vi vil holde sqrt(self.theta) under 100 og 1/sqrt(self.theta*min(self.thetas)) under 100 for at undgaa overflows
 

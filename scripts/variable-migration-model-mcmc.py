@@ -93,6 +93,7 @@ recombination rate."""
     parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
     parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
     parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
+    parser.add_argument('--adap_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
@@ -292,7 +293,7 @@ recombination rate."""
             elif options.adap==3:
                 adapts.append(AM4_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
             elif options.adap==4:
-                adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+                adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size,options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
@@ -310,7 +311,7 @@ recombination rate."""
         elif options.adap==3:
             adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
         elif options.adap==4:
-            adap=(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+            adap=(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
         else:
             adap=None
         mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
