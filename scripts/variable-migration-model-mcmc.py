@@ -83,6 +83,8 @@ recombination rate."""
     parser.add_argument('--multiple_try', action='store_true',default=False, help='this will use the multiple-try method')
     parser.add_argument('--parallels', type=int, default=3, help='the number of parallel chains to run in mc3 or number of tries in multiple-try')
     parser.add_argument('--mc3_switching', type=int, default=2, help='the number of switches per thinning period')
+    parser.add_argument('--mc3_jump_accept', type=float, default=0.234, help='the swap acceptance probability that the chain is adapting against. Default is 0.234.')
+    parser.add_argument('--mc3_flip_suggestions', type=int, default=1, help='The number of times after each step a flip is suggested. It has to be at least one, default is one.')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
@@ -296,11 +298,11 @@ recombination rate."""
                 adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size,options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
         print likelihoodWrapper()
         if options.adap>0:
-            mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.accept_jump,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
         else:
-            mcmc=MC3(priors, likelihood=log_likelihood, #models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.accept_jump,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif options.multiple_try:

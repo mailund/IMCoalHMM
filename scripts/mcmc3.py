@@ -375,7 +375,7 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, likelihood, no_chains, thinning, switching, temperature_scale=1, **kwargs):
+    def __init__(self, priors, likelihood, accept_jump, flip_suggestions, no_chains, thinning, switching, temperature_scale=1, **kwargs):
         if not "transferminator" in kwargs:
             kwargs["transferminator"]=[None]*no_chains
         if not "mixtureWithScew" in kwargs:
@@ -387,6 +387,8 @@ class MC3(object):
         if not "startVal" in kwargs:
             kwargs["startVal"]=None
         self.no_chains = no_chains
+        self.accept_jump=accept_jump
+        self.flip_suggestions=flip_suggestions
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, likelihood, switching, transferminator=kwargs["transferminator"][i], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
@@ -410,9 +412,8 @@ class MC3(object):
     self.chains[temp].rejections, self.nsap[temp], self.chains[temp].swapAdapParam, self.chains[temp].latest_squaredJumpSize
 
     def updateTemperature(self, index, acceptProb):
-        self.count+=1
         gamma=0.9/self.count**self.alpha
-        tempChange = exp(gamma*(acceptProb-0.234))
+        tempChange = exp(gamma*(acceptProb-self.accept_jump/self.flip_suggestions))
         diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
         diffs[index]*=tempChange
         self.temperature_scale=[1.0]*self.no_chains
@@ -439,26 +440,28 @@ class MC3(object):
             for chain_no in range(self.no_chains):
                 self.chains[chain_no].remote_complete()
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
-                
-
-            i = randint(0, self.no_chains-1)
-            j = i+1
-
-            temperature_i = self.chain_temperature(i)
-            temperature_j = self.chain_temperature(j)
-            chain_i, chain_j = self.chains[i], self.chains[j]
-            current = chain_i.current_posterior / temperature_i + chain_j.current_posterior / temperature_j
-            new = chain_j.current_posterior / temperature_i + chain_i.current_posterior / temperature_j
-            if new > current:
-                acceptProb=1.0
-            else:
-                acceptProb=exp(new - current)
-            if random()<acceptProb:
-                self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
-                flips+=str(index)+":"+str(i)+"-"+str(j)+","
-            self.updateTemperature(i,acceptProb)
-            if i==0:
-                print self.temperature_scale
+            
+            self.count+=1 #we increase the adaption factor 
+            for k in range(self.flip_suggestions):
+                i = randint(0, self.no_chains-1)
+                j = i+1
+    
+                temperature_i = self.chain_temperature(i)
+                temperature_j = self.chain_temperature(j)
+                chain_i, chain_j = self.chains[i], self.chains[j]
+                current = chain_i.current_posterior / temperature_i + chain_j.current_posterior / temperature_j
+                new = chain_j.current_posterior / temperature_i + chain_i.current_posterior / temperature_j
+                if new > current:
+                    acceptProb=1.0
+                else:
+                    acceptProb=exp(new - current)
+                if random()<acceptProb:
+                    self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
+                    flips+=str(index)+":"+str(i)+"-"+str(j)+","
+                self.updateTemperature(i,acceptProb)
+                if i==0:
+                    print self.temperature_scale
+            
                     
             
             
