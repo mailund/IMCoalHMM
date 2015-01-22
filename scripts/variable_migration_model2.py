@@ -94,7 +94,8 @@ class VariableCoalAndMigrationRateModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, intervals):
+    def __init__(self, initial_configuration, intervals, breaktimes):
+        self.breaktimes=breaktimes
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -180,7 +181,7 @@ class VariableCoalAndMigrationRateModel(Model):
 
 
         #break_points = psmc_break_points(self.no_states, t_max=self.tmax)
-        break_points=gamma_break_points(self.no_states,beta1=0.001,alpha=2,beta2=0.001333333)
+        break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes)
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
 
         return VariableCoalAndMigrationRateCTMCSystem(self.initial_state, ctmcs, break_points)

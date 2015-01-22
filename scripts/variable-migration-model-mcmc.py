@@ -91,14 +91,17 @@ recombination rate."""
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     #parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
+    
     parser.add_argument('--adap', default=0, type=int, help='this number tells what adaption to use')
     parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
     parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
     parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
     parser.add_argument('--adap_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
+    
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
+    parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
     
     options = parser.parse_args()
     if not options.use_trees_as_data:
@@ -235,9 +238,9 @@ recombination rate."""
         return ans, "col"+str(epoch1)+"-"+str(epoch2)
     
     # load alignments
-    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals)
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals)
-    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals)
+    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time)
+    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time)
+    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time)
     
     if options.use_trees_as_data:
         leftT,rightT,combinedT,counts=count_tmrca(subs=options.Ngmu4,filename=options.treefile)
@@ -298,11 +301,11 @@ recombination rate."""
                 adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size,options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
         print likelihoodWrapper()
         if options.adap>0:
-            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.accept_jump,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
         else:
-            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.accept_jump,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif options.multiple_try:
