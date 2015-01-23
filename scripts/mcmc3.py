@@ -413,7 +413,7 @@ class MC3(object):
 
     def updateTemperature(self, index, acceptProb):
         gamma=0.9/self.count**self.alpha
-        tempChange = exp(gamma*(acceptProb-self.accept_jump/self.flip_suggestions))
+        tempChange = exp(gamma*(acceptProb-self.accept_jump/self.flip_suggestions)/self.flip_suggestions)
         diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
         diffs[index]*=tempChange
         self.temperature_scale=[1.0]*self.no_chains
@@ -442,7 +442,7 @@ class MC3(object):
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
             
             self.count+=1 #we increase the adaption factor 
-            for k in range(self.flip_suggestions):
+            for _ in range(self.flip_suggestions):
                 i = randint(0, self.no_chains-1)
                 j = i+1
     
@@ -459,8 +459,8 @@ class MC3(object):
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
                 self.updateTemperature(i,acceptProb)
-                if i==0:
-                    print self.temperature_scale
+            if i==0:
+                print self.temperature_scale
             
                     
             
