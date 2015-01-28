@@ -413,7 +413,7 @@ class MC3(object):
 
     def updateTemperature(self, index, acceptProb):
         gamma=0.9/self.count**self.alpha
-        tempChange = exp(gamma*(acceptProb-self.accept_jump/self.flip_suggestions)/self.flip_suggestions)
+        tempChange = exp(gamma*(acceptProb-self.accept_jump))
         diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
         diffs[index]*=tempChange
         self.temperature_scale=[1.0]*self.no_chains
@@ -442,7 +442,7 @@ class MC3(object):
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
             
             self.count+=1 #we increase the adaption factor 
-            for _ in range(self.flip_suggestions):
+            for k in range(self.flip_suggestions):
                 i = randint(0, self.no_chains-1)
                 j = i+1
     
@@ -458,7 +458,8 @@ class MC3(object):
                 if random()<acceptProb:
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
-                self.updateTemperature(i,acceptProb)
+                if k==0: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
+                    self.updateTemperature(i,acceptProb)
             if i==0:
                 print self.temperature_scale
             

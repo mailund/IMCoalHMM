@@ -101,7 +101,7 @@ def main():
 
     print psmc_break_points(20,t_max=7*4*20000*25)
     print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
-    print gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333)
+    print gamma_break_points(20,beta1=0.001*0.4,alpha=2,beta2=0.001333*0.4)
 
 
 if __name__ == '__main__':
