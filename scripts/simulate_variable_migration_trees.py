@@ -202,6 +202,10 @@ def main():
                         help="Output file for the estimate (/dev/stdout)")
     
     parser.add_argument("-t", '--type', type=int, default=0, help='should we simulate trees(0) or alignments(1)')
+    parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
+    parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
+    parser.add_argument('--seq_length', default=1000000, type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
+
 
 
     optimized_params = [
@@ -232,7 +236,7 @@ def main():
 
     # FIXME: I don't know what would be a good choice here...
     # intervals = [4] + [2] * 25 + [4, 6]
-    intervals = [5, 5, 5, 5]
+    intervals=options.intervals
     no_epochs = len(intervals)
     
 
@@ -249,9 +253,9 @@ def main():
     
     # load alignments
     models=[]
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time))
     
     trans_probs=[]
     init_probs=[]
@@ -263,9 +267,9 @@ def main():
     print bre
     
     if options.type==1:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=True, subsRate=options.Ngmu4)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=True, subsRate=options.Ngmu4)
     else:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
+        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
     
 if __name__ == '__main__':
     main()
