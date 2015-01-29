@@ -102,7 +102,8 @@ recombination rate."""
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
-    
+    parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
+
     options = parser.parse_args()
     if not options.use_trees_as_data:
         if len(options.alignments11) < 1:
@@ -125,8 +126,9 @@ recombination rate."""
 
     # FIXME: I don't know what would be a good choice here...
     # intervals = [4] + [2] * 25 + [4, 6]
-    intervals = [5, 5, 5, 5]
+    intervals=options.intervals
     no_epochs = len(intervals)
+    no_params=no_epochs*4+1
     
     incr=range(1,no_epochs+1)*4
     beforeNames=['pop1_coalRate_']*no_epochs+['pop2_coalRate_']*no_epochs+['pop12_migRate_']*no_epochs+['pop21_migRate_']*no_epochs
@@ -287,18 +289,23 @@ recombination rate."""
     
 
 
+
+    if options.adap==1:
+        adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+    elif options.adap==2:
+        adap=(MarginalScaler(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+    elif options.adap==3:
+        adap=AM4_scaling(startVal=no_params*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+    elif options.adap==4:
+        adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
+    else:
+        adap=None
+
     if options.mc3:
         no_chains=options.parallels
-        adapts=[]
-        for i in range(no_chains):
-            if options.adap==1:
-                adapts.append(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-            elif options.adap==2:
-                adapts.append(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-            elif options.adap==3:
-                adapts.append(AM4_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-            elif options.adap==4:
-                adapts.append(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size,options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
+        adapts=[] #we have to make a list of adaptors
+        for _ in range(no_chains):
+            adapts.append(deepcopy(adap))
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
@@ -309,36 +316,12 @@ recombination rate."""
                 no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif options.multiple_try:
-        if options.adap==1:
-            adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-        elif options.adap==2:
-            adap=(MarginalScaler(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
-        elif options.adap==3:
-            adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-        elif options.adap==4:
-            adap=(MarginalScalerMax(params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
-        else:
-            adap=None
         mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
     elif not options.startWithGuess:
-        if options.adap>0:
-            var=options.sd_multiplyer
-            if options.adap==2:
-                adap=MarginalScaler(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-            elif options.adap==3:
-                adap=AM4_scaling(startVal=17*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-            else:
-                adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
-        else:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, mixtureWithSwitch=options.switch, switcher=switchChooser)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
         thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
-        if options.adap>0:
-            adap=Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap)
-        else:
-            mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, startVal=thetaGuess)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap,startVal=thetaGuess)
 
     
     print "before starting to simulate"
