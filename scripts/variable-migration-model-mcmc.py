@@ -85,6 +85,7 @@ recombination rate."""
     parser.add_argument('--mc3_switching', type=int, default=2, help='the number of switches per thinning period')
     parser.add_argument('--mc3_jump_accept', type=float, default=0.234, help='the swap acceptance probability that the chain is adapting against. Default is 0.234.')
     parser.add_argument('--mc3_flip_suggestions', type=int, default=1, help='The number of times after each step a flip is suggested. It has to be at least one, default is one.')
+    parser.add_argument('--mc3_sort_chains', action='store_true', default=False, help='If announced, this will sort each chain according to its posterior value, making it closer to the stationary')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
@@ -94,6 +95,7 @@ recombination rate."""
     
     parser.add_argument('--adap', default=0, type=int, help='this number tells what adaption to use')
     parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
+    parser.add_argument('--adap_step_size_marginal', default=0.1, type=float, help='this number is the starting step size of the adaption of the marginals')
     parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
     parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
     parser.add_argument('--adap_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
@@ -297,7 +299,7 @@ recombination rate."""
     elif options.adap==3:
         adap=AM4_scaling(startVal=no_params*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
     elif options.adap==4:
-        adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing], alphaDesired=options.adap_desired_accept))
+        adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept))
     else:
         adap=None
 
@@ -309,11 +311,11 @@ recombination rate."""
         print likelihoodWrapper()
         if options.adap>0:
             mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
+                sort=options.mc3_sort_chains, no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
         else:
             mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
+                sort=options.mc3_sort_chains,no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif options.multiple_try:
         mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)

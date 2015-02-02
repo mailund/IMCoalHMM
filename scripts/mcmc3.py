@@ -375,7 +375,7 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, likelihood, accept_jump, flip_suggestions, no_chains, thinning, switching, temperature_scale=1, **kwargs):
+    def __init__(self, priors, likelihood, accept_jump, flip_suggestions, sort, no_chains, thinning, switching, temperature_scale=1, **kwargs):
         if not "transferminator" in kwargs:
             kwargs["transferminator"]=[None]*no_chains
         if not "mixtureWithScew" in kwargs:
@@ -389,6 +389,7 @@ class MC3(object):
         self.no_chains = no_chains
         self.accept_jump=accept_jump
         self.flip_suggestions=flip_suggestions
+        self.sort=sort
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, likelihood, switching, transferminator=kwargs["transferminator"][i], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
@@ -441,6 +442,12 @@ class MC3(object):
                 self.chains[chain_no].remote_complete()
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
             
+            
+            if self.sort:
+                
+                #sorting all chains to make them very close to the 
+                self.chains.sort(key=lambda ch: -ch.current_posterior)
+                
             self.count+=1 #we increase the adaption factor 
             for k in range(self.flip_suggestions):
                 i = randint(0, self.no_chains-1)
@@ -460,8 +467,11 @@ class MC3(object):
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
                 if k==0: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
                     self.updateTemperature(i,acceptProb)
+                    if i==0:
+                        print acceptProb
             if i==0:
                 print self.temperature_scale
+                
             
                     
             
