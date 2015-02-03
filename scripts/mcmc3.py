@@ -434,7 +434,7 @@ class MC3(object):
         "switching" step."""
 
         flips=""
-        for index in xrange(int(float(self.thinning) / self.switching)):
+        for index in xrange(self.thinning):
             
             for chain_no in range(self.no_chains):
                 self.chains[chain_no].remote_start((self.chain_temperature(chain_no), self.nsap[chain_no]))
