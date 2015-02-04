@@ -80,12 +80,13 @@ recombination rate."""
                         help='Alignments of two sequences from the second population')
     
     parser.add_argument('--mc3', action='store_true', default=False, help='this will use mc3 method to ')
-    parser.add_argument('--multiple_try', action='store_true',default=False, help='this will use the multiple-try method')
-    parser.add_argument('--parallels', type=int, default=3, help='the number of parallel chains to run in mc3 or number of tries in multiple-try')
-    parser.add_argument('--mc3_switching', type=int, default=2, help='the number of switches per thinning period')
+    parser.add_argument('--mcg', action='store_true',default=False, help='this will use the multiple-try method')
+    parser.add_argument('--parallels', type=int, default=0, help='the number of parallel chains to run in mc3 or number of tries in multiple-try')
+    parser.add_argument('--mc3_switching', type=int, default=1, help='the number of switches per thinning period')
     parser.add_argument('--mc3_jump_accept', type=float, default=0.234, help='the swap acceptance probability that the chain is adapting against. Default is 0.234.')
     parser.add_argument('--mc3_flip_suggestions', type=int, default=1, help='The number of times after each step a flip is suggested. It has to be at least one, default is one.')
     parser.add_argument('--mc3_sort_chains', action='store_true', default=False, help='If announced, this will sort each chain according to its posterior value, making it closer to the stationary')
+    parser.add_argument('--mc3_mcg_setup', nargs='+', type=int, help='This is a list of sizes of mcgs. Between the mcgs mc3 is made. Overwrites mc3 and mcg. The sum has to equal the number ')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
@@ -303,22 +304,34 @@ recombination rate."""
     else:
         adap=None
 
-    if options.mc3:
-        no_chains=options.parallels
+    if options.mc3 or options.mc3_mcg_setup:
+        if options.mc3_mcg_setup and options.parallels>0:
+            if not sum(options.mc3_mcg_setup)==options.parallels:
+                print "The requested number of parallel chains do not match those requested"
+        if not options.mc3_mcg_setup:
+            chain_structure=[1]*options.parallels
+        else:
+            chain_structure=options.mc3_mcg_setup
         adapts=[] #we have to make a list of adaptors
+        no_chains=len(chain_structure)
         for _ in range(no_chains):
             adapts.append(deepcopy(adap))
         print likelihoodWrapper()
         if options.adap>0:
-            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                sort=options.mc3_sort_chains, no_chains=options.parallels, thinning=options.thinning, switching=1, transferminator=adapts, 
+            mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+                sort=options.mc3_sort_chains, chain_structure=chain_structure, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
         else:
-            mcmc=MC3(priors, likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
-                sort=options.mc3_sort_chains,no_chains=options.parallels, thinning=options.thinning, switching=1, #transferminator=adapts, 
+            mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
+                sort=options.mc3_sort_chains,chain_structure=chain_structure, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
-    elif options.multiple_try:
-        mcmc=MCG(priors,likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
+    elif options.mcg and not options.mc3_mcg_setup:
+        mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
+    elif options.mc3_mcg_setup:
+        no_chains=options.parallels
+        adapts=[] #we have to make a list of adaptors
+        for _ in range(no_chains):
+            adapts.append(deepcopy(adap))
     elif not options.startWithGuess:
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
     else:
@@ -339,9 +352,9 @@ recombination rate."""
                 params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump, latestSuggest,latestInit = mcmc.sampleRecordInitialDistributionJumps()
                 print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)+(squaredJump,0))+transform(latestSuggest))+\
                     printPyZipHMM(latestInit[0]).rstrip()+printPyZipHMM(latestInit[1]).rstrip()+printPyZipHMM(latestInit[2]).rstrip()
-            elif options.mc3:
+            elif options.mc3 or options.mc3_mcg_setup:
                 all=mcmc.sample()
-                for i in range(options.parallels):
+                for i in range(no_chains):
                     params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
                     outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
                 print >> outfile,str(all[-1])
@@ -350,12 +363,12 @@ recombination rate."""
                 if j%options.thinning==0:#reducing output a little
                     print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
             outfile.flush()
-#            if not options.record_steps and not options.mc3:
-#                if j%max(int(options.samples/5),1)==0:
-#                    for i in range(3):
-#                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
-#                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
-        if not options.record_steps and not options.mc3 and not options.multiple_try:
+            if not options.record_steps and not options.mc3 and not options.mcg and not options.mc3_mcg_setup:
+                if j%max(int(options.samples/5),1)==0:
+                    for i in range(3):
+                        print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
+                        print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        if not options.record_steps and not options.mc3 and not options.mcg and not options.mc3_mcg_setup:
             for i in range(3):
                 print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                 print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])

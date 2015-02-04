@@ -50,7 +50,7 @@ class Global_scaling(object):
         '''
         this takes a vector from scaled space and transforms it back
         '''
-        self.second=[f+a*sqrt(self.theta) for f,a,t in zip(self.first,adds)]
+        self.second=[f+a*sqrt(self.theta) for f,a in zip(self.first,adds)]
         self.jumps=adds
         return [exp(s) for s in self.second]
         

@@ -319,6 +319,7 @@ class RemoteMCMC(object):
         self.switcher=kwargs.get("switcher",None)
         self.startVal=kwargs.get("startVal",None)
         self.multiple_try=kwargs.get("multiple_try",False)
+        self.mc3_of_mcgs=kwargs.get("mc3_of_mcgs", 1)
         print self.startVal
         self.priors = priors
         self.log_likelihood=likelihood
@@ -330,8 +331,13 @@ class RemoteMCMC(object):
 
 
     def _set_chain(self):
-
-        self.chain = MCMC(priors=self.priors, log_likelihood=self.log_likelihood, thinning=self.thinning,
+        if self.mc3_of_mcgs>1:
+            self.chain=MCG(priors=self.priors, probs=self.mc3_of_mcgs, log_likelihood=self.log_likelihood, thinning=self.thinning,
+                           transferminator=self.transferminator, mixtureWithScew=self.mixtureWithScew,
+                           mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
+                           startVal=self.startVal, multiple_try=self.multiple_try)
+        else:
+            self.chain = MCMC(priors=self.priors, log_likelihood=self.log_likelihood, thinning=self.thinning,
                            transferminator=self.transferminator, mixtureWithScew=self.mixtureWithScew,
                            mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
                            startVal=self.startVal, multiple_try=self.multiple_try)
@@ -375,7 +381,8 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, likelihood, accept_jump, flip_suggestions, sort, no_chains, thinning, switching, temperature_scale=1, **kwargs):
+    def __init__(self, priors, log_likelihood, accept_jump, flip_suggestions, sort, chain_structure, thinning, switching, temperature_scale=1, **kwargs):
+        no_chains=len(chain_structure)
         if not "transferminator" in kwargs:
             kwargs["transferminator"]=[None]*no_chains
         if not "mixtureWithScew" in kwargs:
@@ -391,9 +398,9 @@ class MC3(object):
         self.flip_suggestions=flip_suggestions
         self.sort=sort
         print kwargs
-        self.chains = [RemoteMCMCProxy(priors, likelihood, switching, transferminator=kwargs["transferminator"][i], 
+        self.chains = [RemoteMCMCProxy(priors, log_likelihood, switching, transferminator=kwargs["transferminator"][n], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
-                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"]) for i in xrange(no_chains)]
+                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x) for n,x in enumerate(chain_structure)]
         self.thinning = thinning
         self.switching = switching
         self.temperature_scale = [1.0+temperature_scale*n for n in range(no_chains)]
@@ -486,17 +493,17 @@ class MC3(object):
     
 class MCG(object):
     
-    def __init__(self, priors, likelihood, thinning=1,startVal=None, probs=1,transferminator=None):
+    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False):
         self.priors = priors
-        self.thinning = thinning
+        self.thinning = thinning  #thinning is obsolete
         if startVal is None:
             self.current_theta = array([pi.sample() for pi in self.priors])
         else:
             self.current_theta=array(startVal)
         self.transferminator=transferminator
-        self.chains = [RemoteMCMCProxy(priors, likelihood,thinning, transferminator=transferminator, startVal=self.current_theta,multiple_try=True) for _ in xrange(probs)]
+        self.chains = [RemoteMCMCProxy(priors, log_likelihood,1, transferminator=transferminator, startVal=self.current_theta,multiple_try=True) for _ in xrange(probs)]
         self.temp=1.0
-        self.probs=probs
+        self.probs=probs #number of proposals.
         self.glob_scale=transferminator.getAdapParam(all=True)
         self.current_theta=None
         self.current_posterior=None
@@ -506,12 +513,12 @@ class MCG(object):
 
 
     
-    def sample(self):
+    def sample(self,temperature=1.0):
         posteriors=[0]*self.probs
         thetas=[0]*self.probs
         standardizedLogJumps=[0]*self.probs
         for chain_no in range(self.probs):
-            self.chains[chain_no].remote_start((1.0, self.glob_scale,self.current_posterior,self.current_theta))
+            self.chains[chain_no].remote_start((temperature, self.glob_scale,self.current_posterior,self.current_theta))
         for chain_no in range(self.probs):
             self.chains[chain_no].remote_complete()
             posteriors[chain_no]=self.chains[chain_no].current_posterior
@@ -524,6 +531,7 @@ class MCG(object):
             max_index, max_value = max(enumerate(posteriors), key=operator.itemgetter(1))
             self.current_posterior=max_value
             self.current_theta=thetas[max_index]
+        
         posteriors.append(self.current_posterior)
         thetas.append(self.current_theta)
         pies=[0]*(self.probs+1)
@@ -569,6 +577,10 @@ class MCG(object):
     def terminate(self):
         for chain in self.chains:
             chain.remote_terminate()
+            
+            
+        
+    
     
 
 def Kcalculator(listOfStandardizedLogsAndIndex):
