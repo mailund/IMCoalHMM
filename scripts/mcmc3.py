@@ -478,12 +478,7 @@ class MC3(object):
                         print acceptProb
             if i==0:
                 print self.temperature_scale
-                
-            
-                    
-            
-            
-            
+
         return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)
 
     def terminate(self):

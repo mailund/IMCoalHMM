@@ -1,18 +1,20 @@
-names=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject','adapParam')
-plCall=function(names=names,title="", hist=FALSE,...){
-  par(mfrow=c(5,4))
+names1=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject','adapParam')
+names7=c('1c1', '1c2','1c3','1c4','1c5','1c6','1c7','2c1','2c2','2c3','2c4','2c5','2c6','2c7','12m1', '12m2','12m3','12m4','12m5','12m6','12m7','21m1','21m2','21m3','21m4','21m5','21m6','21m7','rho', 'pri', 'lik','post','accept','reject','adapParam')
+
+plCall=function(names=names1,title="", epochs=4, hist=FALSE,...){
+  par(mfrow=c(5,epochs))
   indexVec=(1:1000)*10
   for(i in 1:(length(tr[1,]))){
-    
+    print(names[i])
     if(substring(names[i],2,2)=="c" && substring(names[i],1,1)!="a"){
       if(!hist){
         if(paste('adapParam',names[i])%in%names){
-          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))]
+          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))])
         }
         else{
           title2=title
         }
-        plot(tr[,i], type='l', main=names[i],sub=title, ylim=c(0,0.01),...)
+        plot(tr[,i], type='l', main=names[i],sub=title2, ylim=c(0,0.01),...)
         abline(h=0.002,col='red')
       }
       else{
@@ -24,7 +26,7 @@ plCall=function(names=names,title="", hist=FALSE,...){
     else if(substring(names[i],3,3)=="m"){
       if(!hist){
         if(paste('adapParam',names[i])%in%names){
-          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))]
+          title2=paste(title,tr[length(tr[,1]),which(names==paste('adapParam',names[i]))])
         }
         else{
           title2=title
@@ -73,7 +75,7 @@ plCall=function(names=names,title="", hist=FALSE,...){
   }
 }
 
-names2=c(names, sapply(names[1:17], function(x){paste("adapParam",x)}))
+names2=c(names1, sapply(names1[1:17], function(x){paste("adapParam",x)}))
 plCall2=function(title="", hist=FALSE,...){
   plCall(names=names2,title,hist,...)
 }

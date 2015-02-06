@@ -19,6 +19,7 @@ from alg4_scaling import AM4_scaling
 from datetime import datetime
 from marginal_scaling import MarginalScaler
 from marginal_scaler_maxer import MarginalScalerMax
+from operator import itemgetter
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -99,7 +100,11 @@ recombination rate."""
     parser.add_argument('--adap_step_size_marginal', default=0.1, type=float, help='this number is the starting step size of the adaption of the marginals')
     parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
     parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
-    parser.add_argument('--adap_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
+    parser.add_argument('--adap4_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
+    parser.add_argument('--adap4_proportion', default=0.5, type=float, help='In adaption scheme 4 one can target those distributions which means a lot. The larger proportion, the more targeted.')
+    parser.add_argument('--adap3_correlates_begin', default=100, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
+    parser.add_argument('--adap3_from_identical', default=0.2, type=float, help='How big proportion of the time after correlates_begin will we suggest independents with same variance.')
+    parser.add_argument('--adap3_from_independent', default=0, type=float, help='Will we not use the correlates. If stated the covariance matrix will be estimated without off-diagonal entries.')
     
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
@@ -291,16 +296,17 @@ recombination rate."""
         return log_likelihood
     
 
-
+    toTakeMaxFrom=[1-options.adap3_from_identical-options.adap3_from_independent, options.adap3_from_independent,options.adap3_from_identical]
+    max_index,_ = max(enumerate(toTakeMaxFrom), key=itemgetter(1))
 
     if options.adap==1:
         adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
     elif options.adap==2:
         adap=(MarginalScaler(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
     elif options.adap==3:
-        adap=AM4_scaling(startVal=no_params*[1.0], params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+        adap=AM4_scaling(startVal=no_params*[1.0], params=[options.adap_harmonic_power, options.adap_step_size, options.adap3_correlates_begin,(options.adap3_from_identical,options.adap3_from_independent), max_index], alphaDesired=options.adap_desired_accept)
     elif options.adap==4:
-        adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept))
+        adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap4_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept, targetProportion=options.adap4_proportion))
     else:
         adap=None
 
