@@ -380,7 +380,7 @@ recombination rate."""
             for i in acc[1]:
                 print >> outfile, str(i)+"    "+str(acc[1][i])
         outfile.flush()
-    if options.mc3 or options.multiple_try:
+    if options.mc3 or options.mcg or options.mc3_mcg_setup:
         mcmc.terminate()
         
 
