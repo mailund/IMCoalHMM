@@ -452,7 +452,7 @@ class MC3(object):
             
             if self.sort:
                 
-                #sorting all chains to make them very close to the 
+                #sorting all chains to make them very close to the mode of the posterior.
                 self.chains.sort(key=lambda ch: -ch.current_posterior)
                 
             self.count+=1 #we increase the adaption factor 
@@ -509,16 +509,10 @@ class MCG(object):
 
     
     def sample(self,temperatureBundle=(1.0,'keep')):
-        print "1st="+str(self.glob_scale)
-        print temperatureBundle
         if not temperatureBundle[1]=='keep' and temperatureBundle[1] is not None:
-            print "a"
             self.glob_scale=(temperatureBundle[1],self.glob_scale[1])
-            print "b"
-        print "c"
         temperature=temperatureBundle[0]
-        print "d"
-        print "2nd="+str(self.glob_scale)
+
         posteriors=[0]*self.probs
         thetas=[0]*self.probs
         standardizedLogJumps=[0]*self.probs
