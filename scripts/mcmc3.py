@@ -508,7 +508,17 @@ class MCG(object):
 
 
     
-    def sample(self,temperature=1.0):
+    def sample(self,temperatureBundle=(1.0,'keep')):
+        print "1st="+str(self.glob_scale)
+        print temperatureBundle
+        if not temperatureBundle[1]=='keep' and temperatureBundle[1] is not None:
+            print "a"
+            self.glob_scale=(temperatureBundle[1],self.glob_scale[1])
+            print "b"
+        print "c"
+        temperature=temperatureBundle[0]
+        print "d"
+        print "2nd="+str(self.glob_scale)
         posteriors=[0]*self.probs
         thetas=[0]*self.probs
         standardizedLogJumps=[0]*self.probs
@@ -554,7 +564,7 @@ class MCG(object):
         if PathChoice<self.probs:
             self.current_theta=thetas[PathChoice]
             self.current_posterior=posteriors[PathChoice]
-            self.current_likelihood=self.chains[PathChoice].current_prior
+            self.current_likelihood=self.chains[PathChoice].current_likelihood
             self.current_prior=self.chains[PathChoice].current_prior
         
         #some adaption schemes uses the before and after step, and in case we use the one with the highest probability which is not the previous state.
