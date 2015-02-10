@@ -427,7 +427,7 @@ class MC3(object):
         self.temperature_scale=[1.0]*self.no_chains
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]
-            
+        self.count+=1    
         #The very hot chains produces very unlikely events, which 
         #sometimes will throw an AssertionError deeper into the code. 
         #The assertion will produce a warning and the step ignored, but
@@ -451,11 +451,11 @@ class MC3(object):
             
             
             if self.sort:
-                
+                orderAndSort=sorted(enumerate(self.chains), key=lambda ch: -ch[1].current_posterior)
+                order,self.chains=map(list, zip(*orderAndSort))
                 #sorting all chains to make them very close to the mode of the posterior.
-                self.chains.sort(key=lambda ch: -ch.current_posterior)
                 
-            self.count+=1 #we increase the adaption factor 
+                
             for k in range(self.flip_suggestions):
                 i = randint(0, self.no_chains-1)
                 j = i+1
@@ -471,13 +471,31 @@ class MC3(object):
                     acceptProb=exp(new - current)
                 if random()<acceptProb:
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
+                    order[i],order[j]=order[j],order[i] #checking if a change has been made
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
-                if k==0: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
+                if k==0 and not self.sort: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
                     self.updateTemperature(i,acceptProb)
                     if i==0:
                         print acceptProb
             if i==0:
                 print self.temperature_scale
+            if self.sort or self.flip_suggestions>1:
+                if random()<0.05:
+                    print order
+                ro=randint(0,self.no_chains-1)
+                if order[ro]==ro:
+                    if order[ro+1]==order[ro+1]:
+                        self.updateTemperature(ro, 0)
+                    else:
+                        pass
+                        #self.updateTemperature(ro, 0.5)
+                else:
+                    if order[ro+1]==order[ro+1]:
+                        pass
+                        #self.updateTemperature(ro, 0.5)
+                    else:
+                        self.updateTemperature(ro, 1.0)
+                
 
         return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)
 
