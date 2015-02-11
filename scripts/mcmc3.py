@@ -483,18 +483,10 @@ class MC3(object):
                 if random()<0.05:
                     print order
                 ro=randint(0,self.no_chains-1)
-                if order[ro]==ro:
-                    if order[ro+1]==order[ro+1]:
-                        self.updateTemperature(ro, 0)
-                    else:
-                        pass
-                        #self.updateTemperature(ro, 0.5)
-                else:
-                    if order[ro+1]==order[ro+1]:
-                        pass
-                        #self.updateTemperature(ro, 0.5)
-                    else:
-                        self.updateTemperature(ro, 1.0)
+                if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
+                    self.updateTemperature(ro, 1.0)
+                else: #if no passage has happened we check the probability of a passage.
+                    self.updateTemperature(ro, 0)
                 
 
         return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)
