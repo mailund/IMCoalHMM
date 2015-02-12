@@ -333,13 +333,8 @@ recombination rate."""
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
     elif options.mcg and not options.mc3_mcg_setup:
         mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
-    elif options.mc3_mcg_setup:
-        no_chains=options.parallels
-        adapts=[] #we have to make a list of adaptors
-        for _ in range(no_chains):
-            adapts.append(deepcopy(adap))
     elif not options.startWithGuess:
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap)
     else:
         thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap,startVal=thetaGuess)

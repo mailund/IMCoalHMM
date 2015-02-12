@@ -407,6 +407,7 @@ class MC3(object):
         print self.temperature_scale
         self.count=1
         self.alpha=0.5
+        self.noSwitchInRow=0
         self.orgChains=self.no_chains
         
         #this is for storage of the nonswap-adaption parameters
@@ -480,9 +481,12 @@ class MC3(object):
             if i==0:
                 print self.temperature_scale
             if self.sort or self.flip_suggestions>1:
-                if random()<0.05:
-                    print order
                 ro=randint(0,self.no_chains-1)
+                if order==range(self.no_chains):
+                    self.noSwitchInRow+=1
+                else:
+                    print str(self.noSwitchInRow)+" ids and now "+ str(order)+ ", ro="+str(order[ro:(ro+2)])
+                    self.noSwitchInRow=0
                 if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
                     self.updateTemperature(ro, 1.0)
                 else: #if no passage has happened we check the probability of a passage.

@@ -78,7 +78,7 @@ class AM4_scaling(object):
                 self.second = normal(loc=self.first, scale=sqrt(self.theta*self.thetaIndependent)*0.1*array(map(sqrt, diagonal(self.sigma))), size=len(self.first))
                 self.adap=1
             else:
-                self.second = multivariate_normal(self.first, 0.1*self.theta*self.thetaDependent*self.sigma)
+                self.second = multivariate_normal(self.first, 0.01*self.theta*self.thetaDependent*self.sigma)
                 self.adap=0
         else:
             self.second=[(f+a*sqrt(self.theta)*sqrt(self.thetaIdentical)) for f,a in zip(self.first,adds)]
