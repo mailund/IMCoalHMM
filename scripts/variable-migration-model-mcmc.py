@@ -310,6 +310,11 @@ recombination rate."""
     else:
         adap=None
 
+    if options.startWithGuess:
+        startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
+    else:
+        startVal=None
+
     if options.mc3 or options.mc3_mcg_setup:
         if options.mc3_mcg_setup and options.parallels>0:
             if not sum(options.mc3_mcg_setup)==options.parallels:
@@ -326,18 +331,17 @@ recombination rate."""
         if options.adap>0:
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains, chain_structure=chain_structure, thinning=options.thinning, switching=1, transferminator=adapts, 
-                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,startVal=startVal)
         else:
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains,chain_structure=chain_structure, thinning=options.thinning, switching=1, #transferminator=adapts, 
-                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1)     
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,startVal=startVal)     
     elif options.mcg and not options.mc3_mcg_setup:
-        mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap)
+        mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap, startVal=startVal)
     elif not options.startWithGuess:
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, startVal=startVal)
     else:
-        thetaGuess=[init_coal]*8+[init_mig]*8+[init_recomb]
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap,startVal=thetaGuess)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap, startVal=startVal)
 
     
     print "before starting to simulate"
@@ -357,7 +361,10 @@ recombination rate."""
                 all=mcmc.sample()
                 for i in range(no_chains):
                     params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
-                    outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
+                    if options.adap==3:
+                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam[:3])))+'\t')
+                    else:
+                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
                 print >> outfile,str(all[-1])
             else:
                 params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump= mcmc.sample()
@@ -369,6 +376,7 @@ recombination rate."""
                     for i in range(3):
                         print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])
                         print >> outfile, printPyZipHMM(mcmc.current_initialDistribution[i])
+        
         if not options.record_steps and not options.mc3 and not options.mcg and not options.mc3_mcg_setup:
             for i in range(3):
                 print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix[i])

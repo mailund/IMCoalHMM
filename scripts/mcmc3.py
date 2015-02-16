@@ -158,9 +158,6 @@ class MCMC(object):
         return sum([(i-j)**2 for i,j in zip(a,b)])
             
             
-            
-        
-            
     def ScewStep(self, temperature=1.0):
         self.transform.first_transform(self.current_theta)
         new_thetaTmp = array([self.priors[i].log_proposal_step() for i in xrange(len(self.current_theta))])
@@ -382,7 +379,7 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, log_likelihood, accept_jump, flip_suggestions, sort, chain_structure, thinning, switching, temperature_scale=1, **kwargs):
+    def __init__(self, priors, log_likelihood, accept_jump, flip_suggestions, sort, chain_structure, thinning, switching, temperature_scale=1,fixedMax=None, **kwargs):
         no_chains=len(chain_structure)
         if not "transferminator" in kwargs:
             kwargs["transferminator"]=[None]*no_chains
@@ -404,7 +401,12 @@ class MC3(object):
                                        switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x) for n,x in enumerate(chain_structure)]
         self.thinning = thinning
         self.switching = switching
-        self.temperature_scale = [1.0+temperature_scale*n for n in range(no_chains)]
+        if fixedMax is None:
+            self.temperature_scale = [1.0+temperature_scale*n for n in range(no_chains)]
+            self.fixedMax=False
+        else:
+            self.initializeFixedMax(fixedMax)
+            self.fixedMax=True
         print self.temperature_scale
         self.count=1
         self.alpha=0.5
@@ -436,6 +438,12 @@ class MC3(object):
         if self.temperature_scale[self.no_chains-1]>2000:
             self.no_chains-=1
             print "\n"+"Dropped temperature "+str(self.temperature_scale[self.no_chains])+" for good." +"\n"
+    
+#     def initializeFixedMax(self):
+#         
+#             
+#     def uniformlyUpdateTemperature(self, index,acceptProb):
+        
     
     def sample(self):
         """Sample after running "thinning" steps with a proposal for switching chains at each
