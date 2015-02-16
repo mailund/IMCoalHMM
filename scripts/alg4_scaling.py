@@ -45,21 +45,21 @@ class AM4_scaling(object):
     
     def setAdapParam(self, val):
         if len(val)>1:
-            self.sigma=val[1][0]
+            self.sigma=val[1][3]
             self.theta=val[0][0]
-            self.thetaDependent=val[1][1]
-            self.thetaIndependent=val[1][2]
-            self.thetaIdentical=val[1][3]
+            self.thetaDependent=val[1][0]
+            self.thetaIndependent=val[1][1]
+            self.thetaIdentical=val[1][2]
         else:
             self.theta=val[0]
         
     def getAdapParam(self,all=False):
         if all:
-            return [self.theta], [self.sigma, self.thetaDependent, self.thetaIndependent,self.thetaIdentical]
+            return [self.theta], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma]
         return [self.theta]
     
     def getStandardizedLogJumps(self):
-        return None #this vector is not well defined here/useful here. 
+        return self.jumps #this vector is not well defined here/useful here. 
     
     def first_transform(self, params): 
         '''

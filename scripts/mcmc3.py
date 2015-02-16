@@ -428,7 +428,6 @@ class MC3(object):
         self.temperature_scale=[1.0]*self.no_chains
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]
-        self.count+=1    
         #The very hot chains produces very unlikely events, which 
         #sometimes will throw an AssertionError deeper into the code. 
         #The assertion will produce a warning and the step ignored, but
@@ -481,16 +480,16 @@ class MC3(object):
             if i==0:
                 print self.temperature_scale
             if self.sort or self.flip_suggestions>1:
-                ro=randint(0,self.no_chains-1)
                 if order==range(self.no_chains):
                     self.noSwitchInRow+=1
                 else:
-                    print str(self.noSwitchInRow)+" ids and now "+ str(order)+ ", ro="+str(order[ro:(ro+2)])
-                    self.noSwitchInRow=0
-                if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
-                    self.updateTemperature(ro, 1.0)
-                else: #if no passage has happened we check the probability of a passage.
-                    self.updateTemperature(ro, 0)
+                    print str(self.noSwitchInRow)+" ids and now "+ str(order)
+                self.count+=1    
+                for ro in range(self.no_chains-1):
+                    if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
+                        self.updateTemperature(ro, 1.0)
+                    else: #if no passage has happened we check the probability of a passage.
+                        self.updateTemperature(ro, 0)
                 
 
         return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)
