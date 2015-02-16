@@ -139,6 +139,6 @@ class AM4_scaling(object):
             print self.theta
         
         
-        return [self.theta],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical]
+        return [self.theta],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma]
         
         

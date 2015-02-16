@@ -588,7 +588,7 @@ class MCG(object):
         print PathChoice
         #we translate so we always start at 0.
         
-        
+
         if PathChoice<self.probs:
             self.current_theta=thetas[PathChoice]
             self.current_posterior=posteriors[PathChoice]
@@ -609,7 +609,11 @@ class MCG(object):
             self.transferminator.jumps=standardizedLogJumps[max_index]
             self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,1-stationary[-1])
         else:
-            self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,averageAlpha)
+            self.transferminator.first=thetas[self.probs]
+            self.transferminator.second=thetas[PathChoice]
+            print averageAlpha
+            print self.transferminator.getAdapParam(all=True)
+            self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs, averageAlpha)
         print "adjusted global scale"
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
                 int(PathChoice<self.probs), int(PathChoice==self.probs),self.glob_scale[0],self.glob_scale[1],0
