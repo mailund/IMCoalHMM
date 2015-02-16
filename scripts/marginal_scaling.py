@@ -44,6 +44,9 @@ class MarginalScaler(object):
     
     def getStandardizedLogJumps(self):
         return self.jumps
+
+    def stationaryPossible(self):
+        return True
         
     
     def first_transform(self, params):

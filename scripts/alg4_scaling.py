@@ -59,13 +59,16 @@ class AM4_scaling(object):
         return [self.theta]
     
     def getStandardizedLogJumps(self):
-        return self.jumps #this vector is not well defined here/useful here. 
+        return [0] #this vector is not well defined here/useful here. 
     
     def first_transform(self, params): 
         '''
         We record the mean. 
         '''
         self.first=map(log,params)
+        
+    def stationaryPossible(self):
+        return False
     
      
     def after_transform(self, adds):   

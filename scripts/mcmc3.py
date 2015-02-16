@@ -230,6 +230,7 @@ class MCMC(object):
         _, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior=new_log_likelihood+new_prior
         jumps=array(self.transform.getStandardizedLogJumps())
+        print jumps
         return new_theta,new_prior,new_log_likelihood, new_posterior,jumps,0, "doesnt matter",'doesnt matter',0
     
     def __call__(self):
@@ -484,6 +485,7 @@ class MC3(object):
                     self.noSwitchInRow+=1
                 else:
                     print str(self.noSwitchInRow)+" ids and now "+ str(order)
+                    self.noSwitchInRow=0
                 self.count+=1    
                 for ro in range(self.no_chains-1):
                     if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
@@ -501,7 +503,8 @@ class MC3(object):
     
 class MCG(object):
     
-    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False):
+    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, mcg_flip_suggestions=40):
+        self.mcg_flip_suggestions=mcg_flip_suggestions
         self.priors = priors
         self.thinning = thinning  #thinning is obsolete
         if startVal is None:
@@ -536,9 +539,10 @@ class MCG(object):
             posteriors[chain_no]=self.chains[chain_no].current_posterior
             thetas[chain_no]=self.chains[chain_no].current_theta
             
-            ###This is not the best notation. accepts is
-            #not useful in MCG and we need the standardized log jumps anyway.
-            standardizedLogJumps[chain_no]=self.chains[chain_no].accepts.tolist()
+            ###This is not the best notation. accepts variable doesn't contain accept probability
+            #accept variable contains the logjumps
+            if self.transferminator.stationaryPossible():
+                standardizedLogJumps[chain_no]=self.chains[chain_no].accepts.tolist()
         if self.current_posterior is None: #in the beginnning we just assign this to the most probable beginning state
             max_index, max_value = max(enumerate(posteriors), key=operator.itemgetter(1))
             self.current_posterior=max_value
@@ -548,25 +552,42 @@ class MCG(object):
         thetas.append(self.current_theta)
         pies=[0]*(self.probs+1)
         for i in range(self.probs):
-            pies[i]=exp(posteriors[i]-max(posteriors))
-        pies[self.probs]=exp(self.current_posterior-max(posteriors))
+            pies[i]=exp(posteriors[i]/temperature-max(posteriors)/temperature)
+        pies[self.probs]=exp(self.current_posterior/temperature-max(posteriors)/temperature)
         
-        #We now calculate K, so that we make a good suggestion.
-        Ks=self.pool.map(Kcalculator, zip(*(range(self.probs+1),[standardizedLogJumps]*(self.probs+1))))
-        stationary=[k*p for k,p in zip(Ks,pies)]
-        if sum(stationary)==0:
-            print "The sum of all choices was 0."
-            print "Ks="+str(Ks)
-            print "pies="+str(pies)
-            return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
-                0, 1,self.glob_scale[0],self.glob_scale[1],0
-        stationary=[s/sum(stationary) for s in stationary]
+        print "made pies"
         
-        #we now make a PathChoice with probabilities just calculated
-        PathChoice=random_distr(zip(range(self.probs+1),stationary))
-        
+        #We now calculate K if the transformation method allows for it, so that we make a good suggestion.
+        if self.transferminator.stationaryPossible(): 
+            Ks=self.pool.map(Kcalculator, zip(*(range(self.probs+1),[standardizedLogJumps]*(self.probs+1))))
+            stationary=[k*p for k,p in zip(Ks,pies)]
+            if sum(stationary)==0:
+                print "The sum of all choices was 0."
+                print "Ks="+str(Ks)
+                print "pies="+str(pies)
+                return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
+                    0, 1,self.glob_scale[0],self.glob_scale[1],0
+            stationary=[s/sum(stationary) for s in stationary]
+            PathChoice=random_distr(zip(range(self.probs+1),stationary))
+        else:
+            currentPath=self.probs #this is the index of the previous state.
+            averageAlpha=0
+            for i in range(self.mcg_flip_suggestions):
+                suggst=currentPath
+                while suggst==currentPath:
+                    suggst=randint(0,self.probs)
+                if posteriors[suggst]>posteriors[currentPath]:
+                    alpha=1.0
+                else:
+                    alpha=exp(posteriors[suggst]/temperature-posteriors[currentPath]/temperature)
+                if random()< alpha:
+                    currentPath=suggst
+                averageAlpha+=alpha
+            averageAlpha/=self.probs
+            PathChoice=currentPath
+        print PathChoice
         #we translate so we always start at 0.
-        self.transferminator.first=[0]*len(self.current_theta)
+        
         
         if PathChoice<self.probs:
             self.current_theta=thetas[PathChoice]
@@ -575,13 +596,21 @@ class MCG(object):
             self.current_prior=self.chains[PathChoice].current_prior
         
         #some adaption schemes uses the before and after step, and in case we use the one with the highest probability which is not the previous state.
-        max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
-        self.transferminator.jumps=standardizedLogJumps[max_index]
+        print "before finding whichmax"
         
+        
+        print "after finding whichmax"
         #making the adaption
         self.transferminator.setAdapParam(self.glob_scale)
-        self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,1-stationary[-1])
-        
+        print "set gloabl scal"
+        if self.transferminator.stationaryPossible():
+            self.transferminator.first=[0]*len(self.current_theta)
+            max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
+            self.transferminator.jumps=standardizedLogJumps[max_index]
+            self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,1-stationary[-1])
+        else:
+            self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,averageAlpha)
+        print "adjusted global scale"
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
                 int(PathChoice<self.probs), int(PathChoice==self.probs),self.glob_scale[0],self.glob_scale[1],0
     

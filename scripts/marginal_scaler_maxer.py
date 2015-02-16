@@ -64,7 +64,8 @@ class MarginalScalerMax(object):
         self.jumps=adds
         return [exp(s) for s in self.second]
 
-    
+    def stationaryPossible(self):
+        return True
         
     def update_alpha(self, accept,alphaXY):
         '''
