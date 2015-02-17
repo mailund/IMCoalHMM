@@ -227,7 +227,6 @@ class MCMC(object):
         _, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior=new_log_likelihood+new_prior
         jumps=array(self.transform.getStandardizedLogJumps())
-        print jumps
         return new_theta,new_prior,new_log_likelihood, new_posterior,jumps,0, "doesnt matter",'doesnt matter',0
     
     def __call__(self):
