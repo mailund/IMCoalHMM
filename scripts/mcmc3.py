@@ -563,7 +563,6 @@ class MCG(object):
             pies[i]=exp(posteriors[i]/temperature-max(posteriors)/temperature)
         pies[self.probs]=exp(self.current_posterior/temperature-max(posteriors)/temperature)
         
-        print "made pies"
         
         #We now calculate K if the transformation method allows for it, so that we make a good suggestion.
         if self.transferminator.stationaryPossible(): 
@@ -593,7 +592,6 @@ class MCG(object):
                 averageAlpha+=alpha
             averageAlpha/=self.probs
             PathChoice=currentPath
-        print PathChoice
         #we translate so we always start at 0.
         
 
@@ -603,14 +601,9 @@ class MCG(object):
             self.current_likelihood=self.chains[PathChoice].current_likelihood
             self.current_prior=self.chains[PathChoice].current_prior
         
-        #some adaption schemes uses the before and after step, and in case we use the one with the highest probability which is not the previous state.
-        print "before finding whichmax"
-        
-        
-        print "after finding whichmax"
+
         #making the adaption
         self.transferminator.setAdapParam(self.glob_scale)
-        print "set gloabl scal"
         if self.transferminator.stationaryPossible():
             self.transferminator.first=[0]*len(self.current_theta)
             max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
@@ -619,10 +612,7 @@ class MCG(object):
         else:
             self.transferminator.first=thetas[self.probs]
             self.transferminator.second=thetas[PathChoice]
-            print averageAlpha
-            print self.transferminator.getAdapParam(all=True)
             self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs, averageAlpha)
-        print "adjusted global scale"
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
                 int(PathChoice<self.probs), int(PathChoice==self.probs),self.glob_scale[0],self.glob_scale[1],0
     
