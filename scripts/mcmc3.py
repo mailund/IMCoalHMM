@@ -479,7 +479,8 @@ class MC3(object):
                     acceptProb=exp(new - current)
                 if random()<acceptProb:
                     self.chains[i], self.chains[j] = self.chains[j], self.chains[i]
-                    order[i],order[j]=order[j],order[i] #checking if a change has been made
+                    if self.sort:
+                        order[i],order[j]=order[j],order[i] #checking if a change has been made
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
                 if k==0 and not self.sort: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
                     self.updateTemperature(i,acceptProb)
@@ -487,7 +488,7 @@ class MC3(object):
                         print acceptProb
             if i==0:
                 print self.temperature_scale
-            if self.sort or self.flip_suggestions>1:
+            if self.sort:
                 if order==range(self.no_chains):
                     self.noSwitchInRow+=1
                 else:
