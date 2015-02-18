@@ -403,9 +403,11 @@ class MC3(object):
         if fixedMax is None:
             self.temperature_scale = [1.0+temperature_scale*n for n in range(no_chains)]
             self.fixedMax=False
+            self.tempUpdater=self.updateTemperature
         else:
             self.initializeFixedMax(fixedMax)
-            self.fixedMax=True
+            self.fixedMax=fixedMax
+            self.tempUpdater=self.uniformlyUpdateTemperature
         print self.temperature_scale
         self.count=1
         self.alpha=0.5
@@ -438,10 +440,24 @@ class MC3(object):
             self.no_chains-=1
             print "\n"+"Dropped temperature "+str(self.temperature_scale[self.no_chains])+" for good." +"\n"
     
-#     def initializeFixedMax(self):
-#         
-#             
-#     def uniformlyUpdateTemperature(self, index,acceptProb):
+    def initializeFixedMax(self,fixedMax):
+        #choosing a geometric as prior.
+        geom_param=fixedMax**(1.0/(self.no_chains-1))
+        print geom_param
+        self.temperature_scale=[geom_param**i for i in range(self.no_chains)]
+        self.sumAll=1
+             
+    def uniformlyUpdateTemperature(self, index,acceptProb):
+        gamma=0.9/self.count**self.alpha
+        tempChange = exp(gamma*(acceptProb-float(self.sumAll)/self.count))
+        diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
+        diffs[index]*=tempChange
+        normalizer=self.fixedMax/(sum(diffs)+1.0)
+        self.temperature_scale=[1.0]*self.no_chains
+        for n in range(self.no_chains-1):
+            self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]*normalizer
+        
+        print float(self.sumAll)/self.count
         
     
     def sample(self):
@@ -483,7 +499,8 @@ class MC3(object):
                         order[i],order[j]=order[j],order[i] #checking if a change has been made
                     flips+=str(index)+":"+str(i)+"-"+str(j)+","
                 if k==0 and not self.sort: #when you accept a transition that has probability less than 1, the backswitch has probability more than one. Therefore, we do this in order not to explode the temperature adaption.
-                    self.updateTemperature(i,acceptProb)
+                    self.count+=1
+                    self.tempUpdater(i,acceptProb)
                     if i==0:
                         print acceptProb
             if i==0:
@@ -494,12 +511,12 @@ class MC3(object):
                 else:
                     print str(self.noSwitchInRow)+" ids and now "+ str(order)
                     self.noSwitchInRow=0
-                self.count+=1    
+                self.count+=1   
                 for ro in range(self.no_chains-1):
                     if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
-                        self.updateTemperature(ro, 1.0)
+                        self.tempUpdater(ro, 1.0)
                     else: #if no passage has happened we check the probability of a passage.
-                        self.updateTemperature(ro, 0)
+                        self.tempUpdater(ro, 0)
                 
 
         return tuple( self.chainValues(t) for t in range(self.orgChains))+(flips,)

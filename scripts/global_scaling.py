@@ -11,7 +11,10 @@ class Global_scaling(object):
     classdocs
     '''
 
-
+    NONSWAP_PARAM=("theta",)
+    SWAP_PARAM=()
+    
+    
     def __init__(self,theta=1.0, params=[0.5,10], alphaDesired=0.234):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 

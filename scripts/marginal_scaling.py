@@ -13,7 +13,9 @@ class MarginalScaler(object):
     '''
     classdocs
     '''
-
+    
+    NONSWAP_PARAM=("theta",)
+    SWAP_PARAM=(0) #code for that the number of extra adaption parameters equals the number of parameters in model.
 
     def __init__(self,startVal=[0.1]*17, params=[0.5,10], alphaDesired=0.234):
         '''

@@ -14,7 +14,9 @@ class AM4_scaling(object):
     '''
     classdocs
     '''
-
+    
+    NONSWAP_PARAM=("theta",)
+    SWAP_PARAM=("thetaD","thetaID","thetaIID")
 
     def __init__(self,startVal=1.0, params=[0.5,1,100,(0.2,0.0),0], sigmaStart=None, alphaDesired=0.234):
         '''
@@ -103,7 +105,7 @@ class AM4_scaling(object):
         self.sigma += gamma*(outer(x-self.mean,x-self.mean)-self.sigma)
         self.mean += gamma*(x-self.mean)
         if self.adap==self.major:
-            multip=exp(gamma*(alphaXY-self.alphaDesired))
+            multip=max(0.001,exp(gamma*(alphaXY-self.alphaDesired))) #limiting, so it wont be too close to 0.
             self.theta *= multip
             if self.major==0:
                 self.thetaIndependent/=multip
@@ -127,9 +129,11 @@ class AM4_scaling(object):
                 pass
             elif self.major==0:
                 normalizer=sum(diagonal(self.sigma))/len(self.first)
+                print "normalizer="+str(normalizer)
                 self.theta=self.thetaIdentical/normalizer
             elif self.major==1:
                 normalizer=real(sum(eig(self.sigma)[0]))/len(self.first)
+                print "normalizer="+str(normalizer)
                 self.theta=self.thetaIdentical/normalizer
             
             
