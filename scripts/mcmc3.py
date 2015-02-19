@@ -78,7 +78,7 @@ class ExpLogNormPrior(object):
 
 
 class MCMC(object):
-    def __init__(self, priors, log_likelihood, thinning, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False):
+    def __init__(self, priors, log_likelihood, thinning, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, printFrequency=0):
         self.priors = priors
         self.log_likelihood = log_likelihood
         self.thinning = thinning
@@ -107,6 +107,8 @@ class MCMC(object):
         self.latest_suggestedTheta=[0]*len(self.current_theta)
         self.swapAdapParam=[1]
         self.nonSwapAdapParam=[1]
+        self.steps=0
+        self.printFrequency=printFrequency
             
 
     def log_prior(self, theta):
@@ -247,6 +249,22 @@ class MCMC(object):
         return self.acceptedSwitches, self.rejectedSwitches
 
     def sample(self, temperature=1.0):
+        if self.printFrequency:
+            if self.steps%self.printFrequency==0:
+                if not isinstance(temperature,float):
+                    tempt=temperature[0]
+                else:
+                    tempt=temperature
+                if tempt==1.0:
+                    print self.current_transitionMatrix
+                    print "\n" + "----------temperature=1 transitionMatrix----------"
+                    for mat in self.current_transitionMatrix:
+                        print printPyZipHMM(mat)
+                    print "\n" + "----------temperature=1 initialDistribution----------"
+                    for mat in self.current_initialDistribution:
+                        print printPyZipHMM(mat)
+                    print "\n"
+        self.steps+=1
         if self.multiple_try:
             bundleOfInfo=temperature
             if self.transform is not None:
@@ -267,6 +285,7 @@ class MCMC(object):
                 self.ScewStep(temperature)
             else:
                 self.step(temperature)
+        
         return self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.nonSwapAdapParam,self.swapAdapParam, self.latest_squaredJumpSize
     
     
@@ -317,6 +336,7 @@ class RemoteMCMC(object):
         self.startVal=kwargs.get("startVal",None)
         self.multiple_try=kwargs.get("multiple_try",False)
         self.mc3_of_mcgs=kwargs.get("mc3_of_mcgs", 1)
+        self.printFrequency=kwargs.get("printFrequency", 0)
         print self.startVal
         self.priors = priors
         self.log_likelihood=likelihood
@@ -332,12 +352,12 @@ class RemoteMCMC(object):
             self.chain=MCG(priors=self.priors, probs=self.mc3_of_mcgs, log_likelihood=self.log_likelihood, thinning=self.thinning,
                            transferminator=self.transferminator, mixtureWithScew=self.mixtureWithScew,
                            mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
-                           startVal=self.startVal, multiple_try=self.multiple_try)
+                           startVal=self.startVal, multiple_try=self.multiple_try, printFrequency=self.printFrequency)
         else:
             self.chain = MCMC(priors=self.priors, log_likelihood=self.log_likelihood, thinning=self.thinning,
                            transferminator=self.transferminator, mixtureWithScew=self.mixtureWithScew,
                            mixtureWithSwitch=self.mixtureWithSwitch, switcher=self.switcher,
-                           startVal=self.startVal, multiple_try=self.multiple_try)
+                           startVal=self.startVal, multiple_try=self.multiple_try, printFrequency=self.printFrequency)
 
     def __call__(self):
         print "called remote mcmc"
@@ -390,6 +410,8 @@ class MC3(object):
             kwargs["switcher"]=None
         if not "startVal" in kwargs:
             kwargs["startVal"]=None
+        if not "printFrequency" in kwargs:
+            kwargs["printFrequency"]=0
         self.no_chains = no_chains
         self.accept_jump=accept_jump
         self.flip_suggestions=flip_suggestions
@@ -397,7 +419,7 @@ class MC3(object):
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, log_likelihood, switching, transferminator=kwargs["transferminator"][n], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
-                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x) for n,x in enumerate(chain_structure)]
+                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x,printFrequency=kwargs["printFrequency"]) for n,x in enumerate(chain_structure)]
         self.thinning = thinning
         self.switching = switching
         if fixedMax is None:
@@ -436,7 +458,7 @@ class MC3(object):
         #sometimes will throw an AssertionError deeper into the code. 
         #The assertion will produce a warning and the step ignored, but
         #we don't want too many of those in order to keep ergodicity. 
-        if self.temperature_scale[self.no_chains-1]>2000:
+        if self.temperature_scale[self.no_chains-1]>2000 and self.no_chains-2==index:
             self.no_chains-=1
             print "\n"+"Dropped temperature "+str(self.temperature_scale[self.no_chains])+" for good." +"\n"
     
@@ -528,7 +550,7 @@ class MC3(object):
     
 class MCG(object):
     
-    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, mcg_flip_suggestions=40):
+    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, mcg_flip_suggestions=40, printFrequency=0):
         self.mcg_flip_suggestions=mcg_flip_suggestions
         self.priors = priors
         self.thinning = thinning  #thinning is obsolete
@@ -537,7 +559,7 @@ class MCG(object):
         else:
             self.current_theta=array(startVal)
         self.transferminator=transferminator
-        self.chains = [RemoteMCMCProxy(priors, log_likelihood,1, transferminator=transferminator, startVal=self.current_theta,multiple_try=True) for _ in xrange(probs)]
+        self.chains = [RemoteMCMCProxy(priors, log_likelihood,1, transferminator=transferminator, startVal=self.current_theta,multiple_try=True, printFrequency=printFrequency) for _ in xrange(probs)]
         self.temp=1.0
         self.probs=probs #number of proposals.
         self.glob_scale=transferminator.getAdapParam(all=True)
@@ -607,8 +629,9 @@ class MCG(object):
                 if random()< alpha:
                     currentPath=suggst
                 averageAlpha+=alpha
-            averageAlpha/=self.probs
+            averageAlpha/=self.mcg_flip_suggestions
             PathChoice=currentPath
+        print "averageAlpha="+str(averageAlpha)
         #we translate so we always start at 0.
         
 
@@ -629,7 +652,11 @@ class MCG(object):
         else:
             self.transferminator.first=thetas[self.probs]
             self.transferminator.second=thetas[PathChoice]
+            print "glob_scale after="+str((self.glob_scale[0],self.glob_scale[1][:3]))
+            print "steps="+str(self.transferminator.count)+"/"+str(self.transferminator.timeTillStart)
+            print "proportions="+str(self.transferminator.proportions)
             self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs, averageAlpha)
+            print "glob_scale after="+str((self.glob_scale[0],self.glob_scale[1][:3]))
         return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
                 int(PathChoice<self.probs), int(PathChoice==self.probs),self.glob_scale[0],self.glob_scale[1],0
     

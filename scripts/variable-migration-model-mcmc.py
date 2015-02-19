@@ -88,12 +88,14 @@ recombination rate."""
     parser.add_argument('--mc3_flip_suggestions', type=int, default=1, help='The number of times after each step a flip is suggested. It has to be at least one, default is one.')
     parser.add_argument('--mc3_sort_chains', action='store_true', default=False, help='If announced, this will sort each chain according to its posterior value, making it closer to the stationary')
     parser.add_argument('--mc3_mcg_setup', nargs='+', type=int, help='This is a list of sizes of mcgs. Between the mcgs mc3 is made. Overwrites mc3 and mcg. The sum has to equal the number ')
+    parser.add_argument('--mc3_fixed_temp_max', default=None, type=float, help='If applied, this will make the temperature gaps equally crossable and the maximum is said parameter.')
     
     parser.add_argument('--treefile', type=str, help='File containing newick formats of the trees to use as input')
     
     parser.add_argument("--sd_multiplyer", type=float, default=0.2, help="The proportion each proposal suggest changes of all its variance(defined by the transformToI and transformFromI)")
     #parser.add_argument('--change_often', nargs='+', default=[], help='put here indices of the variables that should be changed more often')
     parser.add_argument('--switch', default=0, type=int, help='this number is how many times between two switchsteps')
+    
     
     parser.add_argument('--adap', default=0, type=int, help='this number tells what adaption to use')
     parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
@@ -106,6 +108,7 @@ recombination rate."""
     parser.add_argument('--adap3_from_identical', default=0.2, type=float, help='How big proportion of the time after correlates_begin will we suggest independents with same variance.')
     parser.add_argument('--adap3_from_independent', default=0, type=float, help='Will we not use the correlates. If stated the covariance matrix will be estimated without off-diagonal entries.')
     
+    parser.add_argument('--printPyMatrices', default=0, type=int, help='How many times should transitionmatrix and initialdistribution be printed for the chain(s) with the correct temperature')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
@@ -271,7 +274,7 @@ recombination rate."""
         a1=log_likelihood_11(parameters)
         a2=log_likelihood_12(parameters)
         a3=log_likelihood_22(parameters)
-        return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
+        return ((a1[0][0],a2[0][0],a3[0][0]), (a1[1][0],a2[1][0],a3[1][0]), a1[2]+a2[2]+a3[2])
     
     def likelihoodWrapper():
         if options.use_trees_as_data:
@@ -292,7 +295,7 @@ recombination rate."""
             a1=log_likelihood_11(parameters)
             a2=log_likelihood_12(parameters)
             a3=log_likelihood_22(parameters)
-            return ((a1[0],a2[0],a3[0]), (a1[1],a2[1],a3[1]), a1[2]+a2[2]+a3[2])
+            return ((a1[0][0],a2[0][0],a3[0][0]), (a1[1][0],a2[1][0],a3[1][0]), a1[2]+a2[2]+a3[2])
         return log_likelihood
     
 
@@ -309,12 +312,25 @@ recombination rate."""
         adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap4_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept, targetProportion=options.adap4_proportion))
     else:
         adap=None
+    
+    namesAndAdap=names
+    namesAndAdap.extend(['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects'])
+    if options.adap>0: #change names
+        namesAndAdap.extend(adap.NONSWAP_PARAM)
+        for j in adap.SWAP_PARAM:
+            if j==0:
+                namesAndAdap.extend(   (i+"adap" for i in names)    )
+            else:
+                namesAndAdap.append(j) 
+    #namesAndAdap.append('latestJump')          
 
+    printFrequency=options.samples/options.printPyMatrices
+    print printFrequency
     if options.startWithGuess:
         startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
     else:
         startVal=None
-
+    print "fixedMax="+str(options.mc3_fixed_temp_max)
     if options.mc3 or options.mc3_mcg_setup:
         if options.mc3_mcg_setup and options.parallels>0:
             if not sum(options.mc3_mcg_setup)==options.parallels:
@@ -331,26 +347,27 @@ recombination rate."""
         if options.adap>0:
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains, chain_structure=chain_structure, thinning=options.thinning, switching=1, transferminator=adapts, 
-                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,startVal=startVal)
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,
+                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency)
         else:
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains,chain_structure=chain_structure, thinning=options.thinning, switching=1, #transferminator=adapts, 
-                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,startVal=startVal)     
+                mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,
+                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency)     
     elif options.mcg and not options.mc3_mcg_setup:
-        mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap, startVal=startVal)
+        mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap, startVal=startVal, printFrequency=printFrequency)
     elif not options.startWithGuess:
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, startVal=startVal)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, startVal=startVal, printFrequency=printFrequency)
     else:
-        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap, startVal=startVal)
+        mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap, startVal=startVal, printFrequency=printFrequency)
 
     
     print "before starting to simulate"
     with open(options.outfile, 'w') as outfile:
         if not options.mc3:
-            print >> outfile, '\t'.join(names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'adapParam','latestjump'])
+            print >> outfile, '\t'.join(namesAndAdap)
         else:
-            basenames=names+['log.prior', 'log.likelihood', 'log.posterior', 'accepts', 'rejects', 'theta','latestjump']
-            print >> outfile, '\t'.join(basenames*options.parallels)+'\t'+'flips'
+            print >> outfile, '\t'.join(namesAndAdap*no_chains)+'\t'+'flips'
         for j in xrange(options.samples):
             print "sample "+str(j)+" time: " + str(datetime.now())
             if options.record_steps:

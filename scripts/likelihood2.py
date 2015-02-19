@@ -31,7 +31,7 @@ class Likelihood(object):
 
         init_probs, trans_probs, emission_probs,_ = self.model.build_hidden_markov_model(*parameters) #the ignore-part is not to unpack too many values
         bds=sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders) 
-        ans=(trans_probs,init_probs,bds)
+        ans=((trans_probs,),(init_probs,),bds)
         return ans
 
 
