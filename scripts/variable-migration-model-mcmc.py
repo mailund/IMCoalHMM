@@ -323,8 +323,10 @@ recombination rate."""
             else:
                 namesAndAdap.append(j) 
     #namesAndAdap.append('latestJump')          
-
-    printFrequency=options.samples/options.printPyMatrices
+    if options.printPyMatrices>0:
+        printFrequency=options.samples/options.printPyMatrices
+    else:
+        printFrequency=0
     print printFrequency
     if options.startWithGuess:
         startVal=[init_coal]*8+[init_mig]*8+[init_recomb]

@@ -6,7 +6,7 @@ Created on Oct 27, 2014
 
 from math import log, exp, sqrt
 from numpy.random import multivariate_normal, random, normal
-from numpy import array,matrix,identity, outer, diagonal,real
+from numpy import array,matrix,identity, outer, diagonal,real,cov
 from numpy.linalg import eig
 from random import randrange
 
@@ -39,6 +39,7 @@ class AM4_scaling(object):
         self.mean=array([0]*size)
         self.alphaDesired=alphaDesired
         self.adap=2
+        self.firstValues=[]
         
         self.thetaDependent=1.0
         self.thetaIndependent=1.0
@@ -52,12 +53,15 @@ class AM4_scaling(object):
             self.thetaDependent=val[1][0]
             self.thetaIndependent=val[1][1]
             self.thetaIdentical=val[1][2]
+            self.count=val[1][4]
+            self.adap=val[1][5]
+            self.firstValues=val[1][6]
         else:
             self.theta=val[0]
         
     def getAdapParam(self,all=False):
         if all:
-            return [self.theta], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma]
+            return [self.theta], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma,self.count,self.adap, self.firstValues]
         return [self.theta]
     
     def getStandardizedLogJumps(self):
@@ -80,13 +84,21 @@ class AM4_scaling(object):
         '''
         if self.count>self.timeTillStart and random()>self.proportions[0]:
             if random()<self.proportions[1]/(1-self.proportions[0]):
+                print "count,self.theta, self.thetaID="+str((self.count,self.theta,self.thetaIndependent))
+#                 print "diagsigma="+str(diagonal(self.sigma))
                 self.second = normal(loc=self.first, scale=sqrt(self.theta*self.thetaIndependent)*0.1*array(map(sqrt, diagonal(self.sigma))), size=len(self.first))
+#                 print "expsecond="+str(map(exp,self.second))
                 self.adap=1
             else:
+                print "count,self.theta, self.thetaD="+str((self.count,self.theta,self.thetaDependent))
                 self.second = multivariate_normal(self.first, 0.01*self.theta*self.thetaDependent*self.sigma)
                 self.adap=0
         else:
+            print "count, self.theta, self.thetaIID="+str((self.count,self.theta,self.thetaIdentical))
+#             print "self.first="+str(self.first)
+#             print "adds="+str(adds)
             self.second=[(f+a*sqrt(self.theta)*sqrt(self.thetaIdentical)) for f,a in zip(self.first,adds)]
+#             print "logsecond="+str(self.second)
             self.adap=2
         return map(exp,self.second)
         
@@ -101,11 +113,18 @@ class AM4_scaling(object):
             x=self.first
         
         gamma=self.multip/self.count**self.alpha
-
-        self.sigma += gamma*(outer(x-self.mean,x-self.mean)-self.sigma)
-        self.mean += gamma*(x-self.mean)
+        if self.count>self.timeTillStart:
+            self.sigma += gamma*(outer(x-self.mean,x-self.mean)-self.sigma)
+            self.mean += gamma*(x-self.mean)
+        else:
+            self.firstValues.append(x)
+        
+        
+        
+        print "adjusting adap "+str(self.adap)+" when major="+str(self.major)
+        multip=max(0.001,exp(gamma*(alphaXY-self.alphaDesired)))#limiting, so it wont be too close to 0.
+        print "multip="+str(multip)
         if self.adap==self.major:
-            multip=max(0.001,exp(gamma*(alphaXY-self.alphaDesired))) #limiting, so it wont be too close to 0.
             self.theta *= multip
             if self.major==0:
                 self.thetaIndependent/=multip
@@ -117,24 +136,28 @@ class AM4_scaling(object):
                 self.thetaIndependent/=multip
                 self.thetaDependent/=multip
         elif self.adap==0:
-            self.thetaDependent *= exp(gamma*(alphaXY-self.alphaDesired))
+            self.thetaDependent *= multip
         elif self.adap==1:
-            self.thetaIndependent *= exp(gamma*(alphaXY-self.alphaDesired))
+            self.thetaIndependent *= multip
         elif self.adap==2:
-            self.thetaIdentical *= exp(gamma*(alphaXY-self.alphaDesired))
+            self.thetaIdentical *= multip
             
             
         if self.count==self.timeTillStart:#we try to normalize self.theta, to skip some steps
+            self.sigma=cov(map(list,zip(*self.firstValues)))
+            self.firstValues=[]
+            print self.sigma
             if self.major==2:
                 pass
             elif self.major==0:
                 normalizer=sum(diagonal(self.sigma))/len(self.first)
-                print "normalizer="+str(normalizer)
+                print "normalizerD="+str(normalizer)
                 self.theta=self.thetaIdentical/normalizer
             elif self.major==1:
                 normalizer=real(sum(eig(self.sigma)[0]))/len(self.first)
-                print "normalizer="+str(normalizer)
+                print "normalizerID="+str(normalizer)
                 self.theta=self.thetaIdentical/normalizer
+            
             
             
         self.count += 1
@@ -143,6 +166,6 @@ class AM4_scaling(object):
             print self.theta
         
         
-        return [self.theta],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma]
+        return [self.theta],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma, self.count,self.adap,self.firstValues]
         
         
