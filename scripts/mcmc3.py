@@ -432,6 +432,7 @@ class MC3(object):
             self.tempUpdater=self.uniformlyUpdateTemperature
         print self.temperature_scale
         self.count=1
+        self.countTotal=1
         self.alpha=0.5
         self.noSwitchInRow=0
         self.orgChains=self.no_chains
@@ -470,8 +471,10 @@ class MC3(object):
         self.sumAll=1
              
     def uniformlyUpdateTemperature(self, index,acceptProb):
+        self.sumAll+=acceptProb
+        self.countTotal+=1
         gamma=0.9/self.count**self.alpha
-        tempChange = exp(gamma*(acceptProb-float(self.sumAll)/self.count))
+        tempChange = exp(gamma*(acceptProb-float(self.sumAll)/self.countTotal))
         diffs=[j-i for i,j in zip(self.temperature_scale[:-1],self.temperature_scale[1:])]
         diffs[index]*=tempChange
         normalizer=self.fixedMax/(sum(diffs)+1.0)
@@ -479,7 +482,7 @@ class MC3(object):
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]*normalizer
         
-        print float(self.sumAll)/self.count
+        print float(self.sumAll)/self.countTotal
         
     
     def sample(self):
@@ -537,7 +540,7 @@ class MC3(object):
                 for ro in range(self.no_chains-1):
                     if max(order[:ro+1])>ro or min(order[(ro+1):])<ro+1: # if a passage has happened.
                         self.tempUpdater(ro, 1.0)
-                    else: #if no passage has happened we check the probability of a passage.
+                    else: 
                         self.tempUpdater(ro, 0)
                 
 
