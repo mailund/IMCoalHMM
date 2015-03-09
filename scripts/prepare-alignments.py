@@ -100,8 +100,12 @@ may want to split the alignment first if it's very large.
                 s1, s2 = sequence1[i].upper(), sequence2[i].upper()
                 seen.add(s1)
                 seen.add(s2)
+
                 if s1 not in clean or s2 not in clean:
                     print >> f, 2,
+                elif s1 in ('N','-') or s2 in ('N','-'):
+                    print >> f, 2,
+
                 elif s1 == s2:
                     print >> f, 0,
                 else:
@@ -129,7 +133,7 @@ may want to split the alignment first if it's very large.
         os.mkdir(options.output_dirname)
         sequence1 = srcs[0]
         sequence2 = srcs[1]
-        sequence3 = srcs[3]
+        sequence3 = srcs[2]
         assert len(sequence1) == len(sequence2)
         assert len(sequence1) == len(sequence3)
 
@@ -147,10 +151,11 @@ may want to split the alignment first if it's very large.
                 seen.add(s1)
                 seen.add(s2)
                 seen.add(s3)
+
                 if s1 in clean and s2 in clean and s3 in clean:
-                    print >> f, 8
+                    print >> f, int(s1 != s2) + 2*int(s1 != s3) + 4*int(s2 != s3),
                 else:
-                    print >> f, int(s1 == s2) + 2*int(s1 == s3) + 4*int(s2 == s3)
+                    print >> f, 8,
 
         if options.verbose:
             print "done"
