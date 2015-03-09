@@ -173,7 +173,7 @@ class CTMCSystem(object):
         """
         return self.through_[i]
 
-    def upto(self, i):
+    def up_to(self, i):
         """Returns a probability matrix for going up to, but not
         through, interval i.
 
