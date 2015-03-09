@@ -413,7 +413,6 @@ class ILSModel(Model):
         """Build the hidden Markov model matrices from the model-specific parameters."""
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
-        # FIXME: Kasper, you need to build an emission matrix here
         emission_probabilities = self.emission_matrix()
         return initial_probabilities, transition_probabilities, emission_probabilities
 
