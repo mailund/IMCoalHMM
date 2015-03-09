@@ -69,54 +69,108 @@ may want to split the alignment first if it's very large.
     if options.verbose:
         print "done"
 
+    clean = set('ACGT')
+
+
     if options.names:
         names = options.names.split(',')
     else:
         names = list(alignments.keys())
 
-    if len(names) != 2:
-        print 'There must be exactly two species names specified!'
+    if len(names) == 2:
+        ## PAIRWISE ALIGNMENT ###########################################################################
+        if options.verbose:
+            print "Assuming pairwise alignment between '%s' and '%s'" % (names[0], names[1])
+        srcs = [alignments[name].seq for name in names]
+
+        os.mkdir(options.output_dirname)
+        sequence1 = srcs[0]
+        sequence2 = srcs[1]
+        assert len(sequence1) == len(sequence2)
+        sequence_length = len(sequence1)
+        outname = os.path.join(options.output_dirname, 'original_sequence')
+
+        if options.verbose:
+            print "Writing file readable by ZipHMM to '%s'..." % outname,
+            sys.stdout.flush()
+
+        seen = set()
+        with open(outname, 'w', 64 * 1024) as f:
+            for i in xrange(sequence_length):
+                s1, s2 = sequence1[i].upper(), sequence2[i].upper()
+                seen.add(s1)
+                seen.add(s2)
+                if s1 not in clean or s2 not in clean:
+                    print >> f, 2,
+                elif s1 == s2:
+                    print >> f, 0,
+                else:
+                    print >> f, 1,
+
+        if options.verbose:
+            print "done"
+        if len(seen - set('ACGTN-')) > 1:
+            print >> sys.stderr, "I didn't understand the following symbols form the input sequence: %s" % (
+                ''.join(list(seen - set('ACGTN-'))))
+
+        if options.verbose:
+            print "ZipHMM is preprocessing...",
+            sys.stdout.flush()
+        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=3, minNoEvals=500)
+        if options.verbose:
+            print "done"
+
+    elif len(names) == 3:
+        ## TRIPLET ALIGNMENT ###########################################################################
+        if options.verbose:
+            print "Assuming triplet alignment between '%s', '%s', and '%s'" % (names[0], names[1], names[2])
+        srcs = [alignments[name].seq for name in names]
+
+        os.mkdir(options.output_dirname)
+        sequence1 = srcs[0]
+        sequence2 = srcs[1]
+        sequence3 = srcs[3]
+        assert len(sequence1) == len(sequence2)
+        assert len(sequence1) == len(sequence3)
+
+        sequence_length = len(sequence1)
+        outname = os.path.join(options.output_dirname, 'original_sequence')
+
+        if options.verbose:
+            print "Writing file readable by ZipHMM to '%s'..." % outname,
+            sys.stdout.flush()
+
+        seen = set()
+        with open(outname, 'w', 64 * 1024) as f:
+            for i in xrange(sequence_length):
+                s1, s2, s3 = sequence1[i].upper(), sequence2[i].upper(), sequence3[i].upper()
+                seen.add(s1)
+                seen.add(s2)
+                seen.add(s3)
+                if s1 in clean and s2 in clean and s3 in clean:
+                    print >> f, 8
+                else:
+                    print >> f, int(s1 == s2) + 2*int(s1 == s3) + 4*int(s2 == s3)
+
+        if options.verbose:
+            print "done"
+        if len(seen - set('ACGTN-')) > 1:
+            print >> sys.stderr, "I didn't understand the following symbols form the input sequence: %s" % (
+                ''.join(list(seen - set('ACGTN-'))))
+
+        if options.verbose:
+            print "ZipHMM is preprocessing...",
+            sys.stdout.flush()
+        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=9, minNoEvals=500)
+        if options.verbose:
+            print "done"
+
+
+    else:
+        print 'There are', len(names), 'species identified. We do not know how to convert that into something'
+        print 'that CoalHMM can handle, sorry.'
         sys.exit(1)
 
-    if options.verbose:
-        print "Assuming pairwise alignment between '%s' and '%s'" % (names[0], names[1])
-    srcs = [alignments[name].seq for name in names]
-
-    os.mkdir(options.output_dirname)
-
-    clean = set('ACGT')
-    sequence1 = srcs[0]
-    sequence2 = srcs[1]
-    assert len(sequence1) == len(sequence2)
-    sequence_length = len(sequence1)
-    outname = os.path.join(options.output_dirname, 'original_sequence')
-    if options.verbose:
-        print "Writing file readable by ZipHMM to '%s'..." % outname,
-        sys.stdout.flush()
-    seen = set()
-    with open(outname, 'w', 64 * 1024) as f:
-        for i in xrange(sequence_length):
-            s1, s2 = sequence1[i].upper(), sequence2[i].upper()
-            seen.add(s1)
-            seen.add(s2)
-            if s1 not in clean or s2 not in clean:
-                print >> f, 2,
-            elif s1 == s2:
-                print >> f, 0,
-            else:
-                print >> f, 1,
-    if options.verbose:
-        print "done"
-    if len(seen - set('ACGTN-')) > 1:
-        print >> sys.stderr, "I didn't understand the following symbols form the input sequence: %s" % (
-            ''.join(list(seen - set('ACGTN-'))))
-    if options.verbose:
-        print "ZipHMM is preprocessing...",
-        sys.stdout.flush()
-    f = Forwarder.fromSequence(seqFilename=outname,
-                               alphabetSize=3, minNoEvals=500)
-    if options.verbose:
-        print "done"
 
     if options.verbose:
         print "Writing ZipHMM data to '%s'..." % options.output_dirname,
