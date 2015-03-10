@@ -71,14 +71,13 @@ may want to split the alignment first if it's very large.
 
     clean = set('ACGT')
 
-
     if options.names:
         names = options.names.split(',')
     else:
         names = list(alignments.keys())
 
     if len(names) == 2:
-        ## PAIRWISE ALIGNMENT ###########################################################################
+        # PAIRWISE ALIGNMENT ###########################################################################
         if options.verbose:
             print "Assuming pairwise alignment between '%s' and '%s'" % (names[0], names[1])
         srcs = [alignments[name].seq for name in names]
@@ -103,7 +102,7 @@ may want to split the alignment first if it's very large.
 
                 if s1 not in clean or s2 not in clean:
                     print >> f, 2,
-                elif s1 in ('N','-') or s2 in ('N','-'):
+                elif s1 in ('N', '-') or s2 in ('N', '-'):
                     print >> f, 2,
 
                 elif s1 == s2:
@@ -125,7 +124,7 @@ may want to split the alignment first if it's very large.
             print "done"
 
     elif len(names) == 3:
-        ## TRIPLET ALIGNMENT ###########################################################################
+        # TRIPLET ALIGNMENT ###########################################################################
         if options.verbose:
             print "Assuming triplet alignment between '%s', '%s', and '%s'" % (names[0], names[1], names[2])
         srcs = [alignments[name].seq for name in names]
@@ -153,7 +152,7 @@ may want to split the alignment first if it's very large.
                 seen.add(s3)
 
                 if s1 in clean and s2 in clean and s3 in clean:
-                    print >> f, int(s1 != s2) + 2*int(s1 != s3) + 4*int(s2 != s3),
+                    print >> f, int(s1 != s2) + 2 * int(s1 != s3) + 4 * int(s2 != s3),
                 else:
                     print >> f, 8,
 
@@ -170,12 +169,10 @@ may want to split the alignment first if it's very large.
         if options.verbose:
             print "done"
 
-
     else:
         print 'There are', len(names), 'species identified. We do not know how to convert that into something'
         print 'that CoalHMM can handle, sorry.'
         sys.exit(1)
-
 
     if options.verbose:
         print "Writing ZipHMM data to '%s'..." % options.output_dirname,
