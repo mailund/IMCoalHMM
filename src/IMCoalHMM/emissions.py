@@ -84,7 +84,7 @@ def jukes_cantor(a, b, dt):
     if a == b:
         return 0.25 + 0.75 * exp(-4.0 / 3 * dt)
     else:
-        return 0.25 - 0.25 * exp(-4.0 / 3 * dt)
+        return 0.75 - 0.75 * exp(-4.0 / 3 * dt)
 
 
 def emission_matrix(coal_points):
