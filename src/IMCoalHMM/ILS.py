@@ -278,7 +278,7 @@ class ILSCTMCSystem(object):
         return initial_prob_vector, transition_matrix
 
 
-## Class that can construct HMMs ######################################
+# Class that can construct HMMs ######################################
 class ILSModel(Model):
     """Class wrapping the code that generates an isolation model HMM."""
 
