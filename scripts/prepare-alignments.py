@@ -102,8 +102,6 @@ may want to split the alignment first if it's very large.
 
                 if s1 not in clean or s2 not in clean:
                     print >> f, 2,
-                elif s1 in ('N', '-') or s2 in ('N', '-'):
-                    print >> f, 2,
 
                 elif s1 == s2:
                     print >> f, 0,
@@ -117,7 +115,7 @@ may want to split the alignment first if it's very large.
                 ''.join(list(seen - set('ACGTN-'))))
 
         if options.verbose:
-            print "ZipHMM is preprocessing...",
+            print "ZipHMM is pre-processing...",
             sys.stdout.flush()
         f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=3, minNoEvals=500)
         if options.verbose:
@@ -144,6 +142,7 @@ may want to split the alignment first if it's very large.
             sys.stdout.flush()
 
         seen = set()
+        nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
         with open(outname, 'w', 64 * 1024) as f:
             for i in xrange(sequence_length):
                 s1, s2, s3 = sequence1[i].upper(), sequence2[i].upper(), sequence3[i].upper()
@@ -152,9 +151,10 @@ may want to split the alignment first if it's very large.
                 seen.add(s3)
 
                 if s1 in clean and s2 in clean and s3 in clean:
-                    print >> f, int(s1 != s2) + 2 * int(s1 != s3) + 4 * int(s2 != s3),
+                    i1, i2, i3 = nuc_map[s1], nuc_map[s2], nuc_map[s3]
+                    print >> f, i1 + 4*i2 + 16*i3,
                 else:
-                    print >> f, 8,
+                    print >> f, 64,
 
         if options.verbose:
             print "done"
@@ -163,7 +163,7 @@ may want to split the alignment first if it's very large.
                 ''.join(list(seen - set('ACGTN-'))))
 
         if options.verbose:
-            print "ZipHMM is preprocessing...",
+            print "ZipHMM is pre-processing...",
             sys.stdout.flush()
         f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=9, minNoEvals=500)
         if options.verbose:
