@@ -48,20 +48,34 @@ def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=10
         str2=""
         str3=""
         str4=""
-        for _ in xrange(length):
-            c12=coalPoints1[simTimes[0]]
-            c13=coalPoints1[simTimes[1]]
-            c34=coalPoints1[simTimes[2]]
-            t12=random()<jk(c12)
-            t13=random()<jk(c13)
-            t34=random()<jk(c34)
-            addOns=adds(t12,t13,t34)
-            str1+=addOns[0]
-            str2+=addOns[1]
-            str3+=addOns[2]
-            str4+=addOns[3]
-            for i in range(3):
-                simTimes[i]=array(trans_probs[i][simTimes[i],:]).cumsum().searchsorted(sample(1))[0]
+        with open(filename+"trees.nwk", 'w') as fil:
+            for _ in xrange(length):
+                c12=coalPoints1[simTimes[0]]
+                c13=coalPoints1[simTimes[1]]
+                c34=coalPoints1[simTimes[2]]
+                t12=random()<jk(c12)
+                t13=random()<jk(c13)
+                t34=random()<jk(c34)
+                addOns=adds(t12,t13,t34)
+                str1+=addOns[0]
+                str2+=addOns[1]
+                str3+=addOns[2]
+                str4+=addOns[3]
+                reps+=1
+                change=False
+                for i in range(3):
+                    new=array(trans_probs[i][simTimes[i],:]).cumsum().searchsorted(sample(1))[0]
+                    if new != simTimes[i]:
+                        simTimes[i]=new
+                        change=True
+                if change:
+                    stringToWrite="["+str(reps)+"]"+stringToWrite
+                    fil.write(stringToWrite+"\n")
+                    stringToWrite=simTreeFromPoints(simTimes,coalPoints2)
+                    reps=0
+            #inserting the last line
+            stringToWrite="["+str(reps)+"]"+stringToWrite
+            fil.write(stringToWrite+"\n")
         print str1.count("C")
         print str2.count("C")
         print str3.count("C")
@@ -205,6 +219,7 @@ def main():
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
     parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--seq_length', default=1000000, type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
+    parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
 
 
 
@@ -253,9 +268,9 @@ def main():
     
     # load alignments
     models=[]
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
     
     trans_probs=[]
     init_probs=[]

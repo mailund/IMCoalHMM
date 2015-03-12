@@ -80,12 +80,17 @@ def psmc_break_points(no_intervals=64, t_max=15, mu=1e-9, offset=0.0):
                     for i in xrange(1, no_intervals)]
     return break_points
 
-def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80, no_statesOfExponentialCover=10,offset=0.0):
-    no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover
+def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80, no_statesOfExponentialCover=10,offset=0.0,tenthsInTheEnd=0):
+    no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover-tenthsInTheEnd
     points1= [expon.ppf((float(i) / no_statesOfExponentialCover)*coveredByExp,scale=beta1) for i in xrange(no_statesOfExponentialCover)]
     toPoint=gamma.cdf(points1[-1],alpha, scale=beta2)
     points2= [gamma.ppf((float(i)/(no_statesOfGammaCover+1))*(1-toPoint)+toPoint,alpha, scale=beta2) for i in xrange(no_statesOfGammaCover+1)]
-    points = points1+points2[1:]
+    if tenthsInTheEnd:
+        letzt=float(no_statesOfGammaCover)/float(no_statesOfGammaCover+1)*(1-toPoint)+toPoint
+        points3= [gamma.ppf(letzt  +  (1-letzt) * (1-1.0/10.0**(i+1)),alpha, scale=beta2  ) for i in xrange(tenthsInTheEnd)]
+        points = points1+points2[1:]+points3
+    else:
+        points = points1+points2[1:]
     return points
     
     
@@ -102,6 +107,7 @@ def main():
     print psmc_break_points(20,t_max=7*4*20000*25)
     print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
     print gamma_break_points(20,beta1=0.001*1.5,alpha=2,beta2=0.001333*1.5)
+    print gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=3)
 
 
 if __name__ == '__main__':

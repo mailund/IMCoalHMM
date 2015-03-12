@@ -481,8 +481,8 @@ class MC3(object):
         self.temperature_scale=[1.0]*self.no_chains
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]*normalizer
-        
-        print float(self.sumAll)/self.countTotal
+        if(random()<0.01):
+            print float(self.sumAll)/self.countTotal
         
     
     def sample(self):
@@ -534,7 +534,8 @@ class MC3(object):
                 if order==range(self.no_chains):
                     self.noSwitchInRow+=1
                 else:
-                    print str(self.noSwitchInRow)+" ids and now "+ str(order)
+                    if random()<0.01:
+                        print str(self.noSwitchInRow)+" ids and now "+ str(order)
                     self.noSwitchInRow=0
                 self.count+=1   
                 for ro in range(self.no_chains-1):

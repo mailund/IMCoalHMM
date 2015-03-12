@@ -7,7 +7,7 @@ Ne=20000
 gen=25
 mu=10^-9
 rho_per_gen=$(bc -l <<< 0.01/10^6)
-seg_length=1000000
+seg_length=100000
 coal_mig_rate=0.5
 
 sym_coal_mig_rate=$(bc -l <<< 2*${coal_mig_rate}) # times two because ms divides by number of populations
@@ -57,7 +57,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 	out2="        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}"
 	out1="	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt --treefile $treefile --samples 10 --thinning 1  --sd_multiplyer 0.05 --switch 2"
 	python /home/svendvn/workspace/IMCoalHMM/scripts/variable-migration-model-mcmc.py -o INMmcmc-smallVar-sim-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm \
-		--samples 2 --thinning 1  --sd_multiplyer 0.05
+		--samples 2 --thinning 1  --sd_multiplyer 0.05 --breakpoints_tail_pieces 2
 	echo $out1 >> INMmcmc-smallVar-sim-${sim}-chain.txt
 	echo $out2 >> INMmcmc-smallVar-sim-${sim}-chain.txt
 	
