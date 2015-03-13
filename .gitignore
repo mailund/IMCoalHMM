@@ -35,3 +35,6 @@ simulations/initial-migration-model/.Rhistory
 test.log
 test.txt
 test2.txt
+examples/example-triplet.ziphmm/data_structure
+examples/example-triplet.ziphmm/original_sequence
+examples/example-triplet.ziphmm/nStates2seq/2/0.seq

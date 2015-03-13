@@ -19,6 +19,7 @@ setup(
                'scripts/isolation-model.py',
                'scripts/isolation-model-mcmc.py',
                'scripts/isolation-model-posterior.py',
+               'scripts/ils-isolation-model.py',
                'scripts/initial-migration-model.py',
                'scripts/initial-migration-model-mcmc.py',
                'scripts/initial-migration-model-posterior.py',
