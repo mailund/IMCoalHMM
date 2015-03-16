@@ -49,7 +49,31 @@ class LogNormPrior(object):
     def log_proposal_step(self):
         return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
         
+class UniformPrior(object):
+    
+    def __init__(self, init, until, proposal_sd=None):
+        self.until=until
+        self.init=init
+        if proposal_sd is not None:
+            self.proposal_sd = proposal_sd
+        else:
+            self.proposal_sd = 0.1
+            
+    def pdf(self, x):
+        if x<=self.until:
+            return 1.0/self.until
+        else:
+            return 0
 
+    def sample(self):
+        return self.init+random()*min(self.until-self.init,self.init)*0.4
+
+    def proposal(self, x):
+        log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
+        return exp(log_step)
+    
+    def log_proposal_step(self):
+        return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
 
 class ExpLogNormPrior(object):
     """Prior and proposal distribution. The prior is an exponential and steps are a

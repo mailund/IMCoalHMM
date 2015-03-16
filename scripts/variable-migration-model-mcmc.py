@@ -9,7 +9,7 @@ from variable_migration_model2 import VariableCoalAndMigrationRateModel #til mcm
 #from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel #til mcmc3
 from likelihood2 import Likelihood
 
-from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, MCG
+from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, UniformPrior, MCG
 from math import log,floor
 from numpy.random import permutation, randint, random
 from copy import deepcopy
@@ -115,6 +115,7 @@ recombination rate."""
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
     parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
+    parser.add_argument('--migration_uniform_prior', default=0, type=int, help='the maximum of the uniform prior on the migration rate is provided here. If nothing, the exponential prior is used.')
 
     options = parser.parse_args()
     if not options.use_trees_as_data:
@@ -154,8 +155,12 @@ recombination rate."""
     for i in range(no_epochs):
         coalRate1Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
         coalRate2Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
-        migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
+        if options.migration_uniform_prior:
+            migRate12Priors.append(UniformPrior(init_mig, options.migration_uniform_prior, proposal_sd=options.sd_multiplyer))
+            migRate12Priors.append(UniformPrior(init_mig, options.migration_uniform_prior,proposal_sd=options.sd_multiplyer))
+        else:
+            migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
+            migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
 
     priors = coalRate1Priors+coalRate2Priors+migRate12Priors+migRate21Priors+recombRatePrior
 
