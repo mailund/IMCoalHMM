@@ -80,7 +80,8 @@ def psmc_break_points(no_intervals=64, t_max=15, mu=1e-9, offset=0.0):
                     for i in xrange(1, no_intervals)]
     return break_points
 
-def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80, no_statesOfExponentialCover=10,offset=0.0,tenthsInTheEnd=0):
+def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80,offset=0.0,tenthsInTheEnd=0):
+    no_statesOfExponentialCover=int(no_intervals/2)
     no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover-tenthsInTheEnd
     points1= [expon.ppf((float(i) / no_statesOfExponentialCover)*coveredByExp,scale=beta1) for i in xrange(no_statesOfExponentialCover)]
     toPoint=gamma.cdf(points1[-1],alpha, scale=beta2)
