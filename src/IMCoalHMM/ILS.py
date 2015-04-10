@@ -468,11 +468,8 @@ class ILSModel(Model):
         """Compute emission matrix for zipHMM"""
 
         def subst_model(s):
-            """Jukes-Cantor-69 substituion model
+            """Jukes-Cantor-69 substitution model
             s = substitutions = m*t (mutation rate times time)"""
-            a = 0
-            b = 1
-            matrixq = [[a,b,b,b],[b,a,b,b],[b,b,a,b],[b,b,b,a]]
             x = 1/4.0 + 3/4.0 * exp(-4*s)
             y = 1/4.0 - 1/4.0 * exp(-4*s)
             a = x
