@@ -47,12 +47,12 @@ print
 
 
 def make_parameters(tau1=0.002, tau2=0.001, coal1=1000.0, coal2=1000.0, coal3=1000.0,
-                    coal12=1000.0, coal123=1000.0, recombination_rate=0.4):
-    return numpy.array([tau1, tau2, coal1, coal2, coal3, coal12, coal123, recombination_rate])
+                    coal12=1000.0, coal123=1000.0, recombination_rate=0.4, outgroup=0.01):
+    return numpy.array([tau1, tau2, coal1, coal2, coal3, coal12, coal123, recombination_rate, outgroup])
 
 
 def get_joints(parameters):
-    ctmc_system = model.build_ctmc_system(*parameters)
+    ctmc_system = model.build_ctmc_system(*parameters[:-1]) # no outgroup in for the ctmc
     joint = ctmc_system.make_joint_matrix()
     j13 = joint[ix_(idx_12, idx_13)]
     j23 = joint[ix_(idx_12, idx_23)]
@@ -63,3 +63,5 @@ print get_joints(make_parameters(coal1=0.0, coal2=1000.0))
 print get_joints(make_parameters(coal1=0.0, coal2=100.0))
 print get_joints(make_parameters(coal1=0.0, coal2=10.0))
 print get_joints(make_parameters(coal1=0.0, coal2=0.0))
+
+print model.build_hidden_markov_model(make_parameters(coal1=0.0, coal2=1000.0))

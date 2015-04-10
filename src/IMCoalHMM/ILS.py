@@ -391,8 +391,13 @@ class ILSModel(Model):
 
         return ILSCTMCSystem(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, self.break_points_12, self.break_points_123)
 
-    def emission_points(self, tau1, tau2, coal1, coal2, coal3, coal12, coal123, _):
+    def emission_points(self, *parameters):
         """Expected coalescence times between between tau1 and tau2"""
+
+        try:
+            (tau1, tau2, coal1, coal2, coal3, coal12, coal123, _), outgroup = parameters, None
+        except ValueError:
+            tau1, tau2, coal1, coal2, coal3, coal12, coal123, _, outgroup = parameters
 
         breaks_12 = list(self.break_points_12) + [float(tau1 + tau2)] # turn back into regular python...
         epoch_1_time_spans = [e-s for s, e in zip(breaks_12[0:-1], breaks_12[1:])]
@@ -402,9 +407,9 @@ class ILSModel(Model):
         epoch_2_emission_points = [(1/coal123)-dt/(-1+exp(dt*coal123)) for dt in epoch_2_time_spans]
         epoch_2_emission_points.append(self.break_points_123[-1] + 1/coal123)
 
-        return epoch_1_emission_points + epoch_2_emission_points
+        return epoch_1_emission_points + epoch_2_emission_points, outgroup
 
-    def get_tree(self, path, column_representation, coalescence_time_points):
+    def get_tree(self, path, column_representation, coalescence_time_points, outgroup, branch_shortening):
 
         def get_alignment_col(n, symbols = "ACGT", length=3): # FIXME: Hard coded sequence of nucleotides
             """Convert a number n that represent an alignment column to a list of indexes in
@@ -422,7 +427,12 @@ class ILSModel(Model):
                 return get_alignment_col(n%base**power, symbols=symbols, length=power) + [n//base**power]
 
         # get bases of alignment column
-        b1, b2, b3 = get_alignment_col(column_representation)
+        if outgroup:
+            b1, b2, b3, b4 = get_alignment_col(column_representation, length=4)
+        else:
+            b1, b2, b3 = get_alignment_col(column_representation, length=3)
+
+        s1, s2, s3 = branch_shortening
 
         # get topology and branch lengths
         assert 1 <= len(path) <= 2, "tree with more than two coalescence events"
@@ -430,7 +440,9 @@ class ILSModel(Model):
         if len(path) == 1:
             # two coalescence events in the same interval is represented as a star-shape topology
             star = coalescence_time_points[path[0][1]]
-            return {'len': [star]*3, 'chld' : [{'leaf': b1}, {'leaf': b2}, {'leaf': b3}]}
+            tree =  {'len': [star-s1, star-s2, star-s3], 'chld' : [{'leaf': b1}, {'leaf': b2}, {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [star + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
         else:
             tree = list(sorted(path[0][2], key=len)[0])[0]
             short_external = coalescence_time_points[path[0][1]]
@@ -438,13 +450,21 @@ class ILSModel(Model):
             internal = long_external - short_external
             if tree == 2:
                 b1, b2, b3 = b1, b3, b2
+                s1, s2, s3 = s1, s3, s2
             elif tree == 3:
                 b1, b2, b3 = b2, b3, b1
-            return {'len': [long_external, internal],
-                    'chld': [{'len': [short_external, short_external],
-                              'chld' : [{'leaf': b1}, {'leaf': b2}]}, {'leaf': b3}]}
+                s1, s2, s3 = s2, s3, s1
+            tree = {'len': [internal, long_external-s3],
+                    'chld': [{'len': [short_external-s1, short_external-s2],
+                              'chld' : [{'leaf': b1},
+                                        {'leaf': b2}]},
+                             {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [long_external + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
 
-    def emission_matrix(self, tau1, tau2, coal1, coal2, coal3, coal12, coal123, _):
+        return tree
+
+    def emission_matrix(self, *parameters):
         """Compute emission matrix for zipHMM"""
 
         def subst_model(s):
@@ -472,23 +492,31 @@ class ILSModel(Model):
             else:
                 return 1 if node['leaf'] == i else 0
 
-        coalescence_times = self.emission_points(tau1, tau2, coal1, coal2, coal3, coal12, coal123, _)
+        coalescence_times, outgroup = self.emission_points(*parameters)
 
-        prior = [0.25]*4 # FIXME: Hard coded prior assumed by Jukes-Cantor
+        prior = [0.25]*4 # uniform prior assumed by Jukes-Cantor
 
-        no_alignment_columns = 65 # FIXME: Hard coded nr of columns for three species
+        if outgroup:
+            no_alignment_columns = 4**4 + 1
+        else:
+            no_alignment_columns = 4**3 + 1
+
         no_states = len(self.tree_map)
         emission_probabilities = Matrix(no_states, no_alignment_columns, )
+
+        branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
 
         for state in xrange(no_states):
             path = self.reverse_tree_map[state]
             likelihoods = list()
             for align_column in range(no_alignment_columns):
-                if align_column == 64: # FIXME: Hard coded representation of 'N' columns
+                if align_column == no_alignment_columns - 1:
                     likelihoods.append(1)
                 else:
-                    tree = self.get_tree(path, align_column, coalescence_times)
+                    tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
+                    print tree
                     likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
+            print sum(likelihoods)
             for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
                 emission_probabilities[state, align_column] = emission_prob
 
@@ -497,7 +525,13 @@ class ILSModel(Model):
     # We override this one from the Model class because we cannot directly reuse the 2-sample code.
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
-        ctmc_system = self.build_ctmc_system(*parameters)
+        if len(parameters) == 9:
+            # with outgroup
+            ctmc_system = self.build_ctmc_system(*parameters[:-1]) # skip outgroup parameter for ctmc system
+        else:
+            assert len(parameters) == 8 # no outgroup
+            ctmc_system = self.build_ctmc_system(*parameters)
+
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix(*parameters)
         return initial_probabilities, transition_probabilities, emission_probabilities
