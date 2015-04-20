@@ -5,6 +5,17 @@ likelihoods. This is different from likelihood.py because of the extra return tr
 import scipy.optimize
 
 
+
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getHeight()):
+        for j in range(Matrix.getWidth()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
+
+
+
 class Likelihood(object):
     """Combining model and data."""
 

@@ -1,5 +1,6 @@
 names1=c('1c1', '1c2','1c3','1c4','2c1','2c2','2c3','2c4','12m1', '12m2','12m3','12m4','21m1','21m2','21m3','21m4','rho', 'pri', 'lik','post','accept','reject','adapParam')
 names7=c('1c1', '1c2','1c3','1c4','1c5','1c6','1c7','2c1','2c2','2c3','2c4','2c5','2c6','2c7','12m1', '12m2','12m3','12m4','12m5','12m6','12m7','21m1','21m2','21m3','21m4','21m5','21m6','21m7','rho', 'pri', 'lik','post','accept','reject','adapParam')
+names6=c('1c1', '1c2','1c3','1c4','1c5','1c6','2c1','2c2','2c3','2c4','2c5','2c6','12m1', '12m2','12m3','12m4','12m5','12m6','21m1','21m2','21m3','21m4','21m5','21m6','rho', 'pri', 'lik','post','accept','reject','adapParam')
 
 plCall=function(names=names1,title="", epochs=4, hist=FALSE,...){
   par(mfrow=c(5,epochs))
@@ -67,7 +68,7 @@ plCall=function(names=names1,title="", epochs=4, hist=FALSE,...){
       plot(log(tr[,i]), type='l',sub=title, main=paste("log",names[i]))
     }
     else if(substring(names[i],1,2)=='po'){
-      plot(100:length(tr[,1]), tr[100:length(tr[,1]),i], type='l',sub=title, main=names[i])
+      plot(98:length(tr[,1]), tr[98:length(tr[,1]),i], type='l',sub=title, main=names[i])
     }
     else{
       plot(tr[,i], type='l',sub=title, main=names[i])
