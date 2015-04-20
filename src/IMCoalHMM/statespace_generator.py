@@ -101,9 +101,16 @@ class CoalSystem(object):
 
     def compute_state_space(self):
         """Computes the CTMC system."""
-        seen = {self.init}
-        unprocessed = [self.init]
-        self.state_numbers = {self.init: 0}
+
+        if type(self.init) == list:
+            seen = set(self.init)
+            unprocessed = list(self.init)
+            self.state_numbers = dict((x,i) for i, x in enumerate(self.init))
+        else:
+            seen = {self.init}
+            unprocessed = [self.init]
+            self.state_numbers = {self.init: 0}
+
         edges = []
 
         while unprocessed:
