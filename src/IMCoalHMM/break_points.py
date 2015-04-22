@@ -4,7 +4,7 @@
 
 from scipy.stats import expon, uniform
 from math import exp, log
-
+from numpy import asarray
 
 def exp_break_points(no_intervals, coal_rate, offset=0.0):
     """Compute break points for equal probably intervals given the
@@ -29,6 +29,33 @@ def exp_break_points(no_intervals, coal_rate, offset=0.0):
     points = expon.ppf([float(i) / no_intervals for i in xrange(no_intervals)])
     return points / coal_rate + offset
 
+
+def trunc_exp_break_points(no_intervals, coal_rate, end, offset=0.0):
+    """Compute break points for equal probably intervals given the
+    coalescence rate. The optional parameter "offset" is added to all
+    the break points and can be used for e.g. a speciation time.
+
+
+    :param no_intervals: Number of intervals desired. The number of
+    points will match this.
+    :type no_intervals: int
+
+    :param coal_rate: The coalescence rate used for specifying the
+    exponential distribution the break points are taken from.
+    :type coal_rate: float
+
+    :param end: The point where the exponential distribution is truncated.
+    :type end: float
+
+    :param offset: This offset is added to all break points.
+    :type offset: float
+
+    :returns: a list of no_intervals break points
+    :rtype: list
+    """
+    prob_mass_breaks = [i/float(no_intervals) for i in range(no_intervals)]
+    points = [-(log(1+(-1+exp(-coal_rate * end)) * p)/coal_rate) for p in prob_mass_breaks]
+    return asarray(points + offset)
 
 def uniform_break_points(no_intervals, start, end):
     """Uniformly distributed break points between start and end.
