@@ -32,7 +32,8 @@ setup(
                'scripts/initial-migration-epochs-model-mcmc.py',
                #'scripts/psmc-isolation-model.py',
                #'scripts/variable-migration-model.py',
-               'scripts/marginal-posterior.py'
+               'scripts/marginal-posterior.py',
+               'scripts/heuristic-optimiser.py',
               ],
 
     install_requires = ['numpy', 
