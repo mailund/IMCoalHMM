@@ -60,6 +60,11 @@ and uniform coalescence and recombination rates."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
+    parser.add_argument("--outgroup",
+                        action="store_true",
+                        default=None,
+                        help="Outgroup is included as fourth sequence in alignment.")
+
     optimized_params = [
         ('split-12', 'First split time in substitutions', 1e6 / 1e9),
         ('split-123', 'Second split time in substitutions', 1e6 / 1e9),
@@ -69,6 +74,7 @@ and uniform coalescence and recombination rates."""
         ('theta-12', 'effective population size in 4Ne substitutions for species 12 (first ancestral)', 1e6 / 1e9),
         ('theta-123', 'effective population size in 4Ne substitutions for species 123 (ancestral to all)', 1e6 / 1e9),
         ('rho', 'recombination rate in substitutions', 0.4),
+        ('outgroup', 'total height of tree with outgroup', 1e6 / 1e9)
     ]
 
     for parameter_name, description, default in optimized_params:
@@ -83,6 +89,7 @@ and uniform coalescence and recombination rates."""
     if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
 
+
     init_parameters = (
         options.split_12,
         options.split_123,
@@ -93,6 +100,14 @@ and uniform coalescence and recombination rates."""
         1 / (options.theta_123 / 2),
         options.rho
     )
+    if options.outgroup:
+        init_parameters += (options.outgroup,)
+
+    output_header = ['split.time.12', 'split.time.123',
+                     'theta.1', 'theta.2', 'theta.3', 'theta.12', 'theta.123',
+                     'rho']
+    if options.outgroup:
+        output_header.append("outgroup")
 
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     log_likelihood = Likelihood(ILSModel(options.states_12, options.states_123), forwarders)
@@ -101,9 +116,7 @@ and uniform coalescence and recombination rates."""
         with open(options.logfile, 'w') as logfile:
 
             if options.header:
-                print >> logfile, '\t'.join(['split.time.12', 'split.time.123',
-                                             'theta.1', 'theta.2', 'theta.3', 'theta.12', 'theta.123',
-                                             'rho'])
+                print >> logfile, '\t'.join(output_header)
 
             mle_parameters = maximum_likelihood_estimate(log_likelihood,
                                                          init_parameters,
@@ -118,9 +131,7 @@ and uniform coalescence and recombination rates."""
 
     with open(options.outfile, 'w') as outfile:
         if options.header:
-            print >> outfile, '\t'.join(['split.time.12', 'split.time.123',
-                                         'theta.1', 'theta.2', 'theta.3', 'theta.12', 'theta.123',
-                                         'rho'])
+            print >> outfile, '\t'.join(output_header)
         print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
 
 

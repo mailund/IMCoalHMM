@@ -1,9 +1,9 @@
-
+from math import exp
 from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.transitions import projection_matrix, compute_between, compute_upto
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.model import Model
-from IMCoalHMM.break_points import exp_break_points, uniform_break_points
+from IMCoalHMM.break_points import exp_break_points, trunc_exp_break_points
 
 from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
@@ -278,7 +278,7 @@ class ILSCTMCSystem(object):
         return initial_prob_vector, transition_matrix
 
 
-# Class that can construct HMMs ######################################
+## Class that can construct HMMs ######################################
 class ILSModel(Model):
     """Class wrapping the code that generates an isolation model HMM."""
 
@@ -386,33 +386,150 @@ class ILSModel(Model):
         epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(coal12, coal3, recombination_rate))
         epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(coal123, recombination_rate))
 
-        # FIXME: Kasper, change the break points for the first epoch to truncated exponentials
-        break_points_12 = uniform_break_points(self.no_12_intervals, tau1, tau1 + tau2)
-        break_points_123 = exp_break_points(self.no_123_intervals, coal123, tau1 + tau2)
+        self.break_points_12 = trunc_exp_break_points(self.no_12_intervals, coal12, tau1 + tau2, tau1)
+        self.break_points_123 = exp_break_points(self.no_123_intervals, coal123, tau1 + tau2)
 
-        return ILSCTMCSystem(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, break_points_12, break_points_123)
+        return ILSCTMCSystem(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, self.break_points_12, self.break_points_123)
 
     def emission_points(self, *parameters):
-        # FIXME: Kasper, implement this to get the time points to emit from
-        return None
+        """Expected coalescence times between between tau1 and tau2"""
 
-    def emission_matrix(self):
-        # FIXME: Kasper you need to make this matrix. This is just a dummy that works with my test data.
-        # It won't work with a three-species alignment.
+        try:
+            (tau1, tau2, coal1, coal2, coal3, coal12, coal123, _), outgroup = parameters, None
+        except ValueError:
+            tau1, tau2, coal1, coal2, coal3, coal12, coal123, _, outgroup = parameters
+
+        breaks_12 = list(self.break_points_12) + [float(tau1 + tau2)] # turn back into regular python...
+        epoch_1_time_spans = [e-s for s, e in zip(breaks_12[0:-1], breaks_12[1:])]
+        epoch_1_emission_points = [(1/coal12)-dt/(-1+exp(dt*coal12)) for dt in epoch_1_time_spans]
+
+        epoch_2_time_spans = [e-s for s, e in zip(self.break_points_123[0:-1], self.break_points_123[1:])]
+        epoch_2_emission_points = [(1/coal123)-dt/(-1+exp(dt*coal123)) for dt in epoch_2_time_spans]
+        epoch_2_emission_points.append(self.break_points_123[-1] + 1/coal123)
+
+        return epoch_1_emission_points + epoch_2_emission_points, outgroup
+
+    def get_tree(self, path, column_representation, coalescence_time_points, outgroup, branch_shortening):
+
+        def get_alignment_col(n, symbols = "ACGT", length=3): # FIXME: Hard coded sequence of nucleotides
+            """Convert a number n that represent an alignment column to a list of indexes in
+            the symbols string. E.g. A, C, G, T -> 0, 1, 2, 3
+
+            E.g. the triplet ATG must be encoded like this:
+            nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+            nuc_map['A'] + 4*nuc_map['T'], 16*nuc_map['G']
+            """
+            power = length - 1
+            base = len(symbols)
+            if power == 0:
+                return [n]
+            else:
+                return get_alignment_col(n%base**power, symbols=symbols, length=power) + [n//base**power]
+
+        # get bases of alignment column
+        if outgroup:
+            b1, b2, b3, b4 = get_alignment_col(column_representation, length=4)
+        else:
+            b1, b2, b3 = get_alignment_col(column_representation, length=3)
+
+        s1, s2, s3 = branch_shortening
+
+        # get topology and branch lengths
+        assert 1 <= len(path) <= 2, "tree with more than two coalescence events"
+
+        if len(path) == 1:
+            # two coalescence events in the same interval is represented as a star-shape topology
+            star = coalescence_time_points[path[0][1]]
+            tree =  {'len': [star-s1, star-s2, star-s3], 'chld' : [{'leaf': b1}, {'leaf': b2}, {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [star + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
+        else:
+            tree = list(sorted(path[0][2], key=len)[0])[0]
+            short_external = coalescence_time_points[path[0][1]]
+            long_external = coalescence_time_points[path[1][1]]
+            internal = long_external - short_external
+            if tree == 2:
+                b1, b2, b3 = b1, b3, b2
+                s1, s2, s3 = s1, s3, s2
+            elif tree == 3:
+                b1, b2, b3 = b2, b3, b1
+                s1, s2, s3 = s2, s3, s1
+            tree = {'len': [internal, long_external-s3],
+                    'chld': [{'len': [short_external-s1, short_external-s2],
+                              'chld' : [{'leaf': b1},
+                                        {'leaf': b2}]},
+                             {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [long_external + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
+
+        return tree
+
+    def emission_matrix(self, *parameters):
+        """Compute emission matrix for zipHMM"""
+
+        def subst_model(s):
+            """Jukes-Cantor-69 substitution model
+            s = substitutions = m*t (mutation rate times time)"""
+            x = 1/4.0 + 3/4.0 * exp(-4*s)
+            y = 1/4.0 - 1/4.0 * exp(-4*s)
+            a = x
+            b = y
+            matrixq = [[a,b,b,b],[b,a,b,b],[b,b,a,b],[b,b,b,a]]
+            return matrixq
+
+        def prob_tree(node, i, trans_mat):
+            """Computes the probability of a tree assuming base i at the root"""
+            if 'chld' in node:
+                p = None
+                for child, brlen in zip(node['chld'], node['len']):
+                    mat = trans_mat(brlen)
+                    x = sum(mat[i][j] * prob_tree(child, j, trans_mat) for j in range(4))
+                    p = p * x if p is not None else x
+                return p
+            else:
+                return 1 if node['leaf'] == i else 0
+
+        coalescence_times, outgroup = self.emission_points(*parameters)
+
+        prior = [0.25]*4 # uniform prior assumed by Jukes-Cantor
+
+        if outgroup:
+            no_alignment_columns = 4**4 + 1
+        else:
+            no_alignment_columns = 4**3 + 1
+
         no_states = len(self.tree_map)
-        emission_probabilities = Matrix(no_states, 3)
-        for state in xrange(no_states):
-            emission_probabilities[state, 0] = 1.0
-            emission_probabilities[state, 1] = 1.0
-            emission_probabilities[state, 2] = 1.0
-        return emission_probabilities
+        emission_probabilities = Matrix(no_states, no_alignment_columns, )
 
+        branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
+
+        for state in xrange(no_states):
+            path = self.reverse_tree_map[state]
+            likelihoods = list()
+            for align_column in range(no_alignment_columns):
+                if align_column == no_alignment_columns - 1:
+                    likelihoods.append(1)
+                else:
+                    tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
+                    print tree
+                    likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
+            print sum(likelihoods)
+            for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
+                emission_probabilities[state, align_column] = emission_prob
+
+        return emission_probabilities
 
     # We override this one from the Model class because we cannot directly reuse the 2-sample code.
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
-        ctmc_system = self.build_ctmc_system(*parameters)
+        if len(parameters) == 9:
+            # with outgroup
+            ctmc_system = self.build_ctmc_system(*parameters[:-1]) # skip outgroup parameter for ctmc system
+        else:
+            assert len(parameters) == 8 # no outgroup
+            ctmc_system = self.build_ctmc_system(*parameters)
+
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
-        emission_probabilities = self.emission_matrix()
+        emission_probabilities = self.emission_matrix(*parameters)
         return initial_probabilities, transition_probabilities, emission_probabilities
 
