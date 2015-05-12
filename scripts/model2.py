@@ -5,7 +5,7 @@ Abstract class for demographic models.
 import numpy
 from abc import ABCMeta, abstractmethod
 from IMCoalHMM.transitions import compute_transition_probabilities
-from IMCoalHMM.emissions import emission_matrix
+from emissions2 import emission_matrix, emission_matrix3
 
 
 class Model(object):
@@ -45,5 +45,5 @@ class Model(object):
         """Build the hidden Markov model matrices from the model-specific parameters."""
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
-        emission_probs = emission_matrix(self.emission_points(*parameters))
+        emission_probs = emission_matrix3(self.emission_points(*parameters))
         return initial_probs, transition_probs, emission_probs, ctmc_system.break_points

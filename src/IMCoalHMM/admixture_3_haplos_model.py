@@ -5,19 +5,25 @@ Created on Apr 20, 2015
 '''
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, projection_matrix
 from IMCoalHMM.model import Model
-from IMCoalHMM.ILS import Isolation2, Isolation1, make_rates_table2,make_rates_table_1
+from IMCoalHMM.ILS import Isolation2, Isolation1, make_rates_table_2,make_rates_table_1
 from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.state_spaces import make_rates_table_single
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.break_points import uniform_break_points, exp_break_points
-from IMCoalHMM.admixture import admixture_state_space_map
+from IMCoalHMM.admixture import outer_product, powerset, complement, population_lineages
 
-from numpy import zeros, matrix, identity, ix_
+from numpy import zeros, matrix, identity, ix_, exp
 from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
 
 
-
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getWidth()):
+        for j in range(Matrix.getHeight()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
 
 
 # Handling states and paths for ILS model.
@@ -80,6 +86,52 @@ def extract_lineages(state):
 
 
 
+def admixture_state_space_map(from_space, to_space, p, q):
+    """Constructs the mapping matrix from the 'from_space' state space to the 'to_space' state space
+    assuming an admixture event where lineages in population 0 moves to population 1 with probability p
+    and lineages in population 1 moves to population 0 with probability q."""
+    destination_map = to_space.state_numbers
+    map_matrix = matrix(zeros((len(from_space.states), len(to_space.states))))
+
+    for state, from_index in from_space.state_numbers.items():
+        population_1 = population_lineages(12, state)
+        population_2 = population_lineages(3, state)
+
+        # <debug>
+        #print pretty_state(state)
+        # </debug>
+        total_prob = 0.0
+
+        for x, y in outer_product(powerset(population_1), powerset(population_2)):
+            cx = complement(population_1, x)
+            cy = complement(population_2, y)
+
+            ## Keep x and y in their respective population but move the other two...
+            cx = frozenset((3, lin) for (p, lin) in cx)
+            cy = frozenset((12, lin) for (p, lin) in cy)
+
+            destination_state = frozenset(x).union(cx).union(y).union(cy)
+            change_probability = p**len(cx) * (1.0 - p)**len(x) * q**len(cy) * (1.0 - q)**len(y)
+            to_index = destination_map[destination_state]
+
+            # <debug>
+            #print '->', pretty_state(destination_state),
+            #print "p^{} (1-p)^{} q^{} (1-q)^{}".format(len(cx), len(x), len(cy), len(y))
+            #print from_index, '->', to_index, '[{}]'.format(change_probability)
+            # </debug>
+
+            map_matrix[from_index, to_index] = change_probability
+            total_prob += change_probability
+
+        # <debug>
+        #print
+        #print total_prob
+        # </debug>
+
+        # We want to move to another state with exactly probability 1.0
+        assert abs(total_prob - 1.0) < 1e-10
+
+    return map_matrix
 
 
 class Admixture3HMiddle(CoalSystem):
@@ -91,7 +143,7 @@ class Admixture3HMiddle(CoalSystem):
         super(Admixture3HMiddle, self).__init__()
 
         self.transitions = [[('R', self.recombination)], [('C', self.coalesce)]]
-
+        self.state_type = dict()
         # We need various combinations of initial states to make sure we build the full reachable state space.
         left_1 = [frozenset([(12, (frozenset([1]), frozenset([])))]), frozenset([(3, (frozenset([1]), frozenset([])))])]
         right_1 = [frozenset([(12, (frozenset([]), frozenset([1])))]), frozenset([(3, (frozenset([]), frozenset([1])))])]
@@ -102,11 +154,17 @@ class Admixture3HMiddle(CoalSystem):
         self.init = [l1 | r1 | l2 | r2 | l3 | r3 for l1 in left_1 for r1 in right_1 for l2 in left_2 for r2 in right_2 for l3 in left_3 for r3 in right_3]
 
         self.compute_state_space()
+        self.sort_states()
+        
+    def sort_states(self):
+        for state, index in self.states.items():
+            left, right = extract_lineages(state)
+            self.state_type.setdefault((left, right), []).append(index)
     
 
 class Admixture3HCTMCSystem(CTMCSystem):
     
-    def __init__(self, before_admix_ctmc, after_admix_ctmc, ancestral_ctmc, break_points1, break_points2, break_points3,p,q):
+    def __init__(self, model,before_admix_ctmc, after_admix_ctmc, ancestral_ctmc, break_points1, break_points2, break_points3,p,q):
         
         super(Admixture3HCTMCSystem, self).__init__(no_hmm_states=len(break_points1)+len(break_points2)+len(break_points3),
                                                   initial_ctmc_state=0)  #what to do with initial state?
@@ -121,6 +179,7 @@ class Admixture3HCTMCSystem(CTMCSystem):
         self.no_middle_states=len(break_points2)
         self.no_before_states=len(break_points1)
         self.no_ancestral_states=len(break_points3)
+        self.model=model
 
         self.through_ = [None] * (self.no_before_states+self.no_middle_states + self.no_ancestral_states - 1) #in the end a last term is added so that it becomes one longer
 
@@ -174,7 +233,7 @@ class Admixture3HCTMCSystem(CTMCSystem):
         return self.through_[i]
 
     def up_to(self, i):
-        return self.up_to_[i]
+        return self.upto_[i]
 
     def between(self, i, j):
         return self.between_[(i, j)]
@@ -205,6 +264,7 @@ class Admixture3HCTMCSystem(CTMCSystem):
     def compute_transition_probabilities(self):
         no_states = len(self.model.tree_map)
         joint = self.make_joint_matrix()
+        print joint
         assert_almost_equal(joint.sum(), 1.0)
 
         initial_prob_vector = Matrix(no_states, 1)
@@ -233,16 +293,25 @@ def make_rates_table_admixture(coal_rate_1, coal_rate_2, recomb_rate):
 class Admixture3HModel(Model):
     
     
-    def __init__(self, initial_configuration, no_isolation_intervals, no_middle_intervals, no_ancestral_intervals):
+    def __init__(self, no_isolation_intervals, no_middle_intervals, no_ancestral_intervals):
         
         super(Admixture3HModel, self).__init__()
         
-        self.initial_state = initial_configuration
         self.isolation_state_space = Isolation2()
         self.middle_state_space = Admixture3HMiddle()
         self.ancestral_state_space = Isolation1()
+        self.init_index=self.isolation_state_space.init_index
+        self.no_isolation_intervals=no_isolation_intervals
+        self.no_middle_intervals=no_middle_intervals
+        self.no_ancestral_intervals=no_ancestral_intervals
         
-        
+        self.no_intervals=self.no_ancestral_intervals+self.no_isolation_intervals+self.no_middle_intervals
+        self.valid_paths_ = None
+        self.tree_map = None
+        self.reverse_tree_map = None
+
+        self.make_valid_paths()
+        self.index_marginal_trees()
         
     @property
     def initial(self):
@@ -252,6 +321,16 @@ class Admixture3HModel(Model):
         :rtype: int
         """
         return self.init_index
+
+    def get_state_space(self, i):
+        """Return the state space for interval i."""
+        if i < self.no_isolation_intervals:
+            return self.isolation_state_space
+        elif i<self.no_isolation_intervals + self.no_middle_intervals:
+            return self.middle_state_space
+        else:
+            return self.ancestral_state_space
+
 
     def get_states(self, i, state_type):
         """Extract the states of the given state_type for interval i.
@@ -319,18 +398,147 @@ class Admixture3HModel(Model):
         and the rates."""
         
         tau_1, tau_2, coal_11, coal_12, coal_21, coal_22, coal_last, recomb, p, q = parameters
-        isolation_rates = make_rates_table2(coal_11, coal_12, recomb)
-        middle_rates = make_rates_table2(coal_21, coal_22, recomb)
+        isolation_rates = make_rates_table_2(coal_11, coal_12, recomb)
+        middle_rates = make_rates_table_2(coal_21, coal_22, recomb)
         ancestral_rates = make_rates_table_1(coal_last, recomb)
         
         isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
         middle_ctmc = make_ctmc(self.middle_state_space, middle_rates)
         ancestral_ctmc = make_ctmc(self.ancestral_state_space, ancestral_rates)
-        isolation_breakpoints=uniform_break_points(0,tau_1)
-        middle_breakpoints=uniform_break_points(tau_1,tau_2)
-        ancestral_breakpoints = exp_break_points(self.no_ancestral_states, coal_last, tau_2)
+        isolation_breakpoints=uniform_break_points(self.no_isolation_intervals,0,tau_1)
+        middle_breakpoints=uniform_break_points(self.no_middle_intervals, tau_1,tau_2)
+        ancestral_breakpoints = exp_break_points(self.no_ancestral_intervals, coal_last, tau_2)
         
-        return Admixture3HCTMCSystem(self, isolation_ctmc, middle_ctmc, ancestral_ctmc,isolation_breakpoints, middle_breakpoints, ancestral_breakpoints)
+        return Admixture3HCTMCSystem(self,isolation_ctmc, middle_ctmc, ancestral_ctmc,isolation_breakpoints, middle_breakpoints, ancestral_breakpoints,p,q)
+    
+    def emission_points(self, *parameters):
+        """Expected coalescence times between between tau1 and tau2"""
+
+        try:
+            (tau1, tau2, coal1, coal2, coal3, coal12, coal123, _), outgroup = parameters, None
+        except ValueError:
+            tau1, tau2, coal1, coal2, coal3, coal12, coal123, _, outgroup = parameters
+
+        breaks_12 = list(self.break_points_12) + [float(tau1 + tau2)] # turn back into regular python...
+        epoch_1_time_spans = [e-s for s, e in zip(breaks_12[0:-1], breaks_12[1:])]
+        epoch_1_emission_points = [(1/coal12)-dt/(-1+exp(dt*coal12)) for dt in epoch_1_time_spans]
+
+        epoch_2_time_spans = [e-s for s, e in zip(self.break_points_123[0:-1], self.break_points_123[1:])]
+        epoch_2_emission_points = [(1/coal123)-dt/(-1+exp(dt*coal123)) for dt in epoch_2_time_spans]
+        epoch_2_emission_points.append(self.break_points_123[-1] + 1/coal123)
+
+        return epoch_1_emission_points + epoch_2_emission_points, outgroup
+
+    def get_tree(self, path, column_representation, coalescence_time_points, outgroup, branch_shortening):
+
+        def get_alignment_col(n, symbols = "ACGT", length=3): # FIXME: Hard coded sequence of nucleotides
+            """Convert a number n that represent an alignment column to a list of indexes in
+            the symbols string. E.g. A, C, G, T -> 0, 1, 2, 3
+
+            E.g. the triplet ATG must be encoded like this:
+            nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+            nuc_map['A'] + 4*nuc_map['T'], 16*nuc_map['G']
+            """
+            power = length - 1
+            base = len(symbols)
+            if power == 0:
+                return [n]
+            else:
+                return get_alignment_col(n%base**power, symbols=symbols, length=power) + [n//base**power]
+
+        # get bases of alignment column
+        if outgroup:
+            b1, b2, b3, b4 = get_alignment_col(column_representation, length=4)
+        else:
+            b1, b2, b3 = get_alignment_col(column_representation, length=3)
+
+        s1, s2, s3 = branch_shortening
+
+        # get topology and branch lengths
+        assert 1 <= len(path) <= 2, "tree with more than two coalescence events"
+
+        if len(path) == 1:
+            # two coalescence events in the same interval is represented as a star-shape topology
+            star = coalescence_time_points[path[0][1]]
+            tree =  {'len': [star-s1, star-s2, star-s3], 'chld' : [{'leaf': b1}, {'leaf': b2}, {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [star + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
+        else:
+            tree = list(sorted(path[0][2], key=len)[0])[0]
+            short_external = coalescence_time_points[path[0][1]]
+            long_external = coalescence_time_points[path[1][1]]
+            internal = long_external - short_external
+            if tree == 2:
+                b1, b2, b3 = b1, b3, b2
+                s1, s2, s3 = s1, s3, s2
+            elif tree == 3:
+                b1, b2, b3 = b2, b3, b1
+                s1, s2, s3 = s2, s3, s1
+            tree = {'len': [internal, long_external-s3],
+                    'chld': [{'len': [short_external-s1, short_external-s2],
+                              'chld' : [{'leaf': b1},
+                                        {'leaf': b2}]},
+                             {'leaf': b3}]}
+            if outgroup:
+                tree = {'len': [long_external + outgroup, outgroup], 'chld': [tree, {'leaf': b4}]}
+
+        return tree
+
+    def emission_matrix(self, *parameters):
+        """Compute emission matrix for zipHMM"""
+
+        def subst_model(s):
+            """Jukes-Cantor-69 substitution model
+            s = substitutions = m*t (mutation rate times time)"""
+            x = 1/4.0 + 3/4.0 * exp(-4*s)
+            y = 1/4.0 - 1/4.0 * exp(-4*s)
+            a = x
+            b = y
+            matrixq = [[a,b,b,b],[b,a,b,b],[b,b,a,b],[b,b,b,a]]
+            return matrixq
+
+        def prob_tree(node, i, trans_mat):
+            """Computes the probability of a tree assuming base i at the root"""
+            if 'chld' in node:
+                p = None
+                for child, brlen in zip(node['chld'], node['len']):
+                    mat = trans_mat(brlen)
+                    x = sum(mat[i][j] * prob_tree(child, j, trans_mat) for j in range(4))
+                    p = p * x if p is not None else x
+                return p
+            else:
+                return 1 if node['leaf'] == i else 0
+
+        coalescence_times, outgroup = self.emission_points(*parameters)
+
+        prior = [0.25]*4 # uniform prior assumed by Jukes-Cantor
+
+        if outgroup:
+            no_alignment_columns = 4**4 + 1
+        else:
+            no_alignment_columns = 4**3 + 1
+
+        no_states = len(self.tree_map)
+        emission_probabilities = Matrix(no_states, no_alignment_columns, )
+
+        branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
+
+        for state in xrange(no_states):
+            path = self.reverse_tree_map[state]
+            likelihoods = list()
+            for align_column in range(no_alignment_columns):
+                if align_column == no_alignment_columns - 1:
+                    likelihoods.append(1)
+                else:
+                    tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
+                    print "tree"+str(tree)
+                    likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
+            print sum(likelihoods)
+            for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
+                emission_probabilities[state, align_column] = emission_prob
+
+        return emission_probabilities
+
     
     
         # We override this one from the Model class because we cannot directly reuse the 2-sample code.
@@ -340,4 +548,9 @@ class Admixture3HModel(Model):
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix()
         return initial_probabilities, transition_probabilities, emission_probabilities
-        
+    
+    
+    
+
+ad=Admixture3HModel(5,5,5)
+ad.build_hidden_markov_model([0.1, 0.2, 1000, 2000, 3000, 750, 150, 0.4,0.2,0.1])

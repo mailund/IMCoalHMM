@@ -6,10 +6,12 @@ from numpy import zeros, matrix, identity
 
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 from CTMC2 import make_ctmc
-from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between
+from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, compute_transition_probabilities
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points
-from model2 import Model
+from IMCoalHMM.model import Model
+from emissions2 import emission_matrix3
+
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -186,3 +188,12 @@ class VariableCoalAndMigrationRateModel(Model):
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
 
         return VariableCoalAndMigrationRateCTMCSystem(self.initial_state, ctmcs, break_points)
+    
+    #override for trying out special things
+    def build_hidden_markov_model(self, parameters):
+        """Build the hidden Markov model matrices from the model-specific parameters."""
+        ctmc_system = self.build_ctmc_system(*parameters)
+        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
+        br=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail)
+        emission_probs = emission_matrix3(br, parameters, self.intervals)
+        return initial_probs, transition_probs, emission_probs, ctmc_system.break_points
