@@ -10,7 +10,7 @@ from numpy.random import gamma
 from numpy import cumsum,array
 from pyZipHMM import Matrix
 from bisect import bisect
-from numpy.linalg import eig, inv
+from numpy.linalg import eig, inv,det
 
 
 def printPyZipHMM(Matrix):
@@ -148,6 +148,7 @@ def emission_matrix3(break_points, params,intervals):
     intervals=cumsum(array(intervals))
     emission_probabilities = Matrix(len(break_points), 3)
     for j in range(len(break_points[:-1])):
+        #new epoch is the epoch that corresponds to interval j
         new_epoch=bisect(intervals, j)
         if new_epoch!=epoch:
             epoch=new_epoch
@@ -162,22 +163,29 @@ def emission_matrix3(break_points, params,intervals):
             emissum=0
             normsum=0
             A=3
-            for i in range(2):
+            for i in range(3):
                 for k in range(2):
-                    normsum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
-                    emissum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+                    normsum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
+                    emissum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
                                                                3.0/4.0*(exp(break_points[j+1]*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
             
         else:
             emissum=0
             normsum=0
             A=3
-            for i in range(2):
+            for i in range(3):
                 for k in range(2):
-                    normsum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
-                    emissum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+                    normsum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
+                    emissum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
                                                                3.0/4.0*(exp(break_points[j+1]*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
         
+        if emissum<0 or normsum<0 or emissum>normsum:
+            print "Error in emission matrix 3 " + "calculating row number " + str(j) +"."
+            print "emissum "+str(emissum)
+            print "normsum "+str(normsum)
+            print "guilty parameters " + str(params)
+            print "guilty break points " + str(break_points)
+            print "guilty (transformed) intervals " + str(intervals) 
         emission_probabilities[j,0]=emissum/normsum
         emission_probabilities[j,1]=1-emissum/normsum
         emission_probabilities[j,2]=1.0
@@ -185,14 +193,15 @@ def emission_matrix3(break_points, params,intervals):
     normsum=0
     j=len(break_points)-1
     A=3
-    for i in range(2):
+    for i in range(3):
         for k in range(2):
-            normsum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i]))/w[i]
-            emissum+=V[1,i]*Vinv[i,k]*QgammaA[k,A]*(   (exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+            normsum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i]))/w[i]
+            emissum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
                                                        3.0/4.0*(exp(break_points[j]*100*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
     emission_probabilities[j,0]=emissum/normsum
     emission_probabilities[j,1]=1-emissum/normsum
     emission_probabilities[j,2]=1.0    
+    #print printPyZipHMM(emission_probabilities)
     return emission_probabilities
             
               
@@ -206,9 +215,14 @@ def main():
 
     time_points = [0.0, 8.3381608939051073e-05, 0.0001743533871447778, 0.00027443684570176033, 0.00038566248081198473, 0.0005108256237659907, 0.00065392646740666392, 0.00082098055206983008, 0.0010216512475319816, 0.0012729656758128879, 0.0015213904954082308, 0.001775529617693222, 0.0020422770961952179, 0.0023289318050702446, 0.0026446563966777419, 0.0030025305752202627, 0.0034235104431770335, 0.0039458917535297169, 0.0046542150194674647, 0.0058142576782905598]
     rates=gamma(shape=2, scale=1.0/0.001, size=len(time_points))
-    print rates
-    print printPyZipHMM(emission_matrix(coalescence_points(time_points,rates)))
-    print printPyZipHMM(emission_matrix2(time_points, rates))
+    from break_points2 import gamma_break_points
+    bre=gamma_break_points(20,beta1=0.001*1,alpha=2,beta2=0.001333333*1, tenthsInTheEnd=5)
+    otherparams=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
+    #print rates
+    #print printPyZipHMM(emission_matrix(coalescence_points(time_points,rates)))
+    #print printPyZipHMM(emission_matrix2(time_points, rates))
+    print printPyZipHMM(emission_matrix3(bre,otherparams, [5,5,5,5]))
+    
 
 
 if __name__ == '__main__':
