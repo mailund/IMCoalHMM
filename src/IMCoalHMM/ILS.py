@@ -121,6 +121,7 @@ class Isolation2(ILSSystem):
         self.init = frozenset([(population, (frozenset([sample]), frozenset([sample])))
                                for population, sample in zip([12, 12, 3], [1, 2, 3])])
         self.compute_state_space()
+        self.init_index = self.states[self.init]
         self.sort_states()
 
 
