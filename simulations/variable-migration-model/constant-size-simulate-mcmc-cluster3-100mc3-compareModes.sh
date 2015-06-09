@@ -60,7 +60,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 	
 	out2="        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}"
 	out1="	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior --breakpoints_tail_pieces 3 --intervals 5 5 5 5"
-	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior --breakpoints_tail_pieces 3 --intervals 5 5 5 5
+	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior 3000 --breakpoints_tail_pieces 3 --intervals 5 5 5 5
 	echo $out1 >> INMmcmc-100d-mc3_15adap1-${sim}-chain.txt
 	echo $out2 >> INMmcmc-100d-mc3_15adap1-${sim}-chain.txt
 	echo "vi har ${no_chunks}*${seg_length} basepar" >>  INMmcmc-100d-mc3_15adap1-${sim}-chain.txt
@@ -69,7 +69,7 @@ for sim in `eval echo {1..${no_sims}}`; do
 
 	out2="        ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 ${sym_coal_mig_rate} | tail -n +4 | grep -v // > ${treefile}"
 	out1="	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior --breakpoints_tail_pieces 3 --intervals 10 10 10 10 "
-	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior --breakpoints_tail_pieces 3 --intervals 10 10 10 10
+	python /scratch/$SLURM_JOBID/variable-migration-model-mcmc.py -o INMmcmc-100d-mc3_15adap1-40states-${sim}-chain.txt -a11 ${simdir}/*.11.ziphmm -a12 ${simdir}/*.12.ziphmm -a22 ${simdir}/*.22.ziphmm --samples 1000 --thinning 20  --sd_multiplyer 0.1  --adap 1 --mc3 --parallels 15 --mc3_fixed_temp_max 800 --mc3_flip_suggestions 40  --mc3_sort_chains --migration_uniform_prior 3000 --breakpoints_tail_pieces 3 --intervals 10 10 10 10
 	echo $out1 >> INMmcmc-100d-mc3_15adap1-40states-${sim}-chain.txt
 	echo $out2 >> INMmcmc-100d-mc3_15adap1-40states-${sim}-chain.txt
 	echo "vi har ${no_chunks}*${seg_length} basepar" >>  INMmcmc-100d-mc3_15adap1-40states-${sim}-chain.txt
