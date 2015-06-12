@@ -143,6 +143,21 @@ def emission_matrix2(break_points, rates):
     return emission_probabilities
 
 def emission_matrix3(break_points, params,intervals):
+    """
+    This calculates the emission matrix in the model variable-migration-model.
+    This assumes in each time interval that the the migration and 
+    coalescence rate of the time interval has been constant from that time interval to the present.
+    Under this assumption, the calculations are true(so to say) following 
+    'Efficient computation in the IM model, Lars Nørvang Andersen, Thomas Mailund, Asger Hobolth.'
+    In that article they calculate a integral f(t)*(1/4+3/4exp(-4/3t)) from 0 to infinity, but here it is 
+    calculated from t_i to t_{i+1} and divided by normsum which is int_{t_i}^{t_{i+1}} f(t) dt.
+    params are the parameters in the variable-migration-model. 
+    The parameters are untransformed, meaning the parameters for population sizes are coalescence rates.
+    intervals is a list indicating the number of intervals in each epoch(and the number of epochs specified by the length og intervals).
+    break_points is the list [t_0,t_1,...,t_(sum(intervals))]. 
+    
+    output: emission matrix.   
+    """
     no_epochs=len(intervals)
     epoch=-1
     intervals=cumsum(array(intervals))
