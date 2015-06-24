@@ -5,9 +5,71 @@ import os.path
 import sys
 import gzip
 from argparse import ArgumentParser
+from random import randint
 
 from pyZipHMM import Forwarder
 from Bio import SeqIO
+
+def randomConverter(x):
+    if x=='R':
+        if randint(0,1)==0:
+            return 'A'
+        else:
+            return 'G'
+    if x=='Y':
+        if randint(0,1)==0:
+            return 'T'
+        else:
+            return 'C'
+    if x=='K':
+        if randint(0,1)==0:
+            return 'G'
+        else:
+            return 'T'
+    if x=='M':
+        if randint(0,1)==0:
+            return 'A'
+        else:
+            return 'C'
+    if x=='S':
+        if randint(0,1)==0:
+            return 'C'
+        else:
+            return 'G'
+    if x=='W':
+        if randint(0,1)==0:
+            return 'A'
+        else:
+            return 'T'
+    if x=='B':
+        r=randint(0,2)
+        if r==0:
+            return 'C'
+        if r==1:
+            return 'T'
+        return 'G'
+    if x=='D':
+        r=randint(0,2)
+        if r==0:
+            return 'A'
+        if r==1:
+            return 'T'
+        return 'G'
+    if x=='H':
+        r=randint(0,2)
+        if r==0:
+            return 'C'
+        if r==1:
+            return 'T'
+        return 'A'
+    if x=='V':
+        r=randint(0,2)
+        if r==0:
+            return 'C'
+        if r==1:
+            return 'G'
+        return 'A'
+    return x
 
 def main():
     usage = """%(prog)s [options] <input> <input format> <output dir>
@@ -98,12 +160,17 @@ may want to split the alignment first if it's very large.
         with open(outname, 'w', 64 * 1024) as f:
             for i in xrange(sequence_length):
                 s1, s2 = sequence1[i].upper(), sequence2[i].upper()
+
+                
+                if s1 not in set('ACGTN-'):
+                    s1=randomConverter(s1)
+                if s2 not in set('ACGTN-'):
+                    s2=randomConverter(s2)
+                    
                 seen.add(s1)
                 seen.add(s2)
-
                 if s1 not in clean or s2 not in clean:
                     print >> f, 2,
-
                 elif s1 == s2:
                     print >> f, 0,
                 else:
