@@ -4,6 +4,7 @@
 
 from scipy.stats import expon, uniform,gamma
 from math import exp, log
+from scipy.interpolate import interp1d
 
 
 def exp_break_points(no_intervals, coal_rate, offset=0.0):
@@ -80,19 +81,87 @@ def psmc_break_points(no_intervals=64, t_max=15, mu=1e-9, offset=0.0):
                     for i in xrange(1, no_intervals)]
     return break_points
 
-def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80,offset=0.0,tenthsInTheEnd=0):
+
+def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredByExp=0.80,offset=0.0,tenthsInTheEnd=0, fixed_time_points=[]):
+    """time is measured in the unit substitutions. 
+    fixed_time_points is a list of 2-tuples with fixations of the break_points.
+    The first coordinate of a 2-tuple is the index of the interval(end point). There are only no_intervals-1 possible choices ranging from 1 to no_intervals-1.
+    The second coordinate of a 2-tuple is the time. """
     no_statesOfExponentialCover=int(no_intervals/2)
+    uExp=float(no_statesOfExponentialCover)/float(no_intervals)
     no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover-tenthsInTheEnd
-    points1= [expon.ppf((float(i) / no_statesOfExponentialCover)*coveredByExp,scale=beta1) for i in xrange(no_statesOfExponentialCover)]
-    toPoint=gamma.cdf(points1[-1],alpha, scale=beta2)
-    points2= [gamma.ppf((float(i)/(no_statesOfGammaCover+1))*(1-toPoint)+toPoint,alpha, scale=beta2) for i in xrange(no_statesOfGammaCover+1)]
+    uGamma=float(no_statesOfGammaCover+no_statesOfExponentialCover)/float(no_intervals)
+    uTenths=1.0-uGamma-uExp
+    divisionLineBetweenExpAndGamma=expon.ppf((float(no_statesOfExponentialCover-1) / no_statesOfExponentialCover)*coveredByExp, scale=beta1)
+    divisionLineGammaCDF=gamma.cdf(divisionLineBetweenExpAndGamma,alpha, scale=beta2)
+    
+    divisionLineGammaTenthsInTheEnd=gamma.ppf(divisionLineGammaCDF+(1-divisionLineGammaCDF)*(float(no_statesOfGammaCover+(tenthsInTheEnd==0))/(no_statesOfGammaCover+1)),alpha, scale=beta2)
+    tenthsCDF=gamma.cdf(divisionLineGammaTenthsInTheEnd,alpha, scale=beta2)
+    
+    #print "divisionLineBetweenExpAndGamma "+str(divisionLineBetweenExpAndGamma)
+    #print "divisionLineGammaCDF "+str(divisionLineGammaCDF)
+    #print "tenthsCDF "+str(tenthsCDF)
+    #print "divisionLineGammaTenthsInTheEnd "+str(divisionLineGammaTenthsInTheEnd)
     if tenthsInTheEnd:
-        letzt=float(no_statesOfGammaCover)/float(no_statesOfGammaCover+1)*(1-toPoint)+toPoint
-        points3= [gamma.ppf(letzt  +  (1-letzt) * (1-1.0/10.0**(i+1)),alpha, scale=beta2  ) for i in xrange(tenthsInTheEnd)]
-        points = points1+points2[1:]+points3
+        tenthsBasePoints=[divisionLineGammaTenthsInTheEnd]+[gamma.ppf(tenthsCDF+(1.0-tenthsCDF)*(1.0-(1.0/10.0)**(i+1)), alpha, scale=beta2) for i in range(tenthsInTheEnd)]
+        tenthsXpoints=[uGamma]+[float(i+1)/float(no_intervals) for i in range(no_intervals-tenthsInTheEnd, no_intervals)]
+        if fixed_time_points:
+            if fixed_time_points[-1][1]>tenthsBasePoints[-1]:
+                #this becomes a little hacky, but it should not happen many times
+                tenthsBasePoints[-1]=max(zip(*fixed_time_points)[1])
+                tenthsXpoints[-1]=tenthsXpoints[-2]+(tenthsXpoints[-1]-tenthsXpoints[-2])/2
+                tenthsXpoints.append(1.0)
+                tenthsBasePoints.append(tenthsBasePoints[-1]*1.5)
+       # print tenthsXpoints
+       # print tenthsBasePoints
+        cdftenths=interp1d(tenthsBasePoints, tenthsXpoints)
+        ppftenths=interp1d(tenthsXpoints, tenthsBasePoints)
+
+    def gamma_exp_cdf(x):
+        if x < divisionLineBetweenExpAndGamma:
+            return expon.cdf(x,scale=beta1)*uExp/(expon.cdf(divisionLineBetweenExpAndGamma, scale=beta1))
+        if x<=divisionLineGammaTenthsInTheEnd:
+            return uExp+(uGamma-uExp)*gamma.cdf(x,alpha, scale=beta2)/tenthsCDF
+        return cdftenths(x)
+        
+
+    def gamma_exp_ppf(u):
+        if u< uExp:
+            return expon.ppf(u/uExp*float(no_statesOfExponentialCover-1)/float(no_statesOfExponentialCover)*coveredByExp,scale=beta1)
+        if u<=uGamma:
+            lowerCDF=divisionLineGammaCDF
+            upperCDF=tenthsCDF
+            uOfTruncatedGamma=((u-uExp)/(uGamma-uExp))*(upperCDF-lowerCDF)+lowerCDF
+       #     print str(u)+ " => "+ str(uOfTruncatedGamma)
+            return gamma.ppf(uOfTruncatedGamma,alpha, scale=beta2)
+        else:
+            return float(ppftenths(u))
+    points=[0.0]
+    fromU,toU=0.0,1.0
+    lastf=0
+    t=None
+    if fixed_time_points: #the first target to go for
+        f,t=fixed_time_points.pop(0)
+        toU=gamma_exp_cdf(t)
     else:
-        points = points1+points2[1:]
+        f=no_intervals
+    while fromU < (1.0-1e-9):
+        #print "toU"+str(toU)
+        for i in range(f-lastf-1):
+            points.append(gamma_exp_ppf(fromU+(toU-fromU)*(float(i)+1)/float(f-lastf)))
+        fromU=toU
+        lastf=f
+        if t:
+            points.append(t)
+        if fixed_time_points: #the first target to go for
+            f,t=fixed_time_points.pop(0)
+            toU=gamma_exp_cdf(t)
+        else:
+            f=20
+            toU=1.0
+            t=None
     return points
+
     
     
     
@@ -105,10 +174,13 @@ def main():
     print exp_break_points(5, 1.0, 3.0)
     print uniform_break_points(5, 1.0, 3.0)
 
-    print psmc_break_points(20,t_max=7*4*20000*25)
-    print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
-    print gamma_break_points(20,beta1=0.001*1.5,alpha=2,beta2=0.001333*1.5)
-    print gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=3)
+    print len(psmc_break_points(20,t_max=7*4*20000*25))
+    #print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
+    b=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333, fixed_time_points=[(5,0.0001),(18,0.005)])
+    print b
+    print len(b)
+    b=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=5)
+    print str(len(b))+" "+str(b)
 
 
 if __name__ == '__main__':

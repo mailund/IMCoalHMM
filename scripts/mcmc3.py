@@ -112,7 +112,6 @@ class MCMC(object):
             self.current_theta = array([pi.sample() for pi in self.priors])
         else:
             self.current_theta=array(startVal)
-            
         self.rejectedSwitches={}
         self.acceptedSwitches={}
         self.multiple_try=multiple_try
@@ -190,7 +189,7 @@ class MCMC(object):
         new_theta= array(self.transform.after_transform(new_thetaTmp))
         new_prior = self.log_prior(new_theta)
         try:
-            new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)    
+            new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         except AssertionError as e:
             print "The model has tried to move outside of its stabile values at temperature "+str(temperature)+ " "+str(e)[0:10]+"..."
             return
@@ -361,6 +360,7 @@ class RemoteMCMC(object):
         self.multiple_try=kwargs.get("multiple_try",False)
         self.mc3_of_mcgs=kwargs.get("mc3_of_mcgs", 1)
         self.printFrequency=kwargs.get("printFrequency", 0)
+#        self.fixed_time_pointer=kwargs.get("fixed_time_pointer", None)
         print self.startVal
         self.priors = priors
         self.log_likelihood=likelihood
@@ -436,6 +436,8 @@ class MC3(object):
             kwargs["startVal"]=None
         if not "printFrequency" in kwargs:
             kwargs["printFrequency"]=0
+        if not "fixed_time_pointer" in kwargs:
+            kwargs["fixed_timer_pointer"]=None
         self.no_chains = no_chains
         self.accept_jump=accept_jump
         self.flip_suggestions=flip_suggestions
@@ -443,7 +445,8 @@ class MC3(object):
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, log_likelihood, switching, transferminator=kwargs["transferminator"][n], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
-                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x,printFrequency=kwargs["printFrequency"]) for n,x in enumerate(chain_structure)]
+                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x,printFrequency=kwargs["printFrequency"],
+                                       fixed_time_pointer=kwargs["fixed_time_pointer"]) for n,x in enumerate(chain_structure)]
         self.thinning = thinning
         self.switching = switching
         if fixedMax is None:
@@ -578,7 +581,7 @@ class MC3(object):
     
 class MCG(object):
     
-    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, mcg_flip_suggestions=40, printFrequency=0):
+    def __init__(self, priors, log_likelihood, thinning=1,probs=1, transferminator=None, mixtureWithScew=0 , mixtureWithSwitch=0, switcher=None, startVal=None, multiple_try=False, mcg_flip_suggestions=40, printFrequency=0, fixed_time_pointer=None):
         self.mcg_flip_suggestions=mcg_flip_suggestions
         self.priors = priors
         self.thinning = thinning  #thinning is obsolete
