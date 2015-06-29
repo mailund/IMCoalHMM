@@ -148,7 +148,7 @@ def emission_matrix3(break_points, params,intervals):
     This assumes in each time interval that the the migration and 
     coalescence rate of the time interval has been constant from that time interval to the present.
     Under this assumption, the calculations are true(so to say) following 
-    'Efficient computation in the IM model, Lars Nørvang Andersen, Thomas Mailund, Asger Hobolth.'
+    'Efficient computation in the IM model, Lars Noervang Andersen, Thomas Mailund, Asger Hobolth.'
     In that article they calculate a integral f(t)*(1/4+3/4exp(-4/3t)) from 0 to infinity, but here it is 
     calculated from t_i to t_{i+1} and divided by normsum which is int_{t_i}^{t_{i+1}} f(t) dt.
     params are the parameters in the variable-migration-model. 
