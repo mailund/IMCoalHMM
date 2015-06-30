@@ -132,6 +132,8 @@ class VariableCoalAndMigrationRateModel(Model):
         recomb_rate = parameters[len(coal_rates_1)*4]
         if len(coal_rates_1)*4+1<len(parameters):
             fixed_time_points=self.time_modifier(parameters[(len(coal_rates_1)*4+1):])
+        elif self.time_modifier is not None:
+            fixed_time_points=self.time_modifier()
         else:
             fixed_time_points=[]
         return coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate, fixed_time_points
@@ -151,11 +153,7 @@ class VariableCoalAndMigrationRateModel(Model):
         # Emitting from points given by the mean of the coalescence rates in both populations.
         # When there is migration it is hard to know where the mean coalescence rate actually is
         # and it will depend on the starting point. This is a compromise at least.
-        if len(parameters)==5:
-            coal_rates_1, coal_rates_2, _, _, _ = self.unpack_parameters(parameters)
-            fixed_time_points=[]
-        else:
-            coal_rates_1, coal_rates_2, _, _, _,fixed_time_points = self.unpack_parameters(parameters)
+        coal_rates_1, coal_rates_2, _, _, _,fixed_time_points = self.unpack_parameters(parameters)
         mean_coal_rates = [(c1+c2)/2.0 for c1, c2 in zip(coal_rates_1, coal_rates_2)]
         #break_points = psmc_break_points(self.no_states,t_max=self.tmax)
         break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail,fixed_time_points=fixed_time_points)

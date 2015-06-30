@@ -121,7 +121,7 @@ recombination rate."""
     #One should specify a list of numbers, where the (2n-1)'th number is the index of the time interval one wants set. You can not specify 0 as that is always at time 0.0.
     #The 2n'th number is time point measuered in substitions. It will generally be around 10^-4-10^-2.
     parser.add_argument('--single_scaling', action='store_true', default=False, help='''if fixed_time_points is set, this will add a parameter to the model scaling 'the time points of fixed_time_points]' up and down(linearly). Default value is 1 of course.''') 
-    
+    parser.add_argument('--joint_scaling', action='store_true', default=False, help='Each fixed_time_points will be scaled up and down and will generate a parameter in the model.')
     
     options = parser.parse_args()
     if not options.use_trees_as_data:
@@ -132,8 +132,8 @@ recombination rate."""
         if len(options.alignments22) < 1:
             parser.error("Input alignment for the 22 system not provided!")
         
-        
-    
+    if options.joint_scaling and options.single_scaling:
+        parser.error("Joint and single scaling not optional at the same time")
 
     # get options
     theta = options.theta
@@ -169,20 +169,38 @@ recombination rate."""
             migRate12Priors.append(ExpLogNormPrior(init_mig, proposal_sd=options.sd_multiplyer))
 
     priors = coalRate1Priors+coalRate2Priors+migRate12Priors+migRate21Priors+recombRatePrior
-    if options.single_scaling:
-        priors.append(UniformPrior(1.0, 10.0, proposal_sd=options.sd_multiplyer))
-        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
-        
+    
+    
     
     #making the right fixed_time_points-function:
     def single_scaler(args):
         scale=args[0]
         times=[(f,scale*t) for f,t in fixed_time_points]
         return times
+    def joint_scaler(args):
+        assert len(args)==len(fixed_time_points)
+        times=[(f,scale*t) for (f,t),scale in zip(fixed_time_points)]
+        return times
+    def fix_scaler():
+        return fixed_time_points
     if options.single_scaling:
+        priors.append(UniformPrior(1.0, 10.0, proposal_sd=options.sd_multiplyer))
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
         fixed_time_pointer=single_scaler
+    elif options.joint_scaling:
+        fixed_time_points=[]
+        for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
+            priors.append(1.0,10.0, proposal_sd=options.sd_multiplyer)
+            fixed_time_points.append((int(f), float(t)))
+        fixed_time_pointer=joint_scaler
+    elif options.fix_time_points:
+        print "we are in options.fix_time_points"
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
+
+        fixed_time_pointer=fix_scaler
     else:
-        fixed_time_pointer=None
+        fixed_time_pointer=None #in stead on could assign it the function that returns []. 
+        
 
     def transform(parameters):
         coal_rates_1 = tuple(parameters[0:no_epochs])
@@ -193,7 +211,9 @@ recombination rate."""
         theta_1 = tuple([2 / coal_rate for coal_rate in coal_rates_1])
         theta_2 = tuple([2 / coal_rate for coal_rate in coal_rates_2])
         if options.single_scaling:
-            return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+(parameters[-1],)        
+            return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+(parameters[-1],)
+        if options.joint_scaling:
+             return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+tuple(parameters[(len(coal_rates_1)*4+1):])    
         return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
     
     def switchChooser(inarray):
@@ -278,15 +298,9 @@ recombination rate."""
         return ans, "col"+str(epoch1)+"-"+str(epoch2)
     
     # load alignments
-    if options.single_scaling:
-        model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=single_scaler)
-        model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=single_scaler)
-        model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=single_scaler)
-    else:
-        model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces)
-        model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces)
-        model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces)
-
+    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
     
     if options.use_trees_as_data:
         leftT,rightT,combinedT,counts=count_tmrca(subs=options.Ngmu4,filename=options.treefile)
@@ -387,12 +401,12 @@ recombination rate."""
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains, chain_structure=chain_structure, thinning=options.thinning, switching=1, transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,
-                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency, fixed_time_pointer=fixed_time_pointer)
+                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency)
         else:
             mcmc=MC3(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,#models=(model_11,model_12,model_22), input_files=(options.alignments11, options.alignments12,options.alignments22),
                 sort=options.mc3_sort_chains,chain_structure=chain_structure, thinning=options.thinning, switching=1, #transferminator=adapts, 
                 mixtureWithScew=options.adap , mixtureWithSwitch=options.switch, switcher=switchChooser,temperature_scale=1,
-                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency, fixed_timer_pointer=fixed_time_pointer)     
+                startVal=startVal, fixedMax=options.mc3_fixed_temp_max, printFrequency=printFrequency)     
     elif options.mcg and not options.mc3_mcg_setup:
         mcmc=MCG(priors,log_likelihood=log_likelihood,probs=options.parallels,transferminator=adap, startVal=startVal, printFrequency=printFrequency)
     elif not options.startWithGuess:

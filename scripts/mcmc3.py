@@ -509,7 +509,7 @@ class MC3(object):
         for n in range(self.no_chains-1):
             self.temperature_scale[n+1]=self.temperature_scale[n]+diffs[n]*normalizer
         if(random()<0.01):
-            print float(self.sumAll)/self.countTotal
+            print "temperatureUpdate probability "+ str(float(self.sumAll)/self.countTotal)
         
     
     def sample(self):
@@ -554,7 +554,7 @@ class MC3(object):
                     self.count+=1
                     self.tempUpdater(i,acceptProb)
                     if i==0:
-                        print acceptProb
+                        print "acceptance probability of jump between chains "+ str(acceptProb)
             if i==0:
                 print self.temperature_scale
             if self.sort:

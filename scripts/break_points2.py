@@ -105,7 +105,7 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
     if tenthsInTheEnd:
         tenthsBasePoints=[divisionLineGammaTenthsInTheEnd]+[gamma.ppf(tenthsCDF+(1.0-tenthsCDF)*(1.0-(1.0/10.0)**(i+1)), alpha, scale=beta2) for i in range(tenthsInTheEnd)]
         tenthsXpoints=[uGamma]+[float(i+1)/float(no_intervals) for i in range(no_intervals-tenthsInTheEnd, no_intervals)]
-        print "tenthsBasePoints"+str(tenthsBasePoints)
+        #print "tenthsBasePoints"+str(tenthsBasePoints)
         if fixed_time_points:
             if fixed_time_points[-1][1]>tenthsBasePoints[-1]:
                 #this becomes a little hacky, but it should not happen many times
@@ -142,20 +142,22 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
     lastf=0
     t=None
     if fixed_time_points: #the first target to go for
-        f,t=fixed_time_points.pop(0)
+        f,t=fixed_time_points[0]
         toU=gamma_exp_cdf(t)
     else:
         f=no_intervals
+    getcount=1
     while fromU < (1.0-1e-9):
         #print "toU"+str(toU)
         for i in range(f-lastf-1):
             points.append(gamma_exp_ppf(fromU+(toU-fromU)*(float(i)+1)/float(f-lastf)))
         fromU=toU
         lastf=f
-        if t:
+        if t is not None:
             points.append(t)
-        if fixed_time_points: #the first target to go for
-            f,t=fixed_time_points.pop(0)
+        if getcount< len(fixed_time_points): #the first target to go for
+            f,t=fixed_time_points[getcount]
+            getcount+=1
             toU=gamma_exp_cdf(t)
         else:
             f=no_intervals
