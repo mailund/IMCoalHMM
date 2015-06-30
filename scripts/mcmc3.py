@@ -436,8 +436,8 @@ class MC3(object):
             kwargs["startVal"]=None
         if not "printFrequency" in kwargs:
             kwargs["printFrequency"]=0
-        if not "fixed_time_pointer" in kwargs:
-            kwargs["fixed_timer_pointer"]=None
+#        if not "fixed_time_pointer" in kwargs:
+#            kwargs["fixed_timer_pointer"]=None
         self.no_chains = no_chains
         self.accept_jump=accept_jump
         self.flip_suggestions=flip_suggestions
@@ -445,8 +445,8 @@ class MC3(object):
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, log_likelihood, switching, transferminator=kwargs["transferminator"][n], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
-                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x,printFrequency=kwargs["printFrequency"],
-                                       fixed_time_pointer=kwargs["fixed_time_pointer"]) for n,x in enumerate(chain_structure)]
+                                       switcher=kwargs["switcher"], startVal=kwargs["startVal"], mc3_of_mcgs=x,
+                                       printFrequency=kwargs["printFrequency"]) for n,x in enumerate(chain_structure)]
         self.thinning = thinning
         self.switching = switching
         if fixedMax is None:
