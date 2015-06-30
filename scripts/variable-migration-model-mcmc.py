@@ -179,7 +179,7 @@ recombination rate."""
         return times
     def joint_scaler(args):
         assert len(args)==len(fixed_time_points)
-        times=[(f,scale*t) for (f,t),scale in zip(fixed_time_points)]
+        times=[(f,scale*t) for (f,t),scale in zip(fixed_time_points,args)]
         return times
     def fix_scaler():
         return fixed_time_points
@@ -190,7 +190,7 @@ recombination rate."""
     elif options.joint_scaling:
         fixed_time_points=[]
         for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
-            priors.append(1.0,10.0, proposal_sd=options.sd_multiplyer)
+            priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer))
             fixed_time_points.append((int(f), float(t)))
         fixed_time_pointer=joint_scaler
     elif options.fix_time_points:
