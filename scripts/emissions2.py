@@ -205,8 +205,8 @@ def emission_matrix3(break_points, params,intervals):
             print "guilty parameters " + str(params)
             print "guilty break points " + str(break_points)
             print "guilty (transformed) intervals " + str(intervals) 
-        emission_probabilities[j,0]=emissum
-        emission_probabilities[j,1]=normsum
+        emission_probabilities[j,0]=emissum/normsum
+        emission_probabilities[j,1]=1-emissum/normsum
         emission_probabilities[j,2]=1.0
     emissum=0
     normsum=0
@@ -279,6 +279,10 @@ def emission_matrix3b(break_points, params,intervals,ctmc_system):
         ind=2
     else:
         print "error"
+    print leftleft
+    print i
+    print leftright
+    print "INDINDIND="+str(ind)
 
     no_epochs=len(intervals)
     epoch=-1
@@ -344,6 +348,9 @@ def emission_matrix3b(break_points, params,intervals,ctmc_system):
     return emission_probabilities
             
               
+
+
+
 def emission_matrix4(break_points, params,intervals, ctmc_system):
     """
     This calculates the emission matrix in the model variable-migration-model.
@@ -360,6 +367,9 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
     
     output: emission matrix.   
     """
+
+ #           print "non2 "+str(state)
+            
     states=ctmc_system.get_state_space(None).states #all states are identical.
     leftleft=[]
     leftright=[]
@@ -386,13 +396,10 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
             elif position1!=-1 and position2!=-1:
                 leftright.append(number) 
                 #pass#print "lr "+str(state)
-            else:
-                print "non1 "+str(state)
+#            else:
+#                print "non1 "+str(state)
         else:
             restIndexes.append(number)
-            print "non2 "+str(state)
-            
-    
 
     no_epochs=len(intervals)
     epoch=-1
@@ -402,29 +409,18 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
     lrs=0 #P(B_ti=both)
     rrs=0 #P(B_ti=right)
     rest=0 #probability that they have coalesced.
-    conv_from_left=0.00001 #should be P(Z\in [0,t_i+1-t_i], Z>0, B_ti=left)
-    conv_from_both=0.00001
-    conv_from_right=0.00001
     r=ctmc_system.up_to(0)
-    s=ctmc_system.through(0) 
     i=ctmc_system.initial_ctmc_state
     for k in range(r.shape[1]):
         if k in leftleft:
-            for m in restIndexes:
-                conv_from_left+=r.item((i,k))*s.item((k,m))
             lls+=r.item((i,k))
         elif k in rightright:
-            for m in restIndexes:
-                conv_from_right+=r.item((i,k))*s.item((k,m))
             rrs+=r.item((i,k))
         elif k in leftright:
-            for m in restIndexes:
-                conv_from_both+=r.item((i,k))*s.item((k,m))
             lrs+=r.item((i,k))
         else:
             rest+=r.item((i,k))
-    print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
-    
+
     for j in range(len(break_points[:-1])):
         breaklatest=break_points[j]
         #new epoch is the epoch that corresponds to interval j
@@ -433,31 +429,18 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
         lrsafter=0
         rrsafter=0
         restafter=0
-        conv_from_left_after=0
-        conv_from_right_after=0
-        conv_from_both_after=0
         r=ctmc_system.up_to(j+1)
         s=ctmc_system.through(j+1)
         i=ctmc_system.initial_ctmc_state
         for k in range(r.shape[1]):
             if k in leftleft:
-                for m in restIndexes:
-                    conv_from_left_after+=r.item((i,k))*s.item((k,m))
                 llsafter+=r.item((i,k))
             elif k in rightright:
-                for m in restIndexes:
-                    conv_from_right_after+=r.item((i,k))*s.item((k,m))
                 rrsafter+=r.item((i,k))
             elif k in leftright:
-                for m in restIndexes:
-                    conv_from_both_after+=r.item((i,k))*s.item((k,m))
                 lrsafter+=r.item((i,k))
             else:
                 restafter+=r.item((i,k))
-        print "sum("+str((llsafter,lrsafter,rrsafter,restafter))+")="+str(sum((llsafter,lrsafter,rrsafter,restafter)))
-        conv_from_left_after=conv_from_left_after
-        conv_from_right_after=conv_from_right_after
-        conv_from_both_after=conv_from_both_after
         if new_epoch!=epoch:
             epoch=new_epoch
             c1=params[0:no_epochs][epoch]
@@ -489,8 +472,8 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
                                                            3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
                                                                     1 ) / (w[i]-8.0/3.0)    )
             emissum=middle+left+right
-            print str((left,middle,right))
-            print str((left/lls,middle/lrs,right/rrs))
+#            print str((left,middle,right))
+#            print str((left/lls,middle/lrs,right/rrs))
             
         else:
             emissum=0
@@ -498,15 +481,15 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
             A=3
             for i in range(3):
                 for k in range(2):
-                    normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
                     emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
                                                            3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
                                                                     exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
-                    normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
                     emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
                                                            3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
                                                                     exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
-                    normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
                     emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
                                                            3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
                                                                     exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
@@ -521,17 +504,14 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
             #print "guilty parameters " + str(params)
             #print "guilty break points " + str(break_points)
             #print "guilty (transformed) intervals " + str(intervals) 
-        emission_probabilities[j,0]=emissum
-        emission_probabilities[j,1]=normsum
+        emission_probabilities[j,0]=emissum/normsum
+        emission_probabilities[j,1]=1-emissum/normsum
         emission_probabilities[j,2]=1.0
         lls=llsafter
         lrs=lrsafter
         rrs=rrsafter
         rest=restafter
         
-        conv_from_left=conv_from_left_after
-        conv_from_right=conv_from_right_after
-        conv_from_both=conv_from_both_after
 #         print "j "+str(j)
 #         print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
 #         print "lls "+str(lls)
@@ -546,13 +526,14 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
         for k in range(2):
             normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
             emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
-                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+                                                   3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
             normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
             emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
-                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+                                                   3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
             normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
             emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
-                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+                                                   3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+    emissum=emissum/(lls+lrs+rrs)*(1-rest) 
     emission_probabilities[j,0]=emissum/normsum
     emission_probabilities[j,1]=1-emissum/normsum
     emission_probabilities[j,2]=1.0    
