@@ -8,6 +8,7 @@ probability of 1 for missing data.
 from math import exp
 from numpy.random import gamma
 from numpy import cumsum,array
+from numpy import sum as npsum
 from pyZipHMM import Matrix
 from bisect import bisect
 from numpy.linalg import eig, inv,det
@@ -158,6 +159,8 @@ def emission_matrix3(break_points, params,intervals):
     
     output: emission matrix.   
     """
+
+
     no_epochs=len(intervals)
     epoch=-1
     intervals=cumsum(array(intervals))
@@ -194,6 +197,7 @@ def emission_matrix3(break_points, params,intervals):
                     emissum+=V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
                                                                3.0/4.0*(exp(break_points[j+1]*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
         
+   #     print str(normsum)+" "+str(emissum)
         if emissum<0 or normsum<0 or emissum>normsum:
             print "Error in emission matrix 3 " + "calculating row number " + str(j) +"."
             print "emissum "+str(emissum)
@@ -201,8 +205,8 @@ def emission_matrix3(break_points, params,intervals):
             print "guilty parameters " + str(params)
             print "guilty break points " + str(break_points)
             print "guilty (transformed) intervals " + str(intervals) 
-        emission_probabilities[j,0]=emissum/normsum
-        emission_probabilities[j,1]=1-emissum/normsum
+        emission_probabilities[j,0]=emissum
+        emission_probabilities[j,1]=normsum
         emission_probabilities[j,2]=1.0
     emissum=0
     normsum=0
@@ -218,11 +222,345 @@ def emission_matrix3(break_points, params,intervals):
     emission_probabilities[j,2]=1.0    
     #print printPyZipHMM(emission_probabilities)
     return emission_probabilities
+
+def emission_matrix3b(break_points, params,intervals,ctmc_system):
+    """
+    This calculates the emission matrix in the model variable-migration-model.
+    This assumes in each time interval that the the migration and 
+    coalescence rate of the time interval has been constant from that time interval to the present.
+    Under this assumption, the calculations are true(so to say) following 
+    'Efficient computation in the IM model, Lars Noervang Andersen, Thomas Mailund, Asger Hobolth.'
+    In that article they calculate a integral f(t)*(1/4+3/4exp(-4/3t)) from 0 to infinity, but here it is 
+    calculated from t_i to t_{i+1} and divided by normsum which is int_{t_i}^{t_{i+1}} f(t) dt.
+    params are the parameters in the variable-migration-model. 
+    The parameters are untransformed, meaning the parameters for population sizes are coalescence rates.
+    intervals is a list indicating the number of intervals in each epoch(and the number of epochs specified by the length og intervals).
+    break_points is the list [t_0,t_1,...,t_(sum(intervals))]. 
+    
+    output: emission matrix.   
+    """
+    states=ctmc_system.get_state_space(None).states #all states are identical.
+    leftleft=[]
+    leftright=[]
+    rightright=[]
+    restIndexes=[]
+    for state,number in states.items():
+        coalesced=False 
+        position1=-1
+        position2=-1
+        for branch, (b1,_) in state:#we only do this marginally for pop1
+            if 1 in b1:
+                position1=branch
+                if 2 in b1:
+                    coalesced=True
+            if 2 in b1:
+                position2=branch
+        if not coalesced:
+            if position1==1 and position2==1:
+                leftleft.append(number)
+#                 print "ll "+str(state)
+            elif position1==2 and position2==2:
+                rightright.append(number)
+#                print "rr "+str(state)
+            elif position1!=-1 and position2!=-1:
+                leftright.append(number) 
+                #pass#print "lr "+str(state)
+        else:
+            restIndexes.append(number)
+            #print "non2 "+str(state)
+
+
+    i=ctmc_system.initial_ctmc_state
+    if i in leftleft:
+        ind=0
+    elif i in leftright:
+        ind=1
+    elif i in rightright:
+        ind=2
+    else:
+        print "error"
+
+    no_epochs=len(intervals)
+    epoch=-1
+    intervals=cumsum(array(intervals))
+    emission_probabilities = Matrix(len(break_points), 3)
+    for j in range(len(break_points[:-1])):
+        #new epoch is the epoch that corresponds to interval j
+        new_epoch=bisect(intervals, j)
+        if new_epoch!=epoch:
+            epoch=new_epoch
+            c1=params[0:no_epochs][epoch]
+            c2=params[no_epochs:2*no_epochs][epoch]
+            mig12 = params[(2 * no_epochs):(3 * no_epochs)][epoch]
+            mig21 = params[(3 * no_epochs):(4 * no_epochs)][epoch]
+            #print str((c1,c2,mig12,mig21))
+            Qgamma=array([[-2*mig12-c1, 2*mig12,0],[mig21,-mig21-mig12, mig12], [0,2*mig21,-2*mig21-c2]])
+            QgammaA=array([[-2*mig12-c1, 2*mig12,0,c1],[mig21,-mig21-mig12, mig12,0], [0,2*mig21,-2*mig21-c2,c2],[0,0,0,0]])
+            w,V=eig(Qgamma)
+            Vinv=inv(V)
+            emissum=0
+            normsum=0
+            A=3
+            for i in range(3):
+                for k in range(2):
+                    normsum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
+                    emissum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+                                                               3.0/4.0*(exp(break_points[j+1]*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+            
+        else:
+            emissum=0
+            normsum=0
+            A=3
+            for i in range(3):
+                for k in range(2):
+                    normsum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i]))/w[i]
+                    emissum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j+1]*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+                                                               3.0/4.0*(exp(break_points[j+1]*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+        
+   #     print str(normsum)+" "+str(emissum)
+        if emissum<0 or normsum<0 or emissum>normsum:
+            print "Error in emission matrix 3 " + "calculating row number " + str(j) +"."
+            print "emissum "+str(emissum)
+            print "normsum "+str(normsum)
+            print "guilty parameters " + str(params)
+            print "guilty break points " + str(break_points)
+            print "guilty (transformed) intervals " + str(intervals) 
+        emission_probabilities[j,0]=emissum/normsum
+        emission_probabilities[j,1]=1.-emissum/normsum
+        emission_probabilities[j,2]=1.0
+    emissum=0
+    normsum=0
+    j=len(break_points)-1
+    A=3
+    for i in range(3):
+        for k in range(2):
+            normsum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i]))/w[i]
+            emissum+=V[ind,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp(break_points[j]*100*w[i]) - exp(break_points[j]*w[i])) / (4.0*w[i]) +
+                                                       3.0/4.0*(exp(break_points[j]*100*(w[i]-8.0/3.0)) - exp(break_points[j]*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+    emission_probabilities[j,0]=emissum/normsum
+    emission_probabilities[j,1]=1-emissum/normsum
+    emission_probabilities[j,2]=1.0    
+    #print printPyZipHMM(emission_probabilities)
+    return emission_probabilities
             
               
+def emission_matrix4(break_points, params,intervals, ctmc_system):
+    """
+    This calculates the emission matrix in the model variable-migration-model.
+    This assumes in each time interval that the the migration and 
+    coalescence rate of the time interval has been constant from that time interval to the present.
+    Under this assumption, the calculations are true(so to say) following 
+    'Efficient computation in the IM model, Lars Noervang Andersen, Thomas Mailund, Asger Hobolth.'
+    In that article they calculate a integral f(t)*(1/4+3/4exp(-4/3t)) from 0 to infinity, but here it is 
+    calculated from t_i to t_{i+1} and divided by normsum which is int_{t_i}^{t_{i+1}} f(t) dt.
+    params are the parameters in the variable-migration-model. 
+    The parameters are untransformed, meaning the parameters for population sizes are coalescence rates.
+    intervals is a list indicating the number of intervals in each epoch(and the number of epochs specified by the length og intervals).
+    break_points is the list [t_0,t_1,...,t_(sum(intervals))]. 
+    
+    output: emission matrix.   
+    """
+    states=ctmc_system.get_state_space(None).states #all states are identical.
+    leftleft=[]
+    leftright=[]
+    rightright=[]
+    restIndexes=[]
+    for state,number in states.items():
+        coalesced=False 
+        position1=-1
+        position2=-1
+        for branch, (b1,_) in state:#we only do this marginally for pop1
+            if 1 in b1:
+                position1=branch
+                if 2 in b1:
+                    coalesced=True
+            if 2 in b1:
+                position2=branch
+        if not coalesced:
+            if position1==1 and position2==1:
+                leftleft.append(number)
+#                 print "ll "+str(state)
+            elif position1==2 and position2==2:
+                rightright.append(number)
+#                print "rr "+str(state)
+            elif position1!=-1 and position2!=-1:
+                leftright.append(number) 
+                #pass#print "lr "+str(state)
+            else:
+                print "non1 "+str(state)
+        else:
+            restIndexes.append(number)
+            print "non2 "+str(state)
+            
+    
+
+    no_epochs=len(intervals)
+    epoch=-1
+    intervals=cumsum(array(intervals))
+    emission_probabilities = Matrix(len(break_points), 3)
+    lls=0 #P(B_ti=left) that is the probability that both ancestor-lines of the same position in the two genomes are in the left population
+    lrs=0 #P(B_ti=both)
+    rrs=0 #P(B_ti=right)
+    rest=0 #probability that they have coalesced.
+    conv_from_left=0.00001 #should be P(Z\in [0,t_i+1-t_i], Z>0, B_ti=left)
+    conv_from_both=0.00001
+    conv_from_right=0.00001
+    r=ctmc_system.up_to(0)
+    s=ctmc_system.through(0) 
+    i=ctmc_system.initial_ctmc_state
+    for k in range(r.shape[1]):
+        if k in leftleft:
+            for m in restIndexes:
+                conv_from_left+=r.item((i,k))*s.item((k,m))
+            lls+=r.item((i,k))
+        elif k in rightright:
+            for m in restIndexes:
+                conv_from_right+=r.item((i,k))*s.item((k,m))
+            rrs+=r.item((i,k))
+        elif k in leftright:
+            for m in restIndexes:
+                conv_from_both+=r.item((i,k))*s.item((k,m))
+            lrs+=r.item((i,k))
+        else:
+            rest+=r.item((i,k))
+    print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
+    
+    for j in range(len(break_points[:-1])):
+        breaklatest=break_points[j]
+        #new epoch is the epoch that corresponds to interval j
+        new_epoch=bisect(intervals, j)
+        llsafter=0
+        lrsafter=0
+        rrsafter=0
+        restafter=0
+        conv_from_left_after=0
+        conv_from_right_after=0
+        conv_from_both_after=0
+        r=ctmc_system.up_to(j+1)
+        s=ctmc_system.through(j+1)
+        i=ctmc_system.initial_ctmc_state
+        for k in range(r.shape[1]):
+            if k in leftleft:
+                for m in restIndexes:
+                    conv_from_left_after+=r.item((i,k))*s.item((k,m))
+                llsafter+=r.item((i,k))
+            elif k in rightright:
+                for m in restIndexes:
+                    conv_from_right_after+=r.item((i,k))*s.item((k,m))
+                rrsafter+=r.item((i,k))
+            elif k in leftright:
+                for m in restIndexes:
+                    conv_from_both_after+=r.item((i,k))*s.item((k,m))
+                lrsafter+=r.item((i,k))
+            else:
+                restafter+=r.item((i,k))
+        print "sum("+str((llsafter,lrsafter,rrsafter,restafter))+")="+str(sum((llsafter,lrsafter,rrsafter,restafter)))
+        conv_from_left_after=conv_from_left_after
+        conv_from_right_after=conv_from_right_after
+        conv_from_both_after=conv_from_both_after
+        if new_epoch!=epoch:
+            epoch=new_epoch
+            c1=params[0:no_epochs][epoch]
+            c2=params[no_epochs:2*no_epochs][epoch]
+            mig12 = params[(2 * no_epochs):(3 * no_epochs)][epoch]
+            mig21 = params[(3 * no_epochs):(4 * no_epochs)][epoch]
+            Qgamma=array([[-2*mig12-c1, 2*mig12,0],[mig21,-mig21-mig12, mig12], [0,2*mig21,-2*mig21-c2]])
+            QgammaA=array([[-2*mig12-c1, 2*mig12,0,c1],[mig21,-mig21-mig12, mig12,0], [0,2*mig21,-2*mig21-c2,c2],[0,0,0,0]])
+            w,V=eig(Qgamma)
+            Vinv=inv(V)
+            emissum=0
+            normsum=0
+            A=3
+            middle=0
+            left=0
+            right=0
+            for i in range(3):
+                for k in range(2):
+                    normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+                    left+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - 1) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1 ) / (w[i]-8.0/3.0)    )
+                    normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+                    middle+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - 1) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1 ) / (w[i]-8.0/3.0)    )
+                    normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+                    right+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - 1) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1 ) / (w[i]-8.0/3.0)    )
+            emissum=middle+left+right
+            print str((left,middle,right))
+            print str((left/lls,middle/lrs,right/rrs))
+            
+        else:
+            emissum=0
+            normsum=0
+            A=3
+            for i in range(3):
+                for k in range(2):
+                    normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+                    normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+                    normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1])*w[i]) - exp((break_points[j])*w[i]))/w[i]
+                    emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j+1]-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                           3.0/4.0*exp(-8.0/3.0*breaklatest)*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+        
+        #normsum=(restafter-rest)#this is P(T\in [t_i, t_i+1])
+ #       print "e4 "+str(normsum) 
+        emissum=emissum/(lls+lrs+rrs)*(1-rest) 
+#        if emissum<0 or normsum<0 or emissum>normsum:
+#            print "Error in emission matrix 3 " + "calculating row number " + str(j) +"."
+#            print "emissum "+str(emissum)
+#            print "normsum "+str(normsum)
+            #print "guilty parameters " + str(params)
+            #print "guilty break points " + str(break_points)
+            #print "guilty (transformed) intervals " + str(intervals) 
+        emission_probabilities[j,0]=emissum
+        emission_probabilities[j,1]=normsum
+        emission_probabilities[j,2]=1.0
+        lls=llsafter
+        lrs=lrsafter
+        rrs=rrsafter
+        rest=restafter
+        
+        conv_from_left=conv_from_left_after
+        conv_from_right=conv_from_right_after
+        conv_from_both=conv_from_both_after
+#         print "j "+str(j)
+#         print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
+#         print "lls "+str(lls)
+#         print "lrs "+str(lrs)
+#         print "rrs "+str(rrs)
+#        print "rest "+str(rest)
+    emissum=0
+    normsum=0
+    j=len(break_points)-1
+    A=3
+    for i in range(3):
+        for k in range(2):
+            normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+            emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+            normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+            emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+            normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i]))/w[i]
+            emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   (exp((break_points[j]*100-breaklatest)*w[i]) - exp((break_points[j]-breaklatest)*w[i])) / (4.0*w[i]) +
+                                                   3.0/4.0*(exp((break_points[j]*100-breaklatest)*(w[i]-8.0/3.0)) - exp((break_points[j]-breaklatest)*(w[i]-8.0/3.0)) ) / (w[i]-8.0/3.0)    )
+    emission_probabilities[j,0]=emissum/normsum
+    emission_probabilities[j,1]=1-emissum/normsum
+    emission_probabilities[j,2]=1.0    
+    #print printPyZipHMM(emission_probabilities)
+    return emission_probabilities
             
             
-            
+                
 
 
 def main():
