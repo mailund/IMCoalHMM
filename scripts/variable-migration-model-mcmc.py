@@ -110,6 +110,7 @@ recombination rate."""
     
     parser.add_argument('--printPyMatrices', default=0, type=int, help='How many times should transitionmatrix and initialdistribution be printed for the chain(s) with the correct temperature')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
+    parser.add_argument('--startWithGuessElaborate', nargs='+', default=[], help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
@@ -381,6 +382,11 @@ recombination rate."""
             startVal=[init_coal]*8+[init_mig]*8+[init_recomb]+[1.0]
         else:
             startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
+        if len(options.startWithGuessElaborate)!=0:
+            if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
+                startVal=options.startWithGuessElaborate
+            else:
+                "StartWithGuessElaborate is ignored"
     else:
         startVal=None
     print "fixedMax="+str(options.mc3_fixed_temp_max)
