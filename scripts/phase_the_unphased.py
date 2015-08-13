@@ -35,7 +35,6 @@ with open(outname, 'w') as f:
         	sequence2 = srcs[i*2+1]
         	assert len(sequence1) == len(sequence2)
         	sequence_length = len(sequence1)
-        	outname = os.path.join(options.output_dirname, 'original_sequence')
             	for i in xrange(sequence_length):
                 	s1, s2 = sequence1[i].upper(), sequence2[i].upper()
                     
