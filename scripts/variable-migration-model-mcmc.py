@@ -110,7 +110,7 @@ recombination rate."""
     
     parser.add_argument('--printPyMatrices', default=0, type=int, help='How many times should transitionmatrix and initialdistribution be printed for the chain(s) with the correct temperature')
     parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
-    parser.add_argument('--startWithGuessElaborate', nargs='+', default=[], help='should the initial step be the initial parameters(otherwise simulated from prior).')
+    parser.add_argument('--startWithGuessElaborate', nargs='+', default=[], type=float, help='should the initial step be the initial parameters(otherwise simulated from prior).')
     parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the program will use trees as input data instead of alignments')
     parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
@@ -376,7 +376,7 @@ recombination rate."""
     else:
         printFrequency=0
     print printFrequency
-    if options.startWithGuess:
+    if options.startWithGuess or options.startWithGuessElaborate:
         #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
         if options.single_scaling:
             startVal=[init_coal]*8+[init_mig]*8+[init_recomb]+[1.0]
@@ -384,7 +384,7 @@ recombination rate."""
             startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
         if len(options.startWithGuessElaborate)!=0:
             if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
-                startVal=options.startWithGuessElaborate
+                startVal=float,options.startWithGuessElaborate
             else:
                 "StartWithGuessElaborate is ignored"
     else:
