@@ -384,7 +384,7 @@ recombination rate."""
             startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
         if len(options.startWithGuessElaborate)!=0:
             if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
-                startVal=float,options.startWithGuessElaborate
+                startVal=options.startWithGuessElaborate
             else:
                 "StartWithGuessElaborate is ignored"
     else:
