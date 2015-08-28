@@ -10,6 +10,8 @@ from math import log, exp
 from mcmc2 import ExpLogNormPrior, LogNormPrior
 from variable_migration_model2 import VariableCoalAndMigrationRateModel
 
+from multiprocessing import Pool
+
 def printPyZipHMM(Matrix):
     finalString=""
     for i in range(Matrix.getWidth()):
@@ -17,6 +19,48 @@ def printPyZipHMM(Matrix):
             finalString=finalString+" "+str(Matrix[i,j])
         finalString=finalString+"\n"
     return finalString
+
+def simulateHMMemission(trans_prob, init_prob, emission_prob, length=1000000):
+
+    differences=[]
+    print array(init_prob).cumsum()
+    simTime=array(init_prob).cumsum().searchsorted(sample(1))[0]
+    differences.append(treeHeightToDiff(emission_prob,simTime))
+    for _ in xrange(length-1):
+        simTime=array(trans_prob[simTime,:]).cumsum().searchsorted(sample(1))[0]
+        differences.append(treeHeightToDiff(emission_prob,simTime))
+    return differences
+
+def simulateHMMemissionWrap(inp):
+    if len(inp)==4:
+        return simulateHMMemission(inp[0],inp[1],inp[2],length=inp[3])
+    return simulateHMMemission(inp[0],inp[1],inp[2])
+        
+    
+def treeHeightToDiff(emission_prob, index):
+    if random()<emission_prob[index,1]: #emission_prob[index,1] is the probability in time period index leads to alignment
+        return 1 
+    return 0
+
+def makeHMMalignment(difference11, difference12, difference22,filename='/home/svendvn'):
+    str1="1         "
+    str2="2         "
+    str3="3         "
+    str4="4         "
+    seq_length=len(difference11)
+    for i in xrange(seq_length):
+        letters=adds(difference11[i],difference12[i],difference22[i])
+        str1+=letters[0]
+        str2+=letters[1]
+        str3+=letters[2]
+        str4+=letters[3]
+    with open(filename+"/alignment.phylip",'w') as fil:
+        fil.write(" 4 "+str(seq_length)+"\n")
+        fil.write(str1+"\n")
+        fil.write(str2+"\n")
+        fil.write(str3+"\n")
+        fil.write(str4+"\n")
+
 
 def simulate(trans_probs, init_probs, break_points, coal_rates=1000.0, length=1000000, filename='/home/svendvn/', simAlign=False, subsRate=4*25*20000*1e-9):
     ''' 
@@ -212,14 +256,15 @@ def main():
 
     parser.add_argument("-o", "--outfile",
                         type=str,
-                        default="/home/svendvn/",
+                        default="/home/svendvn",
                         help="Output file for the estimate (/dev/stdout)")
     
-    parser.add_argument("-t", '--type', type=int, default=0, help='should we simulate trees(0) or alignments(1)')
+    parser.add_argument("-t", '--type', type=int, default=0, help='should we simulate trees using (0) or alignments(1)')
     parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
     parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--seq_length', default=1000000, type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
+    parser.add_argument('--paramsElaborate', nargs='+', default=[], type=float, help='should the initial step be the initial parameters(otherwise simulated from prior).')
 
 
 
@@ -246,13 +291,17 @@ def main():
     init_coal = 1 / (theta / 2)
     init_mig = options.migration_rate
     init_recomb = rho
+    intervals=options.intervals
+    no_epochs = len(intervals)
     
-    trueParams=[init_coal]*8+[init_mig]*8+[init_recomb]
+    trueParams=[init_coal]*(2*no_epochs)+[init_mig]*(2*no_epochs)+[init_recomb]
+    if options.paramsElaborate:
+        assert len(options.paramsElaborate)==len(trueParams), "elaborate parameters not of correct length. It should be len(elaborateParameters)=4*len(intervals)+1."
+        trueParams=options.paramsElaborate
 
     # FIXME: I don't know what would be a good choice here...
     # intervals = [4] + [2] * 25 + [4, 6]
-    intervals=options.intervals
-    no_epochs = len(intervals)
+
     
 
     def transform(parameters):
@@ -274,17 +323,26 @@ def main():
     
     trans_probs=[]
     init_probs=[]
+    emiss_probs=[]
     for i in range(3):
-        inp,trp,_,bre=models[i].build_hidden_markov_model(trueParams)
+        inp,trp,emp,bre=models[i].build_hidden_markov_model(trueParams)
         trans_probs.append(trp)
         init_probs.append(inp)
+        emiss_probs.append(emp)
+        
+    trans_probs=translateToArray(trans_probs)
         
     print bre
     
-    if options.type==1:
-        simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=True, subsRate=options.Ngmu4)
-    else:
+    if options.type==0:
         simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
+    elif options.type==1:
+        diffs=[]
+        for n in range(3):
+            diffs.append(simulateHMMemission(trans_probs[n], init_probs[n], emiss_probs[n],length=options.seq_length))
+        makeHMMalignment(diffs[0],diffs[1],diffs[2],filename=options.outfile)
+    #else:
+    #    simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
     
 if __name__ == '__main__':
     main()

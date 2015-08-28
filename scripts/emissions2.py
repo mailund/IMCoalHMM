@@ -420,6 +420,10 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
             lrs+=r.item((i,k))
         else:
             rest+=r.item((i,k))
+    if (lls+rrs+lrs)<1e-7:
+#        print "something has gone wrong in tranisition probability"
+        lrs=0.1
+        rest=0.9
 
     for j in range(len(break_points[:-1])):
         breaklatest=break_points[j]
@@ -430,7 +434,6 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
         rrsafter=0
         restafter=0
         r=ctmc_system.up_to(j+1)
-        s=ctmc_system.through(j+1)
         i=ctmc_system.initial_ctmc_state
         for k in range(r.shape[1]):
             if k in leftleft:
@@ -511,6 +514,10 @@ def emission_matrix4(break_points, params,intervals, ctmc_system):
         lrs=lrsafter
         rrs=rrsafter
         rest=restafter
+        if (lls+rrs+lrs)<1e-7:
+#            print "something has gone wrong in tranisition probability"
+            lrs=0.1
+            rest=0.9
         
 #         print "j "+str(j)
 #         print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))

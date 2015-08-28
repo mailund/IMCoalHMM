@@ -183,7 +183,8 @@ def main():
     #print b
     #print len(b)
     #b=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=5)
-    print str(len(b))+" "+str(b)
+    print gamma_break_points(40, beta1=0.001,alpha=2,beta2=0.005,offset=0.0,tenthsInTheEnd=8, fixed_time_points=[(10,0.005),(20,0.01),(30,0.02)])
+    #print str(len(b))+" "+str(b)
 
 
 if __name__ == '__main__':

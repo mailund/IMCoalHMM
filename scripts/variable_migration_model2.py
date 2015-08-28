@@ -212,7 +212,7 @@ class VariableCoalAndMigrationRateModel(Model):
 #                 finalString=finalString+"\n"
 #             return finalString
 #         strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
-        emission_probs = emission_matrix4(br, parameters, self.intervals,ctmc_system)
+        emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
 #         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
 #         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
 #         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
