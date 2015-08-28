@@ -38,7 +38,7 @@ def simulateHMMemissionWrap(inp):
         
     
 def treeHeightToDiff(emission_prob, index):
-    if random()<emission_prob[index,1]: #emission_prob[index,1] is the probability in time period index leads to alignment
+    if random()<emission_prob[1,index]: #emission_prob[index,1] is the probability in time period index leads to alignment
         return 1 
     return 0
 
@@ -331,6 +331,7 @@ def main():
         emiss_probs.append(emp)
         
     trans_probs=translateToArray(trans_probs)
+    emiss_probs=translateToArray(emiss_probs)
         
     print bre
     
