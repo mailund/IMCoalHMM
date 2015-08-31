@@ -14,8 +14,8 @@ from multiprocessing import Pool
 
 def printPyZipHMM(Matrix):
     finalString=""
-    for i in range(Matrix.getWidth()):
-        for j in range(Matrix.getHeight()):
+    for i in range(Matrix.getHeight()):
+        for j in range(Matrix.getWidth()):
             finalString=finalString+" "+str(Matrix[i,j])
         finalString=finalString+"\n"
     return finalString
@@ -38,7 +38,7 @@ def simulateHMMemissionWrap(inp):
         
     
 def treeHeightToDiff(emission_prob, index):
-    if random()<emission_prob[1,index]: #emission_prob[index,1] is the probability in time period index leads to alignment
+    if random()<emission_prob[index,1]: #emission_prob[index,1] is the probability in time period index leads to alignment
         return 1 
     return 0
 
@@ -182,10 +182,10 @@ def translateToArray(trans_probs):
     res=[]
     for element in trans_probs:
         shell=[]
-        for i in range(element.getWidth()):
-            shell.append([0]*element.getHeight())
-        for i in range(element.getWidth()):
-            for j in range(element.getHeight()):
+        for i in range(element.getHeight()):
+            shell.append([0]*element.getWidth())
+        for i in range(element.getHeight()):
+            for j in range(element.getWidth()):
                 shell[i][j]=float(element[i,j])
         res.append(array(shell))
     return res
@@ -329,11 +329,14 @@ def main():
         trans_probs.append(trp)
         init_probs.append(inp)
         emiss_probs.append(emp)
-        
+    
+    print "printing stuff"    
+    print printPyZipHMM(emiss_probs[0])
     trans_probs=translateToArray(trans_probs)
     emiss_probs=translateToArray(emiss_probs)
+    print emiss_probs[0]
         
-    print bre
+    #print bre
     
     if options.type==0:
         simulate(filename=options.outfile, break_points=bre, trans_probs=trans_probs, length=options.seq_length, init_probs=init_probs, simAlign=False, subsRate=options.Ngmu4)
