@@ -10,7 +10,7 @@ from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, com
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
-from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b
+from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix5, emission_matrix6
 
 
 
@@ -211,9 +211,18 @@ class VariableCoalAndMigrationRateModel(Model):
 #                     finalString=finalString+" "+str(Matrix[i,j])
 #                 finalString=finalString+"\n"
 #             return finalString
-#         strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
-        emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
+#           #strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
+#         emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
+#         print "emission 4"
+#         print printPyZipHMM(emission_probs)
+        emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
+#         print "emission 6"
+#         print printPyZipHMM(emission_probs)
 #         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
 #         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
 #         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
         return initial_probs, transition_probs, emission_probs, ctmc_system.break_points
+    
+if __name__ == '__main__':
+    cd=VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals=[5,5,5,5], breaktimes=1.0,breaktail=5)
+    cd.build_hidden_markov_model([1000,900,800,700,  300,700,1500,2000,    500,0,500,600,    800,0,200,400,    0.44])

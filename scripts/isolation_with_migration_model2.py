@@ -5,15 +5,24 @@ from numpy import zeros, matrix
 from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.CTMC import make_ctmc
-from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between
-from IMCoalHMM.emissions import coalescence_points
+from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between, compute_transition_probabilities
+from emissions2 import coalescence_points,emission_matrix4,emission_matrix6, emission_matrix
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
-from model2 import Model
+from IMCoalHMM.model import Model
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 
+
+
+def printPyZipHMM(Matrix):
+    finalString=""
+    for i in range(Matrix.getHeight()):
+        for j in range(Matrix.getWidth()):
+            finalString=finalString+" "+str(Matrix[i,j])
+        finalString=finalString+"\n"
+    return finalString
 
 
 ## Code for computing HMM transition probabilities ####################
@@ -100,11 +109,11 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
 
         self.state_spaces = [migration_ctmc.state_space, ancestral_ctmc.state_space]
 
-        self.break_points = list(migration_break_points) + list(ancestral_break_points)
+        break_points = list(migration_break_points) + list(ancestral_break_points)
 
         self.through_ = _compute_through(migration_ctmc, migration_break_points,
                                          ancestral_ctmc, ancestral_break_points)
-        self.upto_ = compute_upto(_compute_upto0(isolation_ctmc, migration_ctmc, self.break_points), self.through_)
+        self.upto_ = compute_upto(_compute_upto0(isolation_ctmc, migration_ctmc, break_points), self.through_)
         self.between_ = compute_between(self.through_)
 
     def get_state_space(self, i):
@@ -162,6 +171,45 @@ class IsolationMigrationModel(Model):
 
         return IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
                                             migration_break_points, ancestral_break_points)
+        
+        
+    def build_hidden_markov_model(self, parameters):
+        """Build the hidden Markov model matrices from the model-specific parameters."""
+        isolation_time, migration_time, coal_rate, recomb_rate, mig_rate = parameters
+        ctmc_system = self.build_ctmc_system(isolation_time, migration_time, coal_rate, recomb_rate, mig_rate)
+        #changing the break_points
+        tau1 = isolation_time
+        tau2 = isolation_time + migration_time
+        migration_break_points = uniform_break_points(self.no_mig_states, 0, tau2-tau1)
+        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2-tau1)
+        break_points=list(migration_break_points)+list(ancestral_break_points)
+        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
+        parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
+        intervals=[self.no_mig_states,self.no_ancestral_states]
+#         emission_probs = emission_matrix(self.emission_points(*parameters))
+#         print " ------------- Emis 0 --------------"
+#         print printPyZipHMM(emission_probs)
+        emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, tau1)
+        
+#         emission_probs = emission_matrix3(br, parameters, self.intervals)
+#           
+#         def printPyZipHMM(Matrix):
+#             finalString=""
+#             for i in range(Matrix.getHeight()):
+#                 for j in range(Matrix.getWidth()):
+#                     finalString=finalString+" "+str(Matrix[i,j])
+#                 finalString=finalString+"\n"
+#             return finalString
+#         strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
+        
+#         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
+#         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
+#         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
+#         print " ------------- Emis 6 --------------"
+#         print printPyZipHMM(emission_probs)
+#         
+        return initial_probs, transition_probs, emission_probs
+
 
 
 def main():
@@ -169,15 +217,19 @@ def main():
 
     no_mig_states = 4
     no_ancestral_states = 4
-    isolation_time = 0.5
-    migration_time = 1.0
-    coal_rate = 1
+    isolation_time = 0.0005
+    migration_time = 0.0010
+    coal_rate = 1000
     recomb_rate = 0.4
-    mig_rate = 0.1
+    mig_rate = 300
 
     model = IsolationMigrationModel(no_mig_states, no_ancestral_states)
     parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
     pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
+    print "--------- EMISS ---------"
+    print printPyZipHMM(emission_probs)
+    print "------- TRANS -----------"
+    print printPyZipHMM(transition_probs)
 
     no_states = pi.getHeight()
     assert no_states == no_mig_states + no_ancestral_states
