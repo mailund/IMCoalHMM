@@ -61,6 +61,8 @@ and uniform coalescence and recombination rates."""
                         default="Nelder-Mead",
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
+    
+    parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
 
     optimized_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
@@ -96,7 +98,10 @@ and uniform coalescence and recombination rates."""
     init_recomb = rho
     init_migration = options.migration_rate
 
-    log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
+    if options.emissionComplicated:
+        log_likelihood = Likelihood(isolation_with_migration_model2.IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
+    else:
+        log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_recomb, init_migration)
 
     if options.logfile:
