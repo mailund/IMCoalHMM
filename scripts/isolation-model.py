@@ -8,6 +8,7 @@ from argparse import ArgumentParser
 from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from pyZipHMM import Forwarder
+import isolation_model2
 
 
 def transform(params):
@@ -50,7 +51,9 @@ and uniform coalescence and recombination rates."""
                         default="Nelder-Mead",
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
+    parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
 
+    
     optimized_params = [
         ('split', 'split time in substitutions', 1e6 / 1e9),
         ('theta', 'effective population size in 4Ne substitutions', 1e6 / 1e9),
@@ -79,8 +82,14 @@ and uniform coalescence and recombination rates."""
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
+
+
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
-    log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
+    
+    if options.emissionComplicated:
+        log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states), forwarders)
+    else:
+        log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:

@@ -6,8 +6,12 @@
 from argparse import ArgumentParser
 
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
-from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
+#from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
+
+from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
+
+import isolation_with_migration_model2
 
 
 def transform(params):
