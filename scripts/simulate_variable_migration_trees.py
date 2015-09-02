@@ -265,6 +265,7 @@ def main():
     parser.add_argument('--seq_length', default=1000000, type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
     parser.add_argument('--paramsElaborate', nargs='+', default=[], type=float, help='should the initial step be the initial parameters(otherwise simulated from prior).')
+    parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
 
 
 
@@ -302,6 +303,13 @@ def main():
     # FIXME: I don't know what would be a good choice here...
     # intervals = [4] + [2] * 25 + [4, 6]
 
+    def fix_scaler():
+        return fixed_time_points
+    if options.fix_time_points:
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
+        fixed_time_pointer=fix_scaler
+    else:
+        fixed_time_pointer=None
     
 
     def transform(parameters):
@@ -317,9 +325,9 @@ def main():
     
     # load alignments
     models=[]
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
-    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces,time_modifier=fixed_time_pointer))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces,time_modifier=fixed_time_pointer))
+    models.append(VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces,time_modifier=fixed_time_pointer))
     
     trans_probs=[]
     init_probs=[]
@@ -329,12 +337,11 @@ def main():
         trans_probs.append(trp)
         init_probs.append(inp)
         emiss_probs.append(emp)
+    print "break points:"
+    print bre
     
-    print "printing stuff"    
-    print printPyZipHMM(emiss_probs[0])
     trans_probs=translateToArray(trans_probs)
     emiss_probs=translateToArray(emiss_probs)
-    print emiss_probs[0]
         
     #print bre
     
