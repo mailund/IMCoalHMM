@@ -82,7 +82,14 @@ Assumption #1: Either the file is a pairwise alignment, or you have provided
 exactly two names to the `--names` option.
 
 Assumption #2: The file uses a simple ACGT format (and N/-). Anything else will
-be interpreted as N and a warning will be given with all unknown symbols.
+be interpreted aetup)==options.parallels:
+                print "The requested number of parallel chains do not match those requested"
+        if not options.mc3_mcg_setup:
+            chain_structure=[1]*options.parallels
+        else:
+            chain_structure=options.mc3_mcg_setup
+        adapts=[] #we have to make a list of adaptors
+        no_chains=len(chain_structure)s N and a warning will be given with all unknown symbols.
 
 Warning: This program uses SeqIO.to_dict to read in the entire alignment, you
 may want to split the alignment first if it's very large.
@@ -138,6 +145,10 @@ may want to split the alignment first if it's very large.
         names = options.names.split(',')
     else:
         names = list(alignments.keys())
+    print len(alignments)
+    for i,j in alignments.items():
+        print str(i)+"::::::::" 
+        print j
 
     if len(names) == 2:
         # PAIRWISE ALIGNMENT ###########################################################################
@@ -233,7 +244,7 @@ may want to split the alignment first if it's very large.
         if options.verbose:
             print "ZipHMM is pre-processing...",
             sys.stdout.flush()
-        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=9, minNoEvals=500)
+        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=65, minNoEvals=500)
         if options.verbose:
             print "done"
 

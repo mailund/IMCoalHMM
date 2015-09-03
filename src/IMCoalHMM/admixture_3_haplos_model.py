@@ -263,8 +263,8 @@ class Admixture3HCTMCSystem(CTMCSystem):
     def make_joint_matrix(self):
         no_states = len(self.model.tree_map)
         joint = matrix(zeros((no_states, no_states)))
-        print "check if joint has the same length as valid paths"
-        print str(no_states**2) + "=?=" + str(len(self.model.valid_paths))
+        #print "check if joint has the same length as valid paths"
+        #print str(no_states**2) + "=?=" + str(len(self.model.valid_paths))
         for path in self.model.valid_paths:
             i, j = self.model.get_path_indices(path)
             joint[i, j] = self.get_path_probability(path)
@@ -275,9 +275,9 @@ class Admixture3HCTMCSystem(CTMCSystem):
 
         joint = self.make_joint_matrix()
         for tree,num in self.model.tree_map.items():
-            print str(tree)
+#            print str(tree)
             outofdiagonal=range(0,num)+range(num+1,no_states)
-            print "prob from: "+str(sum([joint[num,j] for j in outofdiagonal]))+" prob stay:" + str(joint[num,num]) + " prob to"+ str(sum([joint[j,num] for j in outofdiagonal])) 
+#            print "prob from: "+str(sum([joint[num,j] for j in outofdiagonal]))+" prob stay:" + str(joint[num,num]) + " prob to"+ str(sum([joint[j,num] for j in outofdiagonal])) 
         assert_almost_equal(joint.sum(), 1.0)
 
         initial_prob_vector = Matrix(no_states, 1)
@@ -410,7 +410,10 @@ class Admixture3HModel(Model):
         """Construct CTMCs and compute HMM matrices given the split times
         and the rates."""
         
-        tau_1, tau_2, coal_11, coal_12, coal_21, coal_22, coal_last, recomb, p, q,_ = parameters
+#         print "parameters"
+#         print len(parameters)
+#         print parameters
+        tau_1, tau_2, coal_11, coal_12, coal_21, coal_22, coal_last, recomb, p, q = parameters
         isolation_rates = make_rates_table_2(coal_11, coal_12, recomb)
         middle_rates = make_rates_table_2(coal_21, coal_22, recomb)
         ancestral_rates = make_rates_table_1(coal_last, recomb)
@@ -419,31 +422,34 @@ class Admixture3HModel(Model):
         middle_ctmc = make_ctmc(self.middle_state_space, middle_rates)
         ancestral_ctmc = make_ctmc(self.ancestral_state_space, ancestral_rates)
         self.isolation_breakpoints=uniform_break_points(self.no_isolation_intervals,0,tau_1)
-        self.middle_breakpoints=uniform_break_points(self.no_middle_intervals, tau_1,tau_2)
-        self.ancestral_breakpoints = exp_break_points(self.no_ancestral_intervals, coal_last, tau_2)
-        print self.isolation_breakpoints
-        print self.middle_breakpoints
-        print self.ancestral_breakpoints
+        self.middle_breakpoints=uniform_break_points(self.no_middle_intervals, tau_1,tau_1+tau_2)
+        self.ancestral_breakpoints = exp_break_points(self.no_ancestral_intervals, coal_last, tau_1+tau_2)
+        #print self.isolation_breakpoints
+        #print self.middle_breakpoints
+        #print self.ancestral_breakpoints
         
         return Admixture3HCTMCSystem(self,isolation_ctmc, middle_ctmc, ancestral_ctmc,self.isolation_breakpoints, self.middle_breakpoints, self.ancestral_breakpoints,p,q)
     
     def emission_points(self, *parameters):
         """Expected coalescence times between between tau1 and tau2"""
-
         try:
             (tau1, tau2, coal1, coal2, coal3, coal12, coal123, _), outgroup = parameters, None
         except ValueError:
-            tau1, tau2, coal1, coal2, coal3, coal12, coal123, _,_,_, outgroup = parameters
+            try:
+                tau1, tau2, coal1, coal2, coal3, coal12, coal123, _,_,_, outgroup = parameters
+            except ValueError:
+                tau1, tau2, coal1, coal2, coal3, coal12, coal123, _,_,_ = parameters
+                outgroup=0
 
-        breaks_12 = list(self.isolation_breakpoints)+list(self.middle_breakpoints) + [float(tau2)] # turn back into regular python...
-        print breaks_12
+        breaks_12 = list(self.isolation_breakpoints)+list(self.middle_breakpoints) + [float(tau2+tau1)] # turn back into regular python...
+        #print breaks_12
         epoch_1_emission_points = [ ((coal12*s+1)*exp(-s*coal12)-(t*coal12+1)*exp(-t*coal12))/coal12/(exp(-coal12*s)-exp(-coal12*t)) for s, t in zip(breaks_12[0:-1], breaks_12[1:])]
-        print(len(epoch_1_emission_points))
+        #print(len(epoch_1_emission_points))
         epoch_2_emission_points = [((coal123*s+1)*exp(-s*coal123)-(t*coal123+1)*exp(-t*coal123))/coal123/(exp(-coal123*s)-exp(-coal123*t)) for s, t in zip(self.ancestral_breakpoints[0:-1], self.ancestral_breakpoints[1:])]
         #epoch_2_emission_points = [(1/coal123)-dt/(-1+exp(dt*coal123)) for dt in epoch_2_time_spans]
         epoch_2_emission_points.append(self.ancestral_breakpoints[-1] + 1/coal123)
 
-        print "list og" + str(epoch_1_emission_points + epoch_2_emission_points)
+        #print "list og" + str(epoch_1_emission_points + epoch_2_emission_points)
         return epoch_1_emission_points + epoch_2_emission_points, outgroup
 
     def get_tree(self, path, column_representation, coalescence_time_points, outgroup, branch_shortening):
@@ -536,7 +542,7 @@ class Admixture3HModel(Model):
             no_alignment_columns = 4**3 + 1
 
         no_states = len(self.tree_map)
-        print "no states"+str(no_states)
+        #print "no states"+str(no_states)
         emission_probabilities = Matrix(no_states, no_alignment_columns, )
 
         branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
@@ -551,7 +557,7 @@ class Admixture3HModel(Model):
                 else:
                     tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
                     likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
-            print sum(likelihoods) #should be 2, because 1 is inserted in last entry
+            #print sum(likelihoods) #should be 2, because 1 is inserted in last entry
             for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
                 emission_probabilities[state, align_column] = emission_prob
 
@@ -560,15 +566,19 @@ class Admixture3HModel(Model):
     
     
         # We override this one from the Model class because we cannot directly reuse the 2-sample code.
-    def build_hidden_markov_model(self, *parameters):
+    def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
+        print "Building a HMM"
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix(*parameters)
-        return initial_probabilities, transition_probabilities, emission_probabilities
+        return initial_probabilities, transition_probabilities, emission_probabilities, ctmc_system.break_points_12a + ctmc_system.break_points_12b + ctmc_system.break_points_123
     
     
     
 
-ad=Admixture3HModel(4,4,4)
-ad.build_hidden_markov_model(0.006, 0.010, 1000, 500, 3000, 750, 150, 0.4,0.2,0.8,False)
+#ad=Admixture3HModel(4,4,4)
+#tr=ad.build_hidden_markov_model([6.41408174e-03,5.09187906e-03,4.00728679e+03,1.87783199e+03,
+#                              1.74384828e+03,9.05662979e+02,1.49170581e+03,7.67706684e-02,
+#                              1.19783920e-01,4.09839536e-01])
+#print tr
