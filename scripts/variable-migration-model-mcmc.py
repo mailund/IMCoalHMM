@@ -351,9 +351,9 @@ recombination rate."""
     if options.startWithGuess or options.startWithGuessElaborate:
         #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
         if options.single_scaling:
-            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]+[1.0]
+            startVal=[init_coal]*no_epochs*2+[init_mig]*no_epochs*2+[init_recomb]+[1.0]
         else:
-            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
+            startVal=[init_coal]*no_epochs*2+[init_mig]*2*no_epochs+[init_recomb]
         if len(options.startWithGuessElaborate)!=0:
             if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
                 startVal=options.startWithGuessElaborate
@@ -371,7 +371,11 @@ recombination rate."""
         if options.fix_params:
             fixedParamDict={}
             for f in options.fix_params:
-                fixedParamDict[f]=startVal[f]
+                if startVal is not None:
+                    fixedParamDict[f]=startVal[f]
+                else:
+                    inits=[init_coal]*no_epochs*2+[init_mig]*2*no_epochs+[init_recomb]
+                    fixedParamDict[f]=inits[f]
             adap=Global_scaling_fixp(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept, fixes=fixedParamDict)
         else:    
             adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
