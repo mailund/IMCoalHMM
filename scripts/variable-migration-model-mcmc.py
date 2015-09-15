@@ -15,6 +15,7 @@ from numpy.random import permutation, randint, random
 from copy import deepcopy
 from numpy import array
 from global_scaling import Global_scaling
+from global_scaling_fixer import Global_scaling_fixp
 from alg4_scaling import AM4_scaling
 from datetime import datetime
 from marginal_scaling import MarginalScaler
@@ -117,7 +118,7 @@ recombination rate."""
     parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
     parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
     parser.add_argument('--migration_uniform_prior', default=0, type=int, help='the maximum of the uniform prior on the migration rate is provided here. If nothing, the exponential prior is used.')
-
+    parser.add_argument('--fix_params', nargs='+', default=[], type=int, help="the index of the parameters who will be fixed to their starting value throughout simulations. For now it only works when adap=1.")
     parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
     #One should specify a list of numbers, where the (2n-1)'th number is the index of the time interval one wants set. You can not specify 0 as that is always at time 0.0.
     #The 2n'th number is time point measuered in substitions. It will generally be around 10^-4-10^-2.
@@ -347,11 +348,33 @@ recombination rate."""
         return log_likelihood
     
 
+    if options.startWithGuess or options.startWithGuessElaborate:
+        #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
+        if options.single_scaling:
+            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]+[1.0]
+        else:
+            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
+        if len(options.startWithGuessElaborate)!=0:
+            if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
+                startVal=options.startWithGuessElaborate
+            else:
+                "StartWithGuessElaborate is ignored"
+    else:
+        startVal=None
+
+
+
     toTakeMaxFrom=[1-options.adap3_from_identical-options.adap3_from_independent, options.adap3_from_independent,options.adap3_from_identical]
     max_index,_ = max(enumerate(toTakeMaxFrom), key=itemgetter(1))
 
     if options.adap==1:
-        adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
+        if options.fix_params:
+            fixedParamDict={}
+            for f in options.fix_params:
+                fixedParamDict[f]=startVal[f]
+            adap=Global_scaling_fixp(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept, fixes=fixedParamDict)
+        else:    
+            adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
     elif options.adap==2:
         adap=(MarginalScaler(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
     elif options.adap==3:
@@ -376,19 +399,7 @@ recombination rate."""
     else:
         printFrequency=0
     print printFrequency
-    if options.startWithGuess or options.startWithGuessElaborate:
-        #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
-        if options.single_scaling:
-            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]+[1.0]
-        else:
-            startVal=[init_coal]*8+[init_mig]*8+[init_recomb]
-        if len(options.startWithGuessElaborate)!=0:
-            if len(options.startWithGuessElaborate)==(len(options.intervals)*4+1):
-                startVal=options.startWithGuessElaborate
-            else:
-                "StartWithGuessElaborate is ignored"
-    else:
-        startVal=None
+
     print "fixedMax="+str(options.mc3_fixed_temp_max)
     if options.mc3 or options.mc3_mcg_setup:
         if options.mc3_mcg_setup and options.parallels>0:
