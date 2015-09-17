@@ -775,7 +775,6 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
             rightright=[]
             restIndexes=[]
             for state,number in states.items():
-                print state
                 coalesced=False 
                 position1=-1
                 position2=-1
@@ -788,24 +787,20 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
                         position2=branch
                 if not coalesced:
                     if position1==1 and position2==1:
-                        print "leftleft"
                         leftleft.append(number)
         #                 print "ll "+str(state)
                     elif position1==2 and position2==2:
-                        print "rightright"
                         rightright.append(number)
         #                print "rr "+str(state)
                     elif position1==position2:#THIS IS ONLY USED FOR INITIAL_MIGRATION_MODEL WHICH HAS 0 AS THE ANCESTRAL POPULATION.
                         leftleft.append(number)
                     elif position1!=-1 and position2!=-1:
-                        print "leftright"
                         leftright.append(number)
 
                         #pass#print "lr "+str(state)
         #            else:
         #                print "non1 "+str(state)
                 else:
-                    print "coalesced"
                     restIndexes.append(number)
         lls=0 #P(B_ti=left) that is the probability that both ancestor-lines of the same position in the two genomes are in the left population
         lrs=0 #P(B_ti=both)
