@@ -11,6 +11,7 @@ from break_points2 import psmc_break_points, uniform_break_points, gamma_break_p
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
 from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix5, emission_matrix6
+import pyZipHMM
 
 
 
@@ -201,17 +202,10 @@ class VariableCoalAndMigrationRateModel(Model):
         """Build the hidden Markov model matrices from the model-specific parameters."""
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
-        br=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail)
+        br=ctmc_system.break_points
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #           
-#         def printPyZipHMM(Matrix):
-#             finalString=""
-#             for i in range(Matrix.getHeight()):
-#                 for j in range(Matrix.getWidth()):
-#                     finalString=finalString+" "+str(Matrix[i,j])
-#                 finalString=finalString+"\n"
-#             return finalString
-#           #strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
+
 #         emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
 #         print "emission 4"
 #         print printPyZipHMM(emission_probs)
@@ -222,7 +216,24 @@ class VariableCoalAndMigrationRateModel(Model):
 #         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
 #         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
         return initial_probs, transition_probs, emission_probs, ctmc_system.break_points
-    
+
+
+      #strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
+
 if __name__ == '__main__':
-    cd=VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals=[5,5,5,5], breaktimes=1.0,breaktail=5)
-    cd.build_hidden_markov_model([1000,900,800,700,  300,700,1500,2000,    500,0,500,600,    800,0,200,400,    0.44])
+    def printPyZipHMM(Matrix):
+        finalString=""
+        for i in range(Matrix.getHeight()):
+            for j in range(Matrix.getWidth()):
+                finalString=finalString+" "+str(Matrix[i,j])
+            finalString=finalString+"\n"
+        return finalString
+    substime_first_change=0.0005
+    substime_second_change=0.0010
+    substime_third_change=0.0030
+    def time_modifier():
+        return [(5,substime_first_change),(10,substime_second_change),(15,substime_third_change)]
+    cd=VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
+    ad= cd.build_hidden_markov_model([1000,1000,1000,1000,  1000,1000,1000,1000,    500,250,500,500,    500,500,100,500,    0.40])[2]
+    print printPyZipHMM(ad)
+    

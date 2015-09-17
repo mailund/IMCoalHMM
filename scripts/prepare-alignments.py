@@ -145,10 +145,7 @@ may want to split the alignment first if it's very large.
         names = options.names.split(',')
     else:
         names = list(alignments.keys())
-    print len(alignments)
-    for i,j in alignments.items():
-        print str(i)+"::::::::" 
-        print j
+
 
     if len(names) == 2:
         # PAIRWISE ALIGNMENT ###########################################################################
