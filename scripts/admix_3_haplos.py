@@ -216,7 +216,7 @@ recombination rate."""
             return log_likelihood(parameters)[2]
         mle_parameters = \
             maximum_likelihood_estimate(simple_log_likelihood, init_parameters,
-                                        optimizer_method=options.optimizer)
+                                        optimizer_method=options.optimizer,disp=True)
 
         max_log_likelihood = simple_log_likelihood(mle_parameters)
         with open(options.outfile, 'w') as outfile:

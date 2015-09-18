@@ -36,7 +36,7 @@ class Likelihood(object):
 def maximum_likelihood_estimate(log_likelihood, initial_parameters,
                                 optimizer_method="Nelder-Mead",
                                 log_file=None,
-                                log_param_transform=lambda x: x):
+                                log_param_transform=lambda x: x, disp=False):
     """Maximum likelihood estimation.
 
     This function requires a wrapper around the likelihood computation
@@ -68,7 +68,7 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
     def minimize_wrapper(parameters):
         return -log_likelihood(parameters)
 
-    options = {'disp': False}
+    options = {'disp': disp}
     # Set optimizer specific options
 
     #FIXME: if I have other ways of checking valid parameters for later models, this

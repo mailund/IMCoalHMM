@@ -95,12 +95,15 @@ def admixture_state_space_map(from_space, to_space, p, q):
     """Constructs the mapping matrix from the 'from_space' state space to the 'to_space' state space
     assuming an admixture event where lineages in population 0 moves to population 1 with probability p
     and lineages in population 1 moves to population 0 with probability q."""
+    if q==0:
+        return admixture_state_space_map_one_way(from_space, to_space, p)
     destination_map = to_space.state_numbers
     map_matrix = matrix(zeros((len(from_space.states), len(to_space.states))))
 
     for state, from_index in from_space.state_numbers.items():
         population_1 = population_lineages(12, state)
         population_2 = population_lineages(3, state)
+        print population_2
 
         # <debug>
         #print pretty_state(state)
@@ -137,6 +140,54 @@ def admixture_state_space_map(from_space, to_space, p, q):
         assert abs(total_prob - 1.0) < 1e-10
 
     return map_matrix
+
+
+def admixture_state_space_map_one_way(from_space, to_space, p):
+    """Constructs the mapping matrix from the 'from_space' state space to the 'to_space' state space
+    assuming an admixture event where lineages in population 0 moves to population 1 with probability p
+    and lineages in population 1 moves to population 0 with probability q."""
+    destination_map = to_space.state_numbers
+    map_matrix = matrix(zeros((len(from_space.states), len(to_space.states))))
+
+    for state, from_index in from_space.state_numbers.items():
+        population_1 = population_lineages(12, state)
+        population_2 = population_lineages(3, state)
+        print population_2
+
+        # <debug>
+        #print pretty_state(state)
+        # </debug>
+        total_prob = 0.0
+
+        for x in outer_powerset(population_1):
+            cx = complement(population_1, x)
+
+            ## Keep x and y in their respective population but move the other two...
+            cx = frozenset((3, lin) for (p, lin) in cx)
+
+            destination_state = frozenset(x).union(cx).union(population_2)
+            change_probability = p**len(cx) * (1.0 - p)**len(x)
+            to_index = destination_map[destination_state]
+
+            # <debug>
+            #print '->', pretty_state(destination_state),
+            #print "p^{} (1-p)^{} q^{} (1-q)^{}".format(len(cx), len(x), len(cy), len(y))
+            #print from_index, '->', to_index, '[{}]'.format(change_probability)
+            # </debug>
+
+            map_matrix[from_index, to_index] = change_probability
+            total_prob += change_probability
+
+        # <debug>
+        #print
+        #print total_prob
+        # </debug>
+
+        # We want to move to another state with exactly probability 1.0
+        assert abs(total_prob - 1.0) < 1e-10
+
+    return map_matrix
+
 
 
 class Admixture3HMiddle(CoalSystem):
@@ -193,6 +244,7 @@ class Admixture3HCTMCSystem(CTMCSystem):
 
         #the transition with admixture
         xx = before_admix_ctmc.probability_matrix(break_points2[0] - break_points1[-1])
+        projection = admixture_state_space_map_one_way(before_admix_ctmc.state_space, after_admix_ctmc.state_space, p)
         projection = admixture_state_space_map(before_admix_ctmc.state_space, after_admix_ctmc.state_space, p, q)
         self.through_[self.no_before_states - 1] = xx * projection
 
@@ -568,7 +620,7 @@ class Admixture3HModel(Model):
         # We override this one from the Model class because we cannot directly reuse the 2-sample code.
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
-        print "Building a HMM"
+        #print "Building a HMM"
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix(*parameters)
@@ -577,8 +629,8 @@ class Admixture3HModel(Model):
     
     
 
-#ad=Admixture3HModel(4,4,4)
-#tr=ad.build_hidden_markov_model([6.41408174e-03,5.09187906e-03,4.00728679e+03,1.87783199e+03,
-#                              1.74384828e+03,9.05662979e+02,1.49170581e+03,7.67706684e-02,
-#                              1.19783920e-01,4.09839536e-01])
-#print tr
+# ad=Admixture3HModel(2,2,2)
+# tr=ad.build_hidden_markov_model([6.41408174e-03,5.09187906e-03,4.00728679e+03,1.87783199e+03,
+#                               1.74384828e+03,9.05662979e+02,1.49170581e+03,7.67706684e-02,
+#                               1.19783920e-01,4.09839536e-01])
+# print tr
