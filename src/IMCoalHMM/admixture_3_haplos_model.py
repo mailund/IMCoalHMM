@@ -103,7 +103,6 @@ def admixture_state_space_map(from_space, to_space, p, q):
     for state, from_index in from_space.state_numbers.items():
         population_1 = population_lineages(12, state)
         population_2 = population_lineages(3, state)
-        print population_2
 
         # <debug>
         #print pretty_state(state)
