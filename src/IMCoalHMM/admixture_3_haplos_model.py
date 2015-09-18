@@ -159,7 +159,7 @@ def admixture_state_space_map_one_way(from_space, to_space, p):
         # </debug>
         total_prob = 0.0
 
-        for x in outer_powerset(population_1):
+        for x in powerset(population_1):
             cx = complement(population_1, x)
 
             ## Keep x and y in their respective population but move the other two...
@@ -244,7 +244,6 @@ class Admixture3HCTMCSystem(CTMCSystem):
 
         #the transition with admixture
         xx = before_admix_ctmc.probability_matrix(break_points2[0] - break_points1[-1])
-        projection = admixture_state_space_map_one_way(before_admix_ctmc.state_space, after_admix_ctmc.state_space, p)
         projection = admixture_state_space_map(before_admix_ctmc.state_space, after_admix_ctmc.state_space, p, q)
         self.through_[self.no_before_states - 1] = xx * projection
 
