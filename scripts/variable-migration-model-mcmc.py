@@ -452,11 +452,11 @@ recombination rate."""
                     count+=1
             fullparm=[f if f is not -1 else parameters[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
             fullparm.extend(parameters[count:])
+            print transform(fullparm)
             return fullparm
         #making a wrapper to take care of fixed parameters and scaling parameters
         def lwrap(parameters):#parameters is the vector of only variable parameters
-            val=log_likelihood(array(fullparams))[2]
-            print fullparm
+            val=log_likelihood(array(fullparams(parameters)))[2]
             print val
             return val
         sVal=[i for (n,i) in enumerate(startVal) if n not in options.fix_params]
