@@ -452,22 +452,18 @@ recombination rate."""
                 else:
                     fullparm.append(parameters[count])
                     count+=1
-            print fullparm
             fullparm=[f if f is not -1 else parameters[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
-            print fullparm
             fullparm.extend(parameters[count:])
-            print fullparm
             val=log_likelihood(array(fullparm))[2]
+            print fullparm
             print val
             return val
         sVal=[i for (n,i) in enumerate(startVal) if n not in options.fix_params]
-        print sVal
-        print tuple(sVal)
             
         mle_parameters = \
                 maximum_likelihood_estimate(lwrap, array(sVal),
                                              optimizer_method=options.optimizer)
-                
+        max_log_likelihood = lwrap(mle_parameters)        
         with open(options.outfile, 'w') as outfile:
             print >> outfile, '\t'.join(beforeNames+['recombRate'])
             print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
