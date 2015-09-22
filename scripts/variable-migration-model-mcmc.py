@@ -439,9 +439,7 @@ recombination rate."""
                     parm_scale_dictionary[i]=(leader, float(startVal[i])/float(startVal[leader]) )
         startVal=[s for n,s in enumerate(startVal) if n not in changers]
                  
-
-        #making a wrapper to take care of fixed parameters and scaling parameters
-        def lwrap(parameters):#parameters is the vector of only variable parameters
+        def fullparams(parameters):
             fullparm=[] #the parameters to feed log likelihood with
             count=0
             for i in xrange(4*no_epochs+1):#running through all the non-time-scaling parameters
@@ -454,7 +452,10 @@ recombination rate."""
                     count+=1
             fullparm=[f if f is not -1 else parameters[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
             fullparm.extend(parameters[count:])
-            val=log_likelihood(array(fullparm))[2]
+            return fullparm
+        #making a wrapper to take care of fixed parameters and scaling parameters
+        def lwrap(parameters):#parameters is the vector of only variable parameters
+            val=log_likelihood(array(fullparams))[2]
             print fullparm
             print val
             return val
@@ -466,7 +467,7 @@ recombination rate."""
         max_log_likelihood = lwrap(mle_parameters)        
         with open(options.outfile, 'w') as outfile:
             print >> outfile, '\t'.join(beforeNames+['recombRate'])
-            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
+            print >> outfile, '\t'.join(map(str, transform(fullparams(mle_parameters)) + (max_log_likelihood,)))
         return #escapes
 
 
