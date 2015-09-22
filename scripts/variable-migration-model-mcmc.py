@@ -5,9 +5,10 @@ from newick_count import count_tmrca
 from perfectLikelihood import Coal_times_log_lik
 
 from argparse import ArgumentParser
-from variable_migration_model2 import VariableCoalAndMigrationRateModel #til mcmc2
-#from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel #til mcmc3
-from likelihood2 import Likelihood
+from variable_migration_model2 import VariableCoalAndMigrationRateModel
+from variable_migration_model_with_ancestral import VariableCoalAndMigrationRateAndAncestralModel
+#from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel 
+from likelihood2 import Likelihood, maximum_likelihood_estimate
 
 from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, UniformPrior, MCG
 from math import log,floor
@@ -120,10 +121,18 @@ recombination rate."""
     parser.add_argument('--migration_uniform_prior', default=0, type=int, help='the maximum of the uniform prior on the migration rate is provided here. If nothing, the exponential prior is used.')
     parser.add_argument('--fix_params', nargs='+', default=[], type=int, help="the index of the parameters who will be fixed to their starting value throughout simulations. For now it only works when adap=1.")
     parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
+    parser.add_argument('--fix_parameters_to_be_equal', type=str, default="", help="FOR NOW THIS ONLY WORKS WITH no_mcmc. a comma and colon separated string. commas separate within group and colons separate between groups. If a startWithGuessElaborate is specified this will use the relationsships between the parameters in that as fixed. ")
     #One should specify a list of numbers, where the (2n-1)'th number is the index of the time interval one wants set. You can not specify 0 as that is always at time 0.0.
     #The 2n'th number is time point measuered in substitions. It will generally be around 10^-4-10^-2.
     parser.add_argument('--single_scaling', action='store_true', default=False, help='''if fixed_time_points is set, this will add a parameter to the model scaling 'the time points of fixed_time_points]' up and down(linearly). Default value is 1 of course.''') 
-    parser.add_argument('--joint_scaling', action='store_true', default=False, help='Each fixed_time_points will be scaled up and down and will generate a parameter in the model.')
+    parser.add_argument('--joint_scaling', nargs='+', default=[],type=int, help='The specified fixed_time_points will be scaled up and down and will generate a parameter in the model.')
+    parser.add_argument('--no_mcmc', action="store_true", default=False, help='If stated this will maximize the function without mcmc using nelder-mead optimization method. Fix params should work with this. ')
+    parser.add_argument('--last_epoch_ancestral', action='store_true', default=False, help="if stated the last epoch will be an ancestral epoch with no migration an all lineages in the same population. They are dead parameters in the eyes of the other options.")
+    parser.add_argument("--optimizer",
+                        type=str,
+                        default="Nelder-Mead",
+                        help="If no_mcmc is stated this will be the choice of optimizer.",
+                        choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
     
     options = parser.parse_args()
     if not options.use_trees_as_data:
@@ -180,8 +189,10 @@ recombination rate."""
         times=[(f,scale*t) for f,t in fixed_time_points]
         return times
     def joint_scaler(args):
-        assert len(args)==len(fixed_time_points)
-        times=[(f,scale*t) for (f,t),scale in zip(fixed_time_points,args)]
+        assert len(args)==len(options.joint_scaling), "the given scalers in args="+str(args)+" does not match the previously specified scalers in joint_scaling="+str(options.joint_scaling)
+        times=[(f,t) for f,t in fixed_time_points]
+        for ind,arg in zip(options.joint_scaling,args):
+            times[ind]=(times[ind][0], times[ind][1]*arg)
         return times
     def fix_scaler():
         return fixed_time_points
@@ -192,8 +203,9 @@ recombination rate."""
     elif options.joint_scaling:
         fixed_time_points=[]
         for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
-            priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer))
             fixed_time_points.append((int(f), float(t)))
+        for _ in options.joint_scaling:
+            priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer))
         fixed_time_pointer=joint_scaler
     elif options.fix_time_points:
         print "we are in options.fix_time_points"
@@ -300,9 +312,15 @@ recombination rate."""
         return ans, "col"+str(epoch1)+"-"+str(epoch2)
     
     # load alignments
-    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    if not options.last_epoch_ancestral:
+        model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    else:
+        model_11 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_12 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_22 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+
     
     if options.use_trees_as_data:
         leftT,rightT,combinedT,counts=count_tmrca(subs=options.Ngmu4,filename=options.treefile)
@@ -359,6 +377,8 @@ recombination rate."""
                 startVal=options.startWithGuessElaborate
             else:
                 "StartWithGuessElaborate is ignored"
+        if options.joint_scaling:
+            startVal.extend([1.0]*len(options.joint_scaling))
     else:
         startVal=None
 
@@ -404,6 +424,56 @@ recombination rate."""
         printFrequency=0
     print printFrequency
 
+
+    if options.no_mcmc:
+        
+        changers=[]
+        parm_scale_dictionary={}
+        if options.fix_parameters_to_be_equal:
+            groups=options.fix_parameters_to_be_equal.split(":")
+            for group in groups:
+                members=map(int,group.split(","))
+                leader=members[0]
+                for i in members[1:]:
+                    changers.append(i)
+                    parm_scale_dictionary[i]=(leader, float(startVal[i])/float(startVal[leader]) )
+        startVal=[s for n,s in enumerate(startVal) if n not in changers]
+                 
+
+        #making a wrapper to take care of fixed parameters and scaling parameters
+        def lwrap(parameters):#parameters is the vector of only variable parameters
+            fullparm=[] #the parameters to feed log likelihood with
+            count=0
+            for i in xrange(4*no_epochs+1):#running through all the non-time-scaling parameters
+                if i in options.fix_params: #
+                    fullparm.append(startVal[i])
+                elif i in changers:
+                    fullparm.append(-1)
+                else:
+                    fullparm.append(parameters[count])
+                    count+=1
+            print fullparm
+            fullparm=[f if f is not -1 else parameters[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
+            print fullparm
+            fullparm.extend(parameters[count:])
+            print fullparm
+            val=log_likelihood(array(fullparm))[2]
+            print val
+            return val
+        sVal=[i for (n,i) in enumerate(startVal) if n not in options.fix_params]
+        print sVal
+        print tuple(sVal)
+            
+        mle_parameters = \
+                maximum_likelihood_estimate(lwrap, array(sVal),
+                                             optimizer_method=options.optimizer)
+                
+        with open(options.outfile, 'w') as outfile:
+            print >> outfile, '\t'.join(beforeNames+['recombRate'])
+            print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
+        return #escapes
+
+
     print "fixedMax="+str(options.mc3_fixed_temp_max)
     if options.mc3 or options.mc3_mcg_setup:
         if options.mc3_mcg_setup and options.parallels>0:
@@ -435,6 +505,10 @@ recombination rate."""
     else:
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning, transferminator=adap, mixtureWithScew=options.adap, startVal=startVal, printFrequency=printFrequency)
 
+    
+
+        
+    
     
     print "before starting to simulate"
     with open(options.outfile, 'w') as outfile:
