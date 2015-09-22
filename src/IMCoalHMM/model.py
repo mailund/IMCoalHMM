@@ -37,9 +37,9 @@ class Model(object):
         :rtype: bool
         """
         # This works but pycharm gives a type warning... I guess it doesn't see > overloading
-        assert isinstance(parameters, numpy.ndarray)
+        assert isinstance(parameters, numpy.ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
         # noinspection PyTypeChecker
-        return all(parameters > 0)  # This is the default test, useful for most models.
+        return all(parameters >= 0)  # This is the default test, useful for most models.
 
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
