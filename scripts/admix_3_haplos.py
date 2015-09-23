@@ -220,9 +220,6 @@ recombination rate."""
 
         max_log_likelihood = simple_log_likelihood(mle_parameters)
         with open(options.outfile, 'w') as outfile:
-            if options.header:
-                print >> outfile, '\t'.join(['isolation.period', 'migration.period',
-                                             'theta', 'rho', 'migration', 'log.likelihood'])
             print >> outfile, '\t'.join(map(str, transform(mle_parameters) + (max_log_likelihood,)))
     else:
         
