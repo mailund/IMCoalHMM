@@ -205,15 +205,7 @@ class Admixture3HAfterDivergence(CoalSystem):
         self.init = [l1 | r1 | l2 | r2 | l3 | r3 for l1 in left_1 for r1 in right_1 for l2 in left_2 for r2 in right_2 for l3 in left_3 for r3 in right_3]
 
         self.compute_state_space()
-        self.sort_states()es):
-            path = self.reverse_tree_map[state]
-            #likelihoods contains the probability of each alignment
-            likelihoods = list()
-            for align_column in range(no_alignment_columns):
-                if align_column == no_alignment_columns - 1:
-                    likelihoods.append(1) #this should be the sum of all the others
-                else:
-                    tree = self.get_tree
+        self.sort_states()
         
     def sort_states(self):
         for state, index in self.states.items():
