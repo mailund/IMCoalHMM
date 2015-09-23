@@ -2,7 +2,7 @@
 migration and coalescence.
 """
 
-from numpy import zeros, matrix, identity
+from numpy import zeros, matrix, identity,cumsum, concatenate
 
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration
 from CTMC2 import make_ctmc
@@ -130,8 +130,8 @@ class VariableCoalAndMigrationRateModel(Model):
         coal_rates_2 = parameters[no_epochs:(2*no_epochs)]
         mig_rates_12 = parameters[(2*no_epochs):(3*no_epochs)]
         mig_rates_21 = parameters[(3*no_epochs):(4*no_epochs)]
-        recomb_rate = parameters[len(coal_rates_1)*4]
-        if len(coal_rates_1)*4+1<len(parameters):
+        recomb_rate = parameters[4*no_epochs]
+        if no_epochs*4+1<len(parameters):
             fixed_time_points=self.time_modifier(parameters[(len(coal_rates_1)*4+1):])
         elif self.time_modifier is not None:
             fixed_time_points=self.time_modifier()
@@ -201,21 +201,48 @@ class VariableCoalAndMigrationRateModel(Model):
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
         ctmc_system = self.build_ctmc_system(*parameters)
-        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
+        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
         br=ctmc_system.break_points
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
-#           
-
-#         emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
-#         print "emission 4"
-#         print printPyZipHMM(emission_probs)
-        emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
-#         print "emission 6"
-#         print printPyZipHMM(emission_probs)
-#         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
-#         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
-#         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
+#         
+        if self.initial_state==self.migration_state_space.i12_index: #here we are checking for 0s in the first migration parameters.
+            coals1,coals2,migs1,migs2,rho,_=self.unpack_parameters(parameters)
+#             print "coals1 ",coals1
+#             print "coals2 ",coals2
+#             print "migs1 ",migs1
+#             print "migs2 ",migs2
+            assert sum(migs1)+sum(migs2)>0, "migration rates can not all be 0 and any can not be negative"
+            indexOfFirstNonZero=min([n for n,(r,s) in enumerate(zip(migs1,migs2)) if r>0 or s>0])
+            if indexOfFirstNonZero>0:
+                indexOfFirstNonZeroMeasuredInBreakPoints=cumsum(self.intervals)[indexOfFirstNonZero-1]
+#                 print "indexOfFirstNonZero ",indexOfFirstNonZero
+#                 print "indexOfFirstNonZeroMeasuredInBreakPoints", indexOfFirstNonZeroMeasuredInBreakPoints
+#                 print "remaining intervals ", self.intervals[indexOfFirstNonZero:]
+#                 print "coals1[indexOfFirstNonZero:] ",coals1[indexOfFirstNonZero:]
+#                 print "coals2[indexOfFirstNonZero:] ",coals2[indexOfFirstNonZero:]
+#                 print "migs1[indexOfFirstNonZero:] ",migs1[indexOfFirstNonZero:]
+#                 print "migs2[indexOfFirstNonZero:] ",migs2[indexOfFirstNonZero:]
+#                 print "[rho] ",[rho]
+                reducedParameters=concatenate((coals1[indexOfFirstNonZero:],coals2[indexOfFirstNonZero:],migs1[indexOfFirstNonZero:],migs2[indexOfFirstNonZero:],[rho]))
+#                 print "reducedParameters ",reducedParameters
+                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=br[indexOfFirstNonZeroMeasuredInBreakPoints],ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+                
+                ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
+                
+                for i in xrange(indexOfFirstNonZeroMeasuredInBreakPoints):
+                    for j in xrange(len(br)):
+                        if i==j:
+                            transition_probs[i,i]=1.0
+                        else:
+                            transition_probs[i,j]=0.0
+            
+            else:
+                emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
+        else:
+            emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
+        
         return initial_probs, transition_probs, emission_probs, ctmc_system.break_points
+
 
 
       #strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
@@ -233,7 +260,7 @@ if __name__ == '__main__':
     substime_third_change=0.0030
     def time_modifier():
         return [(5,substime_first_change),(10,substime_second_change),(15,substime_third_change)]
-    cd=VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
-    ad= cd.build_hidden_markov_model([1000,1000,1000,1000,  1000,1000,1000,1000,    500,250,500,500,    500,500,100,500,    0.40])[2]
+    cd=VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
+    ad= cd.build_hidden_markov_model([1000,1000,1000,1000,  1000,1000,1000,1000,    0,0,500,500,    0,0,100,500,    0.40])[2]
     print printPyZipHMM(ad)
     

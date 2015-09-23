@@ -437,29 +437,37 @@ recombination rate."""
                 for i in members[1:]:
                     changers.append(i)
                     parm_scale_dictionary[i]=(leader, float(startVal[i])/float(startVal[leader]) )
-        startVal=[s for n,s in enumerate(startVal) if n not in changers]
-                 
+        NeverChangeParam=startVal
+        startVal=[s for n,s in enumerate(startVal) if n not in changers and n not in options.fix_params]
+        print NeverChangeParam
+        print startVal
+        print changers
+        print parm_scale_dictionary
+
+        
+             
         def fullparams(parameters):
             fullparm=[] #the parameters to feed log likelihood with
             count=0
             for i in xrange(4*no_epochs+1):#running through all the non-time-scaling parameters
                 if i in options.fix_params: #
-                    fullparm.append(startVal[i])
+                    fullparm.append(NeverChangeParam[i])
                 elif i in changers:
                     fullparm.append(-1)
                 else:
                     fullparm.append(parameters[count])
                     count+=1
-            fullparm=[f if f is not -1 else parameters[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
+            fullparm=[f if f is not -1 else fullparm[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
             fullparm.extend(parameters[count:])
             print transform(fullparm)
             return fullparm
+        test=fullparams(startVal)
         #making a wrapper to take care of fixed parameters and scaling parameters
         def lwrap(parameters):#parameters is the vector of only variable parameters
             val=log_likelihood(array(fullparams(parameters)))[2]
             print val
             return val
-        sVal=[i for (n,i) in enumerate(startVal) if n not in options.fix_params]
+        sVal=startVal
             
         mle_parameters = \
                 maximum_likelihood_estimate(lwrap, array(sVal),

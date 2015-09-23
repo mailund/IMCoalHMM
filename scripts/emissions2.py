@@ -751,7 +751,7 @@ def emission_matrix5(break_points, params,intervals, ctmc_system,offset):
 
 
 
-def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
+def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctmc_postpone=0):
     """
     Like emission_matrix4 except all the states are not necessarily identical.  
     """
@@ -760,7 +760,12 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
     no_epochs=len(intervals)
     epoch=-1
     intervals=cumsum(array(intervals))
-    emission_probabilities = Matrix(len(break_points), 3)
+    emission_probabilities = Matrix(len(ctmc_system.break_points), 3)  #IF SOMETHING GOES UNEXPECTED THIS MIGHT BE THE CAUSE. 
+    #here we use the ctmc.systems breakpoints instead of the user specified breakpoints so that we 0 are propagated
+    for j in xrange(ctmc_postpone):
+        emission_probabilities[j,0]=1.0
+        emission_probabilities[j,1]=0.0
+        emission_probabilities[j,2]=1.0
     restbefore=0
 
     for j in range(len(break_points[:-1])):
@@ -768,7 +773,7 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
         #new epoch is the epoch that corresponds to interval j
         new_epoch=bisect(intervals, j)
         if new_epoch!=epoch:
-            states=ctmc_system.get_state_space(j).states #all states are identical.
+            states=ctmc_system.get_state_space(j+ctmc_postpone).states #all states are identical.
             
             leftleft=[]
             leftright=[]
@@ -792,7 +797,7 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
                     elif position1==2 and position2==2:
                         rightright.append(number)
         #                print "rr "+str(state)
-                    elif position1==position2:#THIS IS ONLY USED FOR INITIAL_MIGRATION_MODEL WHICH HAS 0 AS THE ANCESTRAL POPULATION.
+                    elif position1==position2:#this is used for initial_migration_model and variable_migration_model_with_ancestral which has 0 as the ancestral population
                         leftleft.append(number)
                     elif position1!=-1 and position2!=-1:
                         leftright.append(number)
@@ -806,7 +811,7 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
         lrs=0 #P(B_ti=both)
         rrs=0 #P(B_ti=right)
         rest=0 #probability that they have coalesced.
-        r=ctmc_system.up_to(j)
+        r=ctmc_system.up_to(j+ctmc_postpone)
         i=ctmc_system.initial_ctmc_state
         for k in range(r.shape[1]):
             if k in leftleft:
@@ -905,9 +910,9 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
 #        print "rest-restbefore="+str(rest-restbefore)
  #       restbefore=rest
 #        print "emissum="+str(emissum)
-        emission_probabilities[j,0]=0.25+0.75*emissum/normsum
-        emission_probabilities[j,1]=0.75-0.75*emissum/normsum
-        emission_probabilities[j,2]=1.0
+        emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum/normsum
+        emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum/normsum
+        emission_probabilities[j+ctmc_postpone,2]=1.0
         old_epoch=epoch
 #         print "j "+str(j)
 #         print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
@@ -942,9 +947,11 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset):
                 normsum+=rrs*(1.0) 
     
 
-    emission_probabilities[j,0]=0.25+0.75*emissum/normsum
-    emission_probabilities[j,1]=0.75-0.75*emissum/normsum
-    emission_probabilities[j,2]=1.0
+    emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum/normsum
+    emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum/normsum
+    emission_probabilities[j+ctmc_postpone,2]=1.0
+    
+        
     #print printPyZipHMM(emission_probabilities)
     return emission_probabilities
                 
