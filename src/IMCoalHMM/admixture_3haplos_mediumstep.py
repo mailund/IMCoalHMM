@@ -18,7 +18,7 @@ from numpy.testing import assert_almost_equal
 import numpy
 from pyZipHMM import Matrix
 numpy.set_printoptions(threshold=numpy.nan)
-from pympler import tracker
+#from pympler import tracker
 
 
 def printPyZipHMM(Matrix):
