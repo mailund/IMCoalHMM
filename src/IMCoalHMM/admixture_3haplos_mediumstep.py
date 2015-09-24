@@ -102,7 +102,6 @@ def admixture_state_space_map_one_way(from_space, to_space, p):
     for state, from_index in from_space.state_numbers.items():
         population_1 = population_lineages(12, state)
         population_2 = population_lineages(3, state)
-        print population_2
 
         # <debug>
         #print pretty_state(state)
@@ -291,7 +290,6 @@ class Admixture3HMediumCTMCSystem(CTMCSystem):
         self.no_isolation_states=len(break_points1)
         self.no_ancestral_states=len(break_points4)
         self.model=model
-        print "making CTMC!"
         self.through_ = [None] * (self.no_isolation_states+self.no_medium_states + self.no_afterdivergence_states+self.no_ancestral_states - 1) #in the end a last term is added so that it becomes one longer
 
         for i in xrange(self.no_isolation_states - 1):
@@ -300,15 +298,12 @@ class Admixture3HMediumCTMCSystem(CTMCSystem):
         #the transition with admixture
         xx = isolation_ctmc.probability_matrix(break_points2[0] - break_points1[-1])
         projection = admixture_state_space_map_one_way(isolation_ctmc.state_space, medium_ctmc.state_space, p)
-        print "her"
         self.through_[self.no_isolation_states - 1] = xx * projection
-        print "bor"
 
         #transitions after admixture
         for i in xrange(self.no_isolation_states, self.no_medium_states + self.no_isolation_states - 1):
             ii = i - self.no_isolation_states
             self.through_[i] = medium_ctmc.probability_matrix(break_points2[ii+1] - break_points2[ii])
-        print "trolden"
         #transition to almost ancestral
         def state_map_23_1(state):
             return frozenset([(23, nucleotides) if i == 2 or i==3 else (1,nucleotides) for (i, nucleotides) in state])
@@ -316,14 +311,12 @@ class Admixture3HMediumCTMCSystem(CTMCSystem):
         xx = medium_ctmc.probability_matrix(break_points3[0] - break_points2[-1])
         projection = projection_matrix(medium_ctmc.state_space, afterdivergence_ctmc.state_space, state_map_23_1)
         self.through_[self.no_isolation_states+self.no_medium_states - 1] = xx * projection
-        print "i"
         
         #transitions in afterdivence
         for i in xrange(self.no_isolation_states+self.no_medium_states, self.no_medium_states + self.no_isolation_states+self.no_afterdivergence_states - 1):
             ii=i-(self.no_isolation_states+self.no_medium_states)
             self.through_[i] = afterdivergence_ctmc.probability_matrix(break_points3[ii + 1] - break_points3[ii])
         
-        print "sin"
         #transition to ancestral
         def state_map_123(state):
             return frozenset([(123, nucleotides) for (_, nucleotides) in state])        
@@ -332,13 +325,11 @@ class Admixture3HMediumCTMCSystem(CTMCSystem):
         projection = projection_matrix(afterdivergence_ctmc.state_space, ancestral_ctmc.state_space, state_map_123)
         self.through_[self.no_isolation_states+self.no_medium_states+self.no_afterdivergence_states - 1] = xx * projection
         
-        print "hule,"
         #transitions in ancestral
         for i in xrange(self.no_isolation_states+self.no_medium_states+self.no_afterdivergence_states, 
                         self.no_medium_states + self.no_isolation_states+self.no_afterdivergence_states+self.no_ancestral_states - 1):
             ii=i-(self.no_isolation_states+self.no_medium_states+self.no_afterdivergence_states)
             self.through_[i] = ancestral_ctmc.probability_matrix(break_points4[ii + 1] - break_points4[ii])
-        print "som"
         #last transition
         pseudo_through = matrix(zeros((len(ancestral_ctmc.state_space.states), len(ancestral_ctmc.state_space.states))))
         pseudo_through[:, self.ancestral_ctmc.state_space.state_type[(STATE_E, STATE_E)][0]] = 1.0
@@ -348,7 +339,6 @@ class Admixture3HMediumCTMCSystem(CTMCSystem):
         upto0 = matrix(identity(len(isolation_ctmc.state_space.states)))
         self.upto_ = compute_upto(upto0, self.through_)
         self.between_ = compute_between(self.through_)
-        print "er gul"
         
     def get_state_space(self, i):
         """Return the state space for interval i."""
@@ -581,10 +571,10 @@ class Admixture3HModel(Model):
             except ValueError:
                 tau1, tau2, tau3, coal_12, coal_1, coal_2, coal_3, coal_23, coal_last, recomb, p = parameters
                 outgroup=0
-        print self.isolation_breakpoints
-        print self.medium_breakpoints
-        print self.afterdivergence_breakpoints
-        print self.ancestral_breakpoints
+#         print self.isolation_breakpoints
+#         print self.medium_breakpoints
+#         print self.afterdivergence_breakpoints
+#         print self.ancestral_breakpoints
         
         breaks_12 = list(self.isolation_breakpoints)+list(self.medium_breakpoints) + [float(tau2+tau1)] # turn back into regular python...
         mean_coal_1=(coal_12+coal_3)/2.0
@@ -608,11 +598,11 @@ class Admixture3HModel(Model):
         epoch_4_emission_points.append(self.ancestral_breakpoints[-1] + 1/coal_last)
 
         #print "list og" + str(epoch_1_emission_points + epoch_2_emission_points)
-        print epoch_1_emission_points
-        print epoch_2_emission_points
-        print epoch_3_emission_points
-        print epoch_4_emission_points
-        print len(epoch_1_emission_points+epoch_2_emission_points+epoch_3_emission_points+epoch_4_emission_points)
+#         print epoch_1_emission_points
+#         print epoch_2_emission_points
+#         print epoch_3_emission_points
+#         print epoch_4_emission_points
+#         print len(epoch_1_emission_points+epoch_2_emission_points+epoch_3_emission_points+epoch_4_emission_points)
         
         return epoch_1_emission_points + epoch_2_emission_points+epoch_3_emission_points+epoch_4_emission_points, outgroup
 
@@ -645,7 +635,6 @@ class Admixture3HModel(Model):
         assert 1 <= len(path) <= 2, "tree with more than two coalescence events"
 
         if len(path) == 1:
-            print path
             # two coalescence events in the same interval is represented as a star-shape topology
             star = coalescence_time_points[path[0][1]]
             tree =  {'len': [star-s1, star-s2, star-s3], 'chld' : [{'leaf': b1}, {'leaf': b2}, {'leaf': b3}]}
@@ -737,18 +726,18 @@ class Admixture3HModel(Model):
         ctmc_system = self.build_ctmc_system(*parameters)
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix(*parameters)
-        return initial_probabilities, transition_probabilities, emission_probabilities, ctmc_system.break_points_1+ctmc_system.break_points_2+ctmc_system.break_points_3+ctmc_system.break_points_4
+        return initial_probabilities, transition_probabilities, emission_probabilities
     
     
     
-tra = tracker.SummaryTracker()
-tra.print_diff()
-ad=Admixture3HModel(Admixture3HModel.INITIAL_21,3,3,3,3)
-tra.print_diff()
-tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.1])
-tra.print_diff()
-tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.9])
-
-tra.print_diff()
+# tra = tracker.SummaryTracker()
+# tra.print_diff()
+# ad=Admixture3HModel(Admixture3HModel.INITIAL_21,3,3,3,3)
+# tra.print_diff()
+# tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.1])
+# tra.print_diff()
+# tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.9])
+# 
+# tra.print_diff()
 
 
