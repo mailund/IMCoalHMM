@@ -223,7 +223,7 @@ class OptimiserParallel(object):
         self.log = None
         self.max_iterations = 500
         self.max_initial_velocity = 0.02
-        self.particle_count = 7
+        self.particle_count = 100
         self.timeout = None
         
         
