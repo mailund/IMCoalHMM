@@ -171,7 +171,7 @@ def lwrap(parameters):#parameters is the vector of only variable parameters
     return val
 
 if options.optimizer=="Particle-Swarm":
-    if options.parallel>1:
+    if options.parallels>1:
         op=OptimiserParallel()
         mle_parameters = \
             op.maximise(lwrap, len(startVal), processes=7)
