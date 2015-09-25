@@ -7,6 +7,7 @@ from ParticleSwarm import OptimiserParallel, Optimiser
 from pyZipHMM import Forwarder
 from numpy import array
 import math
+from math import isnan,log,exp
 
 
 """
@@ -52,12 +53,12 @@ optimized_params = [
     ('tau_1', 'admixture time in substitutions', 1e6 / 1e9),
     ('tau_2', 'Time of split between 2 and 3 where 2 is going into the admixed population, 12, and 3 is not.', 2e6/1e9),
     ('tau_3', 'Time of the deepest split time', 3e6 / 1e9),
-    ('theta_12', 'effective population size in 4Ne substitutions for species 12 which only exists after admixture', 1e6 / 1e9),
-    ('theta_1', 'effective population size in 4Ne substitutions for species 1 which exists from tau_1 to tau_3', 1e6 / 1e9),
-    ('theta_2', 'effective population size in 4Ne substitutions for species 2 which exists from tau_1 to tau_2', 1e6 / 1e9),
-    ('theta_3', 'effective population size in 4Ne substitutions for species 3 which exists from 0 to tau_2', 1e6 / 1e9),
-    ('theta_23', 'effective population size in 4Ne substitutions for species 23 which exists from tau_2 to tau_3', 1e6 / 1e9),
-    ('theta_123', 'effective population size in 4Ne substitutions for species 123 which exists from tau_3 to infinity', 1e6 / 1e9),
+    ('coal_12', 'effective population size in 4Ne substitutions for species 12 which only exists after admixture', 1e3),
+    ('coal_1', 'effective population size in 4Ne substitutions for species 1 which exists from tau_1 to tau_3', 1e3),
+    ('coal_2', 'effective population size in 4Ne substitutions for species 2 which exists from tau_1 to tau_2', 1e3),
+    ('coal_3', 'effective population size in 4Ne substitutions for species 3 which exists from 0 to tau_2', 1e3),
+    ('coal_23', 'effective population size in 4Ne substitutions for species 23 which exists from tau_2 to tau_3', 1e3),
+    ('coal_123', 'effective population size in 4Ne substitutions for species 123 which exists from tau_3 to infinity', 1e3),
     ('p', 'proportion of population 12 going to population 2',0.1),
     ('rho', 'recombination rate in substitutions', 0.4)#,
     #('outgroup', 'total height of tree with outgroup', 1e6 / 1e9)
@@ -99,12 +100,12 @@ init_parameters = (
     options.tau_1,
     options.tau_2,
     options.tau_3,
-    options.theta_12,
-    options.theta_1,
-    options.theta_2,
-    options.theta_3,
-    options.theta_23,
-    options.theta_123,
+    options.coal_12,
+    options.coal_1,
+    options.coal_2,
+    options.coal_3,
+    options.coal_23,
+    options.coal_123,
     options.p,
     options.rho
 )
@@ -144,8 +145,32 @@ print startVal
 print changers
 print parm_scale_dictionary
 
-
-     
+def transform_to_optimise_space(fullparam):
+    tau_1,tau_2,tau_3,coal_12,coal_1,coal_2,coal_3,coal_23,coal_123,rho,p= fullparam
+    def log_transformfunc(fro,to):
+        def transform(num):
+            return (log(num)-log(fro))/log(to/fro)
+        return transform
+    coal_trans=log_transformfunc(100.0, 10000.0)
+    def time_trans(num):
+        num*100.0
+    return time_trans(tau_1),time_trans(tau_2),time_trans(tau_3),coal_trans(coal_12),coal_trans(coal_1),\
+        coal_trans(coal_2),coal_trans(coal_2),coal_trans(coal_3),coal_trans(coal_23),coal_trans(coal_123),rho,p
+        
+def transform_from_optimise_space(fullparm):
+    tau_1t, tau_2t, tau_3t, coal_12t, coal_1t, coal_2t, coal_3t, coal_23t, coal_123t, rhot,pt=fullparm
+    def log_transformfunc(fro,to):
+        def transform(num):
+            return exp(num*log(to/fro)+log(fro))
+        return transform
+    def time_trans(num):
+        return num*0.005
+    coal_trans=log_transformfunc(100.0, 3000.0)
+    res=[time_trans(tau_1t),time_trans(tau_2t),time_trans(tau_3t),coal_trans(coal_12t),coal_trans(coal_1t),\
+        coal_trans(coal_2t),coal_trans(coal_3t),coal_trans(coal_23t),coal_trans(coal_123t),0.4,pt]
+    return res
+    
+#this is an abbreviation of the two next functions
 def fullparams(parameters):
     fullparm=[] #the parameters to feed log likelihood with
     count=0
@@ -153,35 +178,70 @@ def fullparams(parameters):
         if i in options.fix_params: #
             fullparm.append(NeverChangeParam[i])
         elif i in changers:
-            fullparm.append(-1)
+            fullparm.append(-1)#default value, will be changed later
         else:
             fullparm.append(parameters[count])
             count+=1
-    fullparm=[f if f is not -1 else fullparm[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
+    fullparm=[f if f != -1 else fullparm[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
     fullparm.extend(parameters[count:])
     print fullparm
     return fullparm
+
+def insertFixParams(parameters):
+    shell=[]
+    for i in xrange(len(init_parameters)):
+        if i in options.fix_params:
+            shell.append(init_parameters[i])
+        elif i in changers:
+            shell.append(parameters[parm_scale_dictionary[i][0]]*parm_scale_dictionary[i][1])
+        else:
+            shell.append(parameters[i])
+    return shell
+
+def fillUpParams(shortParams):
+    fullparm=[] #the parameters to feed log likelihood with
+    count=0
+    for i in xrange(len(init_parameters)):#running through all the non-time-scaling parameters
+        if i in options.fix_params:
+            fullparm.append(0.5)#default value, will be changed later
+        elif i in changers:
+            fullparm.append(0.5)#default value, will be changed later
+        else:
+            fullparm.append(shortParams[count])
+            count+=1
+    return fullparm
 test=fullparams(startVal)
 #making a wrapper to take care of fixed parameters and scaling parameters
+
+def prepare_optimise_for_likelihood(parameters):
+    paramBase=fillUpParams(parameters)
+    paramBase=transform_from_optimise_space(paramBase)
+    likelihood_parms=insertFixParams(paramBase)
+    return likelihood_parms
+
 def lwrap(parameters):#parameters is the vector of only variable parameters
-    val=eval_log_likelihood(array(fullparams(parameters)))
+    likelihood_parms=prepare_optimise_for_likelihood(parameters)
+    print likelihood_parms
+    val=eval_log_likelihood(array(likelihood_parms))
+    print val
     if math.isnan(val):
         val = float('-inf')
-    print val
     return val
 
 if options.optimizer=="Particle-Swarm":
     if options.parallels>1:
         op=OptimiserParallel()
-        mle_parameters = \
-            op.maximise(lwrap, len(startVal), processes=7)
+        result = \
+            op.maximise(lwrap, len(startVal), processes=options.parallels)
     else:
         op=Optimiser()
-        mle_parameters = \
+        result = \
             op.maximise(lwrap, len(startVal))
+    mle_parameters=result.best.positions
+    print mle_parameters
 else:
     print "no valid maximization scheme stated"
 max_log_likelihood = lwrap(mle_parameters)        
 with open(options.outfile, 'w') as outfile:
     print >> outfile, '\t'.join(names)
-    print >> outfile, '\t'.join(map(str, fullparams(mle_parameters) + (max_log_likelihood,)))
+    print >> outfile, '\t'.join(map(str, prepare_optimise_for_likelihood(mle_parameters) + [max_log_likelihood]))
