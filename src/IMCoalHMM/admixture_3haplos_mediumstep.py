@@ -23,8 +23,8 @@ numpy.set_printoptions(threshold=numpy.nan)
 
 def printPyZipHMM(Matrix):
     finalString=""
-    for i in range(Matrix.getWidth()):
-        for j in range(Matrix.getHeight()):
+    for i in range(Matrix.getHeight()):
+        for j in range(Matrix.getWidth()):
             finalString=finalString+" "+str(Matrix[i,j])
         finalString=finalString+"\n"
     return finalString
@@ -541,7 +541,7 @@ class Admixture3HModel(Model):
 #         print "parameters"
 #         print len(parameters)
 #         print parameters
-        tau_1, tau_2, tau_3, coal_12, coal_3, coal_1, coal_2, coal_23, coal_last, recomb, p = parameters
+        tau_1, tau_2, tau_3, coal_12, coal_1, coal_2, coal_3, coal_23, coal_last, recomb, p = parameters
         isolation_rates = make_rates_table_1(coal_rate_12=coal_12, coal_rate_3=coal_3, recombination_rate=recomb)
         medium_rates = make_rates_table_2(coal_rate_1=coal_1, coal_rate_2=coal_2,coal_rate_3=coal_3, recombination_rate=recomb)
         afterdivergence_rates = make_rates_table_3(coal_rate_1=coal_1, coal_rate_23=coal_23, recombination_rate=recomb)
@@ -553,7 +553,7 @@ class Admixture3HModel(Model):
         ancestral_ctmc = make_ctmc(self.ancestral_state_space, ancestral_rates)
         self.isolation_breakpoints=uniform_break_points(self.no_isolation_intervals,0,tau_1)
         self.medium_breakpoints=uniform_break_points(self.no_medium_intervals, tau_1,tau_1+tau_2)
-        self.afterdivergence_breakpoints=uniform_break_points(self.no_ancestral_intervals, tau_1+tau_2, tau_3)
+        self.afterdivergence_breakpoints=uniform_break_points(self.no_ancestral_intervals, tau_1+tau_2, tau_1+tau_2+tau_3)
         self.ancestral_breakpoints = exp_break_points(self.no_ancestral_intervals, coal_last, tau_1+tau_2+tau_3)
         #print self.isolation_breakpoints
         #print self.middle_breakpoints
@@ -732,9 +732,12 @@ class Admixture3HModel(Model):
     
 # tra = tracker.SummaryTracker()
 # tra.print_diff()
-# ad=Admixture3HModel(Admixture3HModel.INITIAL_21,3,3,3,3)
+#ad=Admixture3HModel(Admixture3HModel.INITIAL_21,3,3,3,3)
 # tra.print_diff()
-# tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.1])
+#tr=ad.build_hidden_markov_model([0.0012000,0.002000,0.0021, 1000,1000,1000,1000,1000,1000,0.4,0.1])
+#print printPyZipHMM(tr[0])
+# print printPyZipHMM(tr[1])
+# print printPyZipHMM(tr[1])
 # tra.print_diff()
 # tr=ad.build_hidden_markov_model([0.001,0.004,0.009, 1000,1000,1000,1000,1000,1000,0.4,0.9])
 # 

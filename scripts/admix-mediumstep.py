@@ -164,10 +164,10 @@ def transform_from_optimise_space(fullparm):
             return exp(num*log(to/fro)+log(fro))
         return transform
     def time_trans(num):
-        return num*0.005
-    coal_trans=log_transformfunc(100.0, 3000.0)
+        return num*0.01
+    coal_trans=log_transformfunc(100.0, 10000.0)
     res=[time_trans(tau_1t),time_trans(tau_2t),time_trans(tau_3t),coal_trans(coal_12t),coal_trans(coal_1t),\
-        coal_trans(coal_2t),coal_trans(coal_3t),coal_trans(coal_23t),coal_trans(coal_123t),0.4,pt]
+        coal_trans(coal_2t),coal_trans(coal_3t),coal_trans(coal_23t),coal_trans(coal_123t),rhot,pt]
     return res
     
 #this is an abbreviation of the two next functions
