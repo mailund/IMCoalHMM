@@ -146,7 +146,7 @@ class MCMC(object):
     def step(self, temperature=1.0):
         propPar=self.current_theta
         new_theta = array([self.priors[i].proposal(propPar[i]) for i in xrange(len(self.current_theta))])
-        self.latest_squaredJumpSize=self.calcSquaredJump(self.current_theta, new_theta)
+        self.latest_squaredJumpSize=3.217#self.calcSquaredJump(self.current_theta, new_theta)
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
@@ -164,23 +164,23 @@ class MCMC(object):
         self.latest_suggestedTheta=new_theta
             
             
-    def calcSquaredJump(self, thBefore, thAfter):
-        tij=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333333)
-        tij.append(0.0)
-        def calcForOne(th):
-            prob11=0
-            prob22=0
-            res=[0]*20
-            for k in range(0,20):
-                res[k]=th[int(k/5)]*prob11+th[4+int(k/5)]*prob22
-                mt21=(tij[k+1]-tij[k])*th[int(k/5)+3*4]
-                mt12=(tij[k+1]-tij[k])*th[int(k/5)+2*4]
-                prob11=mt21+prob11*(1-mt21)
-                prob22=mt12+prob22*(1-mt12)
-            return res
-        a=calcForOne(thBefore)
-        b=calcForOne(thAfter)
-        return sum([(i-j)**2 for i,j in zip(a,b)])
+#     def calcSquaredJump(self, thBefore, thAfter):
+#         tij=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333333)
+#         tij.append(0.0)
+#         def calcForOne(th):
+#             prob11=0
+#             prob22=0
+#             res=[0]*20
+#             for k in range(0,20):
+#                 res[k]=th[int(k/5)]*prob11+th[4+int(k/5)]*prob22
+#                 mt21=(tij[k+1]-tij[k])*th[int(k/5)+3*4]
+#                 mt12=(tij[k+1]-tij[k])*th[int(k/5)+2*4]
+#                 prob11=mt21+prob11*(1-mt21)
+#                 prob22=mt12+prob22*(1-mt12)
+#             return res
+#         a=calcForOne(thBefore)
+#         b=calcForOne(thAfter)
+#         return sum([(i-j)**2 for i,j in zip(a,b)])
             
             
     def ScewStep(self, temperature=1.0):
@@ -194,7 +194,7 @@ class MCMC(object):
             print "The model has tried to move outside of its stabile values at temperature "+str(temperature)+ " "+str(e)[0:10]+"..."
             return
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=self.calcSquaredJump(self.current_theta, new_theta)
+        self.latest_squaredJumpSize=3.217#self.calcSquaredJump(self.current_theta, new_theta)
 
         if new_posterior > self.current_posterior:
             alpha=1
@@ -218,7 +218,7 @@ class MCMC(object):
         new_prior = self.log_prior(new_theta)
         new_transitionMatrix, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
         new_posterior = new_prior + new_log_likelihood
-        self.latest_squaredJumpSize=self.calcSquaredJump(self.current_theta, new_theta)
+        self.latest_squaredJumpSize=3.217#self.calcSquaredJump(self.current_theta, new_theta)
         
         if new_posterior > self.current_posterior or \
                         random() < exp(new_posterior / temperature - self.current_posterior / temperature):
