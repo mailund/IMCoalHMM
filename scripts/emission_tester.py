@@ -36,7 +36,7 @@ _MS_PATH = 'ms'
 _SEQGEN_PATH= 'seq-gen'
 coal_rho = 800.0
 seg_length = 1000000.0
-s2=seg_length/10
+s2=seg_length/10.0
 Ne=20000
 gen=25
 mu=1e-9
@@ -59,11 +59,13 @@ time_third_change=substime_third_change/theta_subs
 reps=options.reps
 
 
-
+#ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 -em ${mstime_for_change} 1 2 $changed_migration -em ${mstime_for_change} 2 1 $changed_migration2 -ej $mstime_for_change_back 1 2
 def simulate_forest(forest_file,sequence_file,align_dir_file):
     seqgen_args= ['-q','-mHKY','-l', str(seg_length),'-s',str(theta_subs),'-p',str(s2),forest_file]
-    ms_args = ['4', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '2', '2', '2', '1.0','-em',str(time_first_change),'1','2',str(new_val), 
-               '-em', str(time_second_change),'1','2',str(old_val),'-em',str(time_second_change), '2','1', str(new_val2), '-em', str(time_third_change), '2','1', str(old_val)]
+#     ms_args = ['4', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '2', '2', '2', '1.0','-em',str(time_first_change),'1','2',str(new_val), 
+#                '-em', str(time_second_change),'1','2',str(old_val),'-em',str(time_second_change), '2','1', str(new_val2), '-em', str(time_third_change), '2','1', str(old_val)]
+    ms_args = ['4', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '2', '2', '2','-em',str(time_first_change),'1','2',str(new_val),
+               '-em',str(time_first_change),'2','1',str(new_val2),'-ej', str(time_second_change),'1','2']
         #python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
 
     with open(forest_file, 'w') as f:
@@ -145,8 +147,8 @@ import imp
 breaks = imp.load_source('break_points2', pythonprefix+'break_points2.py')
 #bins=[0.0, 8.3381608939051073e-05, 0.0001743533871447778, 0.00027443684570176033, 0.00038566248081198473, 0.0005108256237659907, 0.00065392646740666392, 0.00082098055206983008, 0.0010216512475319816, 0.0012729656758128879, 0.0015213904$
 
-bins=breaks.gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750.0,tenthsInTheEnd=3,
-                               fixed_time_points=[(5,substime_first_change),(10,substime_second_change),(15,substime_third_change)])
+bins=breaks.gamma_break_points(15,beta1=0.001, alpha=2,beta2=float(1)/750.0,tenthsInTheEnd=3,
+                               fixed_time_points=[(5,substime_first_change),(10,substime_second_change)])
 bins.append(1)
 
 import time
@@ -202,7 +204,7 @@ constructEmissionProbability(rr, fileprefix+"rr_empirical_ms.txt")
 constructEmissionProbability(cc, fileprefix+"cc_empirical_ms.txt")
 
 def time_modifier():
-    return [(5,substime_first_change),(10,substime_second_change),(15,substime_third_change)]
+    return [(5,substime_first_change),(10,substime_second_change)]
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -212,15 +214,30 @@ def printPyZipHMM(Matrix):
         finalString=finalString+"\n"
     return finalString
 
-varb = imp.load_source('variable_migration_model2', pythonprefix+'variable_migration_model2.py')
-def constructTrueEmissionProbability(params, model,filename):
-    cd=varb.VariableCoalAndMigrationRateModel(model, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3, time_modifier=time_modifier)
+#this is for testing the already verified variableCoalAndMigrationModel.py
+# varb = imp.load_source('variable_migration_model2', pythonprefix+'variable_migration_model2.py')
+# def constructTrueEmissionProbability(params, model,filename):
+#     cd=varb.VariableCoalAndMigrationRateModel(model, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3, time_modifier=time_modifier)
+#     _,_,e,_=cd.build_hidden_markov_model(params)
+#     estr=printPyZipHMM(e)
+#     with open(filename,'w') as f:
+#         f.write(estr)
+# parm=[1000,1000,1000,1000,  1000,1000,1000,1000,    500,250,500,500,    500,500,100,500,    0.4]
+# constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_11, fileprefix+"ll_theoretical_coalHMM.txt")
+# constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
+# constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
+
+
+varb = imp.load_source('variable_migration_model_with_ancestral', pythonprefix+'variable_migration_model_with_ancestral.py')
+def constructTrueEmissionProbability2(params, model,filename):
+    cd=varb.VariableCoalAndMigrationRateAndAncestralModel(model, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
     _,_,e,_=cd.build_hidden_markov_model(params)
     estr=printPyZipHMM(e)
     with open(filename,'w') as f:
         f.write(estr)
-parm=[1000,1000,1000,1000,  1000,1000,1000,1000,    500,250,500,500,    500,500,100,500,    0.4]
-constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_11, fileprefix+"ll_theoretical_coalHMM.txt")
-constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
-constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
+parm=[1000,1000,1000,  1000,1000,1000,    0,250,500,    0,100,500,    0.4]
+constructTrueEmissionProbability2(parm,varb.VariableCoalAndMigrationRateAndAncestralModel.INITIAL_11, fileprefix+"ll_theoretical_coalHMM.txt")
+constructTrueEmissionProbability2(parm,varb.VariableCoalAndMigrationRateAndAncestralModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
+constructTrueEmissionProbability2(parm,varb.VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
+
 
