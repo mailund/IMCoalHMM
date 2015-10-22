@@ -257,10 +257,10 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
                 
                 for i in xrange(indexOfFirstNonZeroMeasuredInBreakPoints):
                     for j in xrange(len(br)):
-                        if i==j:
-                            transition_probs[i,i]=1.0
-                        else:
+                        if i>=j:
                             transition_probs[i,j]=0.0
+                        else:
+                            transition_probs[i,j]=float(1.0)/(len(br)-i-1)
             
             else:
                 emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
@@ -295,6 +295,7 @@ if __name__ == '__main__':
         return [(5,substime_first_change),(10,substime_second_change)]
     cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
     ad= cd.build_hidden_markov_model(array([1000,1000,1000,  1000,1000,1000,    0,500,0,    0,100,0,    0.40]))
+    print printPyZipHMM(ad[0])
     with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
         f.write(printPyZipHMM(ad[1]))
     with open("/home/svendvn/Dropbox/Bioinformatik/emission_matrix.txt", 'w') as f:

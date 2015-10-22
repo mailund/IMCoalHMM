@@ -231,10 +231,10 @@ class VariableCoalAndMigrationRateModel(Model):
                 
                 for i in xrange(indexOfFirstNonZeroMeasuredInBreakPoints):
                     for j in xrange(len(br)):
-                        if i==j:
-                            transition_probs[i,i]=1.0
-                        else:
+                        if i>=j:
                             transition_probs[i,j]=0.0
+                        else:
+                            transition_probs[i,j]=float(1.0)/(len(br)-i-1)
             
             else:
                 emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
