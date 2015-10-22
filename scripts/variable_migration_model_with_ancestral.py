@@ -245,7 +245,13 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 #                 print "[rho] ",[rho]
                 reducedParameters=concatenate((coals1[indexOfFirstNonZero:],coals2[indexOfFirstNonZero:],migs1[indexOfFirstNonZero:],migs2[indexOfFirstNonZero:],[rho]))
 #                 print "reducedParameters ",reducedParameters
-                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=br[indexOfFirstNonZeroMeasuredInBreakPoints],ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+                print "original breakpoints", br
+                print "reduced breakpoints", br[indexOfFirstNonZeroMeasuredInBreakPoints:]
+                print "reduced parameters", reducedParameters
+                print "intervals", self.intervals[indexOfFirstNonZero:]
+                print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
+                print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
+                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
                 
                 ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
                 
@@ -288,6 +294,10 @@ if __name__ == '__main__':
     def time_modifier():
         return [(5,substime_first_change),(10,substime_second_change)]
     cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
-    ad= cd.build_hidden_markov_model(array([1000,1000,1000,  1000,1000,1000,    0,0,50,    0,0,60,    0.40]))[2]
-    print printPyZipHMM(ad)
+    ad= cd.build_hidden_markov_model(array([1000,1000,1000,  1000,1000,1000,    0,500,0,    0,100,0,    0.40]))
+    with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
+        f.write(printPyZipHMM(ad[1]))
+    with open("/home/svendvn/Dropbox/Bioinformatik/emission_matrix.txt", 'w') as f:
+        f.write(printPyZipHMM(ad[2]))
+        
     

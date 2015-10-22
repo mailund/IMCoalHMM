@@ -225,8 +225,8 @@ class VariableCoalAndMigrationRateModel(Model):
 #                 print "[rho] ",[rho]
                 reducedParameters=concatenate((coals1[indexOfFirstNonZero:],coals2[indexOfFirstNonZero:],migs1[indexOfFirstNonZero:],migs2[indexOfFirstNonZero:],[rho]))
 #                 print "reducedParameters ",reducedParameters
-                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=br[indexOfFirstNonZeroMeasuredInBreakPoints],ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
-                
+                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=0.0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+                #offset is set to 0.0 because it was already taken into account by slicing br.
                 ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
                 
                 for i in xrange(indexOfFirstNonZeroMeasuredInBreakPoints):
