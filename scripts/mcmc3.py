@@ -558,11 +558,11 @@ class MC3(object):
             if i==0:
                 print self.temperature_scale
             if self.sort:
-                if order==range(self.no_chains):
+                if all(x<y for x, y in zip(order, order[1:])):
                     self.noSwitchInRow+=1
                 else:
-                    if random()<0.01:
-                        print str(self.noSwitchInRow)+" ids and now "+ str(order)
+#                     if random()<0.01:
+                    print str(self.noSwitchInRow)+" ids and now "+ str(order)
                     self.noSwitchInRow=0
                 self.count+=1   
                 for ro in range(self.no_chains-1):

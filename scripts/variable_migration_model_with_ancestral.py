@@ -245,12 +245,12 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 #                 print "[rho] ",[rho]
                 reducedParameters=concatenate((coals1[indexOfFirstNonZero:],coals2[indexOfFirstNonZero:],migs1[indexOfFirstNonZero:],migs2[indexOfFirstNonZero:],[rho]))
 #                 print "reducedParameters ",reducedParameters
-                print "original breakpoints", br
-                print "reduced breakpoints", br[indexOfFirstNonZeroMeasuredInBreakPoints:]
-                print "reduced parameters", reducedParameters
-                print "intervals", self.intervals[indexOfFirstNonZero:]
-                print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
-                print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
+#                 print "original breakpoints", br
+#                 print "reduced breakpoints", br[indexOfFirstNonZeroMeasuredInBreakPoints:]
+#                 print "reduced parameters", reducedParameters
+#                 print "intervals", self.intervals[indexOfFirstNonZero:]
+#                 print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
+#                 print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
                 emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
                 
                 ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
