@@ -103,7 +103,7 @@ may want to split the alignment first if it's very large.
     parser.add_argument("in_filename", type=str, help="Input file")
     parser.add_argument("in_format", type=str, help="The file format for the input")
     parser.add_argument("output_dirname", type=str, help="Where to write the ZipHMM alignment")
-    parser.add_argument("--lowercase_to_N", type=bool, deafult=False, action='store_true', help='If stated lowercase symbols are converted to N')
+    parser.add_argument("--lowercase_to_N",  default=False, action='store_true', help='If stated lowercase symbols are converted to N')
     parser.add_argument("--where_path_ends",type=int, default=0, help="The path is assumed to consist of a lot of /, \
         and it is assumed that the path goes through the working directory. This is the index[counting 0] of the working directory")
 
