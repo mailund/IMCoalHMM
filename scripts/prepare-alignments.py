@@ -82,14 +82,7 @@ Assumption #1: Either the file is a pairwise alignment, or you have provided
 exactly two names to the `--names` option.
 
 Assumption #2: The file uses a simple ACGT format (and N/-). Anything else will
-be interpreted aetup)==options.parallels:
-                print "The requested number of parallel chains do not match those requested"
-        if not options.mc3_mcg_setup:
-            chain_structure=[1]*options.parallels
-        else:
-            chain_structure=options.mc3_mcg_setup
-        adapts=[] #we have to make a list of adaptors
-        no_chains=len(chain_structure)s N and a warning will be given with all unknown symbols.
+be interpreted and a warning will be given with all unknown symbols.
 
 Warning: This program uses SeqIO.to_dict to read in the entire alignment, you
 may want to split the alignment first if it's very large.
@@ -110,6 +103,7 @@ may want to split the alignment first if it's very large.
     parser.add_argument("in_filename", type=str, help="Input file")
     parser.add_argument("in_format", type=str, help="The file format for the input")
     parser.add_argument("output_dirname", type=str, help="Where to write the ZipHMM alignment")
+    parser.add_argument("--lowercase_to_N", type=bool, deafult=False, action='store_true', help='If stated lowercase symbols are converted to N')
     parser.add_argument("--where_path_ends",type=int, default=0, help="The path is assumed to consist of a lot of /, \
         and it is assumed that the path goes through the working directory. This is the index[counting 0] of the working directory")
 
@@ -167,7 +161,17 @@ may want to split the alignment first if it's very large.
         seen = set()
         with open(outname, 'w', 64 * 1024) as f:
             for i in xrange(sequence_length):
-                s1, s2 = sequence1[i].upper(), sequence2[i].upper()
+                if options.lowercase_to_N:
+                    if sequence1[i].islower():
+                        s1="N"
+                    else:
+                        s1=sequence1[i]
+                    if sequence2[i].islower():
+                        s2="N"
+                    else:
+                        s2=sequence2[i]
+                else:
+                    s1, s2 = sequence1[i].upper(), sequence2[i].upper()
 
                 
                 if s1 not in set('ACGTN-'):
