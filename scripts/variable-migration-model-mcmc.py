@@ -201,13 +201,18 @@ if options.single_scaling:
     priors.append(UniformPrior(1.0, 10.0, proposal_sd=options.sd_multiplyer))
     fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
     fixed_time_pointer=single_scaler
+    no_params+=1
 elif options.joint_scaling:
     fixed_time_points=[]
     for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
         fixed_time_points.append((int(f), float(t)))
-    for _ in options.joint_scaling:
-        priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer))
+    for i in options.joint_scaling:
+        if i==len(fixed_time_points)-1: #then this is for the last time interval
+            priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer, a=0.95))
+        else:
+            priors.append(UniformPrior(1.0,fixed_time_points[i+1][1]*9.0/(fixed_time_points[i][1]*10.0), proposal_sd=options.sd_multiplyer,a=0.95)) #this will leave a small band of error
     fixed_time_pointer=joint_scaler
+    no_params+=len(options.joint_scaling)
 elif options.fix_time_points:
     print "we are in options.fix_time_points"
     fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]

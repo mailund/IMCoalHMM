@@ -51,22 +51,23 @@ class LogNormPrior(object):
         
 class UniformPrior(object):
     
-    def __init__(self, init, until, proposal_sd=None):
+    def __init__(self, init, until, proposal_sd=None, a=0.0):
         self.until=until
         self.init=init
+        self.a=a
         if proposal_sd is not None:
             self.proposal_sd = proposal_sd
         else:
             self.proposal_sd = 0.1
             
     def pdf(self, x):
-        if x<=self.until:
-            return 1.0/self.until
+        if x<=self.until and x>=self.a:
+            return 1.0/(self.until-self.a)
         else:
             return 0
 
     def sample(self):
-        return self.init+random()*min(self.until-self.init,self.init)*0.4
+        return self.a+random()*(self.until-self.a)
 
     def proposal(self, x):
         log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]

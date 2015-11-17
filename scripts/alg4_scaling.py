@@ -35,7 +35,8 @@ class AM4_scaling(object):
         self.multip=params[1]
         self.timeTillStart=params[2]
         self.proportions=params[3]
-        self.major=params[4]
+        self.majorToCome=params[4]
+        self.major=2
         self.mean=array([0]*size)
         self.alphaDesired=alphaDesired
         self.adap=2
@@ -121,9 +122,9 @@ class AM4_scaling(object):
         
         
         
-        print "adjusting adap "+str(self.adap)+" when major="+str(self.major)
-        multip=max(0.001,exp(gamma*(alphaXY-self.alphaDesired)))#limiting, so it wont be too close to 0.
-        print "multip="+str(multip)
+        #print "adjusting adap "+str(self.adap)+" when major="+str(self.major)
+        multip=min(5.0,max(0.2,exp(gamma*(alphaXY-self.alphaDesired))))#limiting, so it wont be too close to 0.
+        #print "multip="+str(multip)
         if self.adap==self.major:
             self.theta *= multip
             if self.major==0:
@@ -133,8 +134,9 @@ class AM4_scaling(object):
                 self.thetaDependent/=multip
                 self.thetaIdentical/=multip
             else:
-                self.thetaIndependent/=multip
-                self.thetaDependent/=multip
+                if self.timeTillStart<self.count:
+                    self.thetaIndependent/=multip
+                    self.thetaDependent/=multip
         elif self.adap==0:
             self.thetaDependent *= multip
         elif self.adap==1:
@@ -144,19 +146,30 @@ class AM4_scaling(object):
             
             
         if self.count==self.timeTillStart:#we try to normalize self.theta, to skip some steps
+            self.major=self.majorToCome
             self.sigma=cov(map(list,zip(*self.firstValues)))
             self.firstValues=[]
             print self.sigma
-            if self.major==2:
-                pass
-            elif self.major==0:
+            if self.major==0:
                 normalizer=sum(diagonal(self.sigma))/len(self.first)
                 print "normalizerD="+str(normalizer)
-                self.theta=self.thetaIdentical/normalizer
+                self.thetaIdentical=normalizer
+                self.thetaDependent=1.0
+                self.thetaIndependent=self.theta/normalizer
+                self.theta=self.thetaIndependent
             elif self.major==1:
-                normalizer=real(sum(eig(self.sigma)[0]))/len(self.first)
-                print "normalizerID="+str(normalizer)
-                self.theta=self.thetaIdentical/normalizer
+                normalizer=sum(diagonal(self.sigma))/len(self.first)
+                print "normalizerD="+str(normalizer)
+                self.thetaIdentical=normalizer
+                self.thetaDependent=self.theta/normalizer
+                self.thetaIndependent=1.0
+                self.theta=self.thetaDependent
+            else:
+                normalizer=sum(diagonal(self.sigma))/len(self.first)
+                self.thetaIdentical=self.theta
+                self.thetaDependent=1.0/normalizer
+                self.thetaIndependent=1.0/normalizer
+                self.theta=self.thetaIdentical
             
             
             
