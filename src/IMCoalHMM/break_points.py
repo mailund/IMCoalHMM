@@ -30,7 +30,7 @@ def exp_break_points(no_intervals, coal_rate, offset=0.0):
     return points / coal_rate + offset
 
 
-def trunc_exp_break_points(no_intervals, coal_rate, end, offset=0.0):
+def trunc_exp_break_points(no_intervals, coal_rate, end, offset=0.0):  ##FIXME: trunc_exp_break_points(3,500,0.003, offset=0.002) gived something larger than 0.003
     """Compute break points for equal probably intervals given the
     coalescence rate. The optional parameter "offset" is added to all
     the break points and can be used for e.g. a speciation time.

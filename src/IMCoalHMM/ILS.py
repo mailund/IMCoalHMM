@@ -3,7 +3,7 @@ from IMCoalHMM.statespace_generator import CoalSystem
 from IMCoalHMM.transitions import projection_matrix, compute_between, compute_upto
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.model import Model
-from IMCoalHMM.break_points import exp_break_points, trunc_exp_break_points
+from IMCoalHMM.break_points import exp_break_points, trunc_exp_break_points, uniform_break_points
 
 from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
@@ -387,9 +387,9 @@ class ILSModel(Model):
         epoch_2_ctmc = make_ctmc(Isolation2(), make_rates_table_2(coal12, coal3, recombination_rate))
         epoch_3_ctmc = make_ctmc(Isolation1(), make_rates_table_1(coal123, recombination_rate))
 
-        self.break_points_12 = trunc_exp_break_points(self.no_12_intervals, coal12, tau1 + tau2, tau1)
+        self.break_points_12 = uniform_break_points(self.no_12_intervals,tau1,tau1 + tau2)
         self.break_points_123 = exp_break_points(self.no_123_intervals, coal123, tau1 + tau2)
-
+        
         return ILSCTMCSystem(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, self.break_points_12, self.break_points_123)
 
     def emission_points(self, *parameters):
@@ -400,12 +400,11 @@ class ILSModel(Model):
         except ValueError:
             tau1, tau2, coal1, coal2, coal3, coal12, coal123, _, outgroup = parameters
 
-        breaks_12 = list(self.break_points_12) + [float(tau1 + tau2)] # turn back into regular python...
-        epoch_1_time_spans = [e-s for s, e in zip(breaks_12[0:-1], breaks_12[1:])]
-        epoch_1_emission_points = [(1/coal12)-dt/(-1+exp(dt*coal12)) for dt in epoch_1_time_spans]
+        epoch_1_emission_points = [ ((1.0/coal12+s)*exp(-s*coal12)-(1.0/coal12+t)*exp(-t*coal12))/(exp(-coal12*s)-exp(-coal12*t)) for s, t in zip(self.break_points_12[0:-1], self.break_points_12[1:])]
+        s,t=self.break_points_12[-1],self.break_points_123[0]
+        epoch_1_emission_points.append(((1.0/coal12+s)*exp(-s*coal12)-(1.0/coal12+t)*exp(-t*coal12))/(exp(-coal12*s)-exp(-coal12*t)))
 
-        epoch_2_time_spans = [e-s for s, e in zip(self.break_points_123[0:-1], self.break_points_123[1:])]
-        epoch_2_emission_points = [(1/coal123)-dt/(-1+exp(dt*coal123)) for dt in epoch_2_time_spans]
+        epoch_2_emission_points = [((1.0/coal123+s)*exp(-s*coal123)-(1.0/coal123+t)*exp(-t*coal123))/(exp(-coal123*s)-exp(-coal123*t)) for s, t in zip(self.break_points_123[0:-1], self.break_points_123[1:])]
         epoch_2_emission_points.append(self.break_points_123[-1] + 1/coal123)
 
         return epoch_1_emission_points + epoch_2_emission_points, outgroup
@@ -506,19 +505,30 @@ class ILSModel(Model):
 
         for state in xrange(no_states):
             path = self.reverse_tree_map[state]
+            #likelihoods contains the probability of each alignment
             likelihoods = list()
             for align_column in range(no_alignment_columns):
                 if align_column == no_alignment_columns - 1:
-                    likelihoods.append(1)
+                    likelihoods.append(1) #this should be the sum of all the others
                 else:
                     tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
-                    print tree
+#                     print "--------------------------------"
+#                     print "align_column"
+#                     print align_column                    
+#                     print "coalescence times"
+#                     print coalescence_times
+#                     print "path and tree"
+#                     print path
+#                     print tree
+#                     print ""
                     likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
-            print sum(likelihoods)
-            for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
+            assert_almost_equal(sum(likelihoods), 2.0) #should be 2, because 1 is inserted in last entry
+            for align_column, emission_prob in enumerate(likelihoods):
                 emission_probabilities[state, align_column] = emission_prob
 
         return emission_probabilities
+    
+
 
     # We override this one from the Model class because we cannot directly reuse the 2-sample code.
     def build_hidden_markov_model(self, parameters):
@@ -529,8 +539,29 @@ class ILSModel(Model):
         else:
             assert len(parameters) == 8 # no outgroup
             ctmc_system = self.build_ctmc_system(*parameters)
+            
 
         initial_probabilities, transition_probabilities = ctmc_system.compute_transition_probabilities()
         emission_probabilities = self.emission_matrix(*parameters)
         return initial_probabilities, transition_probabilities, emission_probabilities
+
+def test():
+    from numpy import array
+    ad=ILSModel(3,3)
+    ad=ad.build_hidden_markov_model(array([0.009281520636207805, 0.003719596449434415, 845.6317446677223, 845.6317446677223, 845.6317446677223, 845.6317446677223, 1796.544857049849, 0.4]))
+    
+    def printPyZipHMM(Matrix):
+        finalString=""
+        for i in range(Matrix.getHeight()):
+            for j in range(Matrix.getWidth()):
+                finalString=finalString+" "+str(Matrix[i,j])
+            finalString=finalString+"\n"
+        print finalString
+    
+    printPyZipHMM(ad[0])
+    printPyZipHMM(ad[1])
+    printPyZipHMM(ad[2])
+
+if __name__ == '__main__':
+    test()
 
