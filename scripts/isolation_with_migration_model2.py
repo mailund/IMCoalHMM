@@ -125,13 +125,23 @@ class IsolationMigrationCTMCSystem(CTMCSystem):
 class IsolationMigrationModel(Model):
     """Class wrapping the code that generates an isolation model HMM."""
 
-    def __init__(self, no_mig_states, no_ancestral_states):
+    INITIAL_11=0
+    INITIAL_12=1
+    INITIAL_22=2
+    
+    def __init__(self, no_mig_states, no_ancestral_states, config=INITIAL_12):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but not the matrices for the
         HMM since those will depend on the rate parameters."""
         super(IsolationMigrationModel, self).__init__()
-        self.isolation_state_space = Isolation()
+        self.config=config
+        if config==IsolationMigrationModel.INITIAL_12:
+            self.isolation_state_space = Isolation()
+        elif config==IsolationMigrationModel.INITIAL_11:
+            self.isolation_state_space = IsolationSingle(1,2)
+        else:
+            self.isolation_state_space = IsolationSingle(2,1)
         self.migration_state_space = Migration()
         self.single_state_space = Single()
         self.no_mig_states = no_mig_states

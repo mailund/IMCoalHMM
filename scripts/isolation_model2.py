@@ -162,6 +162,23 @@ def main():
     model = IsolationModel(4)
     pi, trans_probs, emis_probs = model.build_hidden_markov_model((0.001, 1000, 0.4))
 
+    def printPyZipHMM(Matrix):
+        finalString=""
+        for i in range(Matrix.getHeight()):
+            for j in range(Matrix.getWidth()):
+                finalString=finalString+" "+str(Matrix[i,j])
+            finalString=finalString+"\n"
+        return finalString
+
+    print "--------- EMISS ---------"
+    print printPyZipHMM(emis_probs)
+    print "------- TRANS -----------"
+    print printPyZipHMM(trans_probs)
+
+
+
+    
+
     no_states = pi.getHeight()
     assert no_states == 4
 

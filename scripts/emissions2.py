@@ -751,9 +751,216 @@ def emission_matrix5(break_points, params,intervals, ctmc_system,offset):
 
 
 
-def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctmc_postpone=0):
+def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctmc_postpone=0, outgroup=None):
     """
     Like emission_matrix4 except all the states are not necessarily identical.  
+    
+    """
+
+ #           print "non2 "+str(state)      
+    no_epochs=len(intervals)
+    epoch=-1
+    intervals=cumsum(array(intervals))
+    emission_probabilities = Matrix(len(break_points), 3)  #Once, this said ctmc_system.break_points, but I have changed it to 
+    for j in xrange(ctmc_postpone):
+        emission_probabilities[j,0]=1.0
+        emission_probabilities[j,1]=0.0
+        emission_probabilities[j,2]=1.0
+    restbefore=0
+
+    for j in range(len(break_points[:-1])):
+        breaklatest=break_points[j]
+        #new epoch is the epoch that corresponds to interval j
+        new_epoch=bisect(intervals, j)
+        if new_epoch!=epoch:
+            states=ctmc_system.get_state_space(j+ctmc_postpone).states #all states are identical.
+            
+            leftleft=[]
+            leftright=[]
+            rightright=[]
+            restIndexes=[]
+            for state,number in states.items():
+                coalesced=False 
+                position1=-1
+                position2=-1
+                for branch, (b1,_) in state:#we only do this marginally for pop1
+                    if 1 in b1:
+                        position1=branch
+                        if 2 in b1:
+                            coalesced=True
+                    if 2 in b1:
+                        position2=branch
+                if not coalesced:
+                    if position1==1 and position2==1:
+                        leftleft.append(number)
+        #                 print "ll "+str(state)
+                    elif position1==2 and position2==2:
+                        rightright.append(number)
+        #                print "rr "+str(state)
+                    elif position1==position2:#this is used for initial_migration_model and variable_migration_model_with_ancestral which has 0 as the ancestral population
+                        leftleft.append(number)
+                    elif position1!=-1 and position2!=-1:
+                        leftright.append(number)
+
+                        #pass#print "lr "+str(state)
+        #            else:
+        #                print "non1 "+str(state)
+                else:
+                    restIndexes.append(number)
+        lls=0 #P(B_ti=left) that is the probability that both ancestor-lines of the same position in the two genomes are in the left population
+        lrs=0 #P(B_ti=both)
+        rrs=0 #P(B_ti=right)
+        rest=0 #probability that they have coalesced.
+        r=ctmc_system.up_to(j+ctmc_postpone)
+        i=ctmc_system.initial_ctmc_state
+        for k in range(r.shape[1]):
+            if k in leftleft:
+                lls+=r.item((i,k))
+            elif k in rightright:
+                rrs+=r.item((i,k))
+            elif k in leftright:
+                lrs+=r.item((i,k))
+            else:
+                rest+=r.item((i,k))
+        if new_epoch!=epoch:
+            old_epoch=epoch
+            epoch=new_epoch
+            c1=params[0:no_epochs][epoch]
+            c2=params[no_epochs:2*no_epochs][epoch]
+            mig12 = params[(2 * no_epochs):(3 * no_epochs)][epoch]
+            mig21 = params[(3 * no_epochs):(4 * no_epochs)][epoch]
+            if mig12!=0 or mig21!=0:  #in this case we can use diffusion.
+                Qgamma=array([[-2*mig12-c1, 2*mig12,0],[mig21,-mig21-mig12, mig12], [0,2*mig21,-2*mig21-c2]])
+                QgammaA=array([[-2*mig12-c1, 2*mig12,0,c1],[mig21,-mig21-mig12, mig12,0], [0,2*mig21,-2*mig21-c2,c2],[0,0,0,0]])
+                w,V=eig(Qgamma)
+                Vinv=inv(V)
+                emissum=0
+                normsum=0
+                A=3
+                middle=0
+                left=0
+                right=0
+                for i in range(3):
+                    for k in range(2):
+                        normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        left+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*( exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+                        normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        middle+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*( exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+                        normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        right+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(   exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+                emissum=middle+left+right
+            else:
+                #if we can't use the integrals the two either belongs to the same population or different populations. If they belong to the same it is exponentially distributed.
+                emissum=0
+                normsum=0
+                emissum+=lls*c1/(8.0/3.0+c1)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-break_points[j])*(8.0/3.0+c1)) )
+                normsum+=lls*(1.0-exp(-c1*(break_points[j+1]-break_points[j]))) 
+#                emissum+=lrs*0
+ #               normsum+=lrs*0
+                emissum+=rrs*c2/(8.0/3.0+c2)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-break_points[j])*(8.0/3.0+c2)) )
+                normsum+=rrs*(1.0-exp(-c2*(break_points[j+1]-break_points[j]))) 
+                
+#            print str((left,middle,right))
+#            print str((left/lls,middle/lrs,right/rrs))
+            
+            
+        else:
+            if mig12!=0 or mig21!=0:
+                emissum=0
+                normsum=0
+                A=3
+                for i in range(3):
+                    for k in range(2):
+                        normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+                        normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+                        normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                        emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                        1.0 ) / (w[i]-8.0/3.0)    )
+        
+               
+            else:
+                emissum=0
+                normsum=0
+                emissum+=lls*c1/(8.0/3.0+c1)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-breaklatest)*(8.0/3.0+c1)))
+                normsum+=lls*(1.0-exp(-c1*(break_points[j+1]-breaklatest))) 
+#               emissum+=lrs*0
+#               normsum+=lrs*0
+                emissum+=rrs*c2/(8.0/3.0+c2)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-breaklatest)*(8.0/3.0+c2)) )
+                normsum+=rrs*(1.0-exp(-c2*(break_points[j+1]-breaklatest))) 
+                #emissum=emissum/(lls+rrs)*(1-rest)*(lls+lrs+rrs)/(1-rest)
+        #normsum=(restafter-rest)#this is P(T\in [t_i, t_i+1])
+ #       print "e4 "+str(normsum) 
+         
+#         if emissum<0 or normsum<=0 or emissum>normsum:
+#             print "Error in emission matrix 3 " + "calculating row number " + str(j) +"."
+#             print "coming from epoch "+str(old_epoch)+" and going to epoch "+str(epoch)
+#             print "from the transition probabilities we derive, lls="+str(lls)+", lrs="+str(lrs)+", rrs="+str(rrs)+"."
+#             print "emissum "+str(emissum)
+#             print "normsum "+str(normsum)
+#             print "guilty parameters " + str(params)
+#             print "guilty break points " + str(break_points)
+#             print "guilty (transformed) intervals " + str(intervals) 
+#        print "rest-restbefore="+str(rest-restbefore)
+ #       restbefore=rest
+#        print "emissum="+str(emissum)
+        emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum/normsum
+        emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum/normsum
+        emission_probabilities[j+ctmc_postpone,2]=1.0
+        old_epoch=epoch
+#         print "j "+str(j)
+#         print "sum("+str([lls,lrs,rrs,rest])+")="+str(sum([lls,lrs,rrs,rest]))
+#         print "lls "+str(lls)
+#         print "lrs "+str(lrs)
+#         print "rrs "+str(rrs)
+#        print "rest "+str(rest)
+    emissum=0
+    normsum=0
+    j=len(break_points)-1
+    breaklatest=break_points[j]
+    if mig12!=0 or mig21!=0:
+        A=3
+        for i in range(3):
+            for k in range(2):
+                normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(-1.0)/w[i]
+                emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*( - 1.0 ) / (w[i]-8.0/3.0))
+                
+                normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(-1.0)/w[i]
+                emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*( - 1.0 ) / (w[i]-8.0/3.0))
+                
+                normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(-1.0)/w[i]
+                emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*( - 1.0 ) / (w[i]-8.0/3.0))
+    else:
+                emissum=0
+                normsum=0
+                emissum+=lls*c1/(8.0/3.0+c1)*exp(-8.0/3.0*(breaklatest+offset))*(1.0)
+                normsum+=lls*(1.0) 
+#               emissum+=lrs*0
+#               normsum+=lrs*0
+                emissum+=rrs*c2/(8.0/3.0+c2)*exp(-8.0/3.0*(breaklatest+offset))*(1.0)
+                normsum+=rrs*(1.0) 
+    
+
+    emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum/normsum
+    emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum/normsum
+    emission_probabilities[j+ctmc_postpone,2]=1.0
+    
+        
+    #print printPyZipHMM(emission_probabilities)
+    return emission_probabilities
+                
+def emission_matrix7(break_points, params,intervals, outgroup_split, ctmc_system,offset=0.0, ctmc_postpone=0):
+    """
+    Like emission_matrix6 except we have an outgroup. We calculate the emissionmatrix exactly under the assumption
+    The outgroup_split parameter is the time of split between [the two population in question] and [the outgroup].
+    
+    THE CODE IS NOT WRITTEN YET, ONLY COPY-PASTED FROM ABOVE.
     """
 
  #           print "non2 "+str(state)      
@@ -954,7 +1161,6 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctm
         
     #print printPyZipHMM(emission_probabilities)
     return emission_probabilities
-                
 
 
 def main():
