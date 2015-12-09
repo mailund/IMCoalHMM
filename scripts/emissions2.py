@@ -751,9 +751,10 @@ def emission_matrix5(break_points, params,intervals, ctmc_system,offset):
 
 
 
-def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctmc_postpone=0, outgroup=None):
+def emission_matrix6(break_points, params,intervals, ctmc_system, offset=0.0, ctmc_postpone=0, outgroup=None,dimOfEmissionMatrix=None):
     """
     Like emission_matrix4 except all the states are not necessarily identical.  
+    dimOfEmissionMatrix should always be larger than len(break_points). The extra entries will be filled by default values
     
     """
 
@@ -761,7 +762,10 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctm
     no_epochs=len(intervals)
     epoch=-1
     intervals=cumsum(array(intervals))
-    emission_probabilities = Matrix(len(break_points), 3)  #Once, this said ctmc_system.break_points, but I have changed it to 
+    if dimOfEmissionMatrix is None:
+        emission_probabilities = Matrix(len(break_points), 3)  #Once, this said ctmc_system.break_points, but I have changed it to 
+    else:
+        emission_probabilities = Matrix(dimOfEmissionMatrix, 3)
     for j in xrange(ctmc_postpone):
         emission_probabilities[j,0]=1.0
         emission_probabilities[j,1]=0.0
@@ -954,7 +958,51 @@ def emission_matrix6(break_points, params,intervals, ctmc_system,offset=0.0, ctm
         
     #print printPyZipHMM(emission_probabilities)
     return emission_probabilities
-                
+
+class expMatrix:
+    
+    MATRIX_EXPONENTIATE=1
+    NORMAL_EXPONENTIATE=0
+    
+    def __init__(self, c1, c2, mig12, mig21):
+        if mig12!=0 or mig21!=0:
+            self.Qgamma=array([[-2*mig12-c1, 2*mig12,0],[mig21,-mig21-mig12, mig12], [0,2*mig21,-2*mig21-c2]])
+            self.QgammaA=array([[-2*mig12-c1, 2*mig12,0,c1],[mig21,-mig21-mig12, mig12,0], [0,2*mig21,-2*mig21-c2,c2],[0,0,0,0]])
+            self.w,self.V=eig(self.Qgamma)
+            self.Vinv=inv(self.V)
+            self.status=MATRIX_EXPONENTIATE
+        else:
+            self.c1,self.c2=c1,c2
+            self.status=NORMAL_EXPONENTIATE
+
+    def emissAndNorm(self, lls,lrs,rrs, break_new, break_latest, C):
+        if self.status==MATRIX_EXPONENTIATE:
+            emissum=0
+            normsum=0
+            A=3
+            for i in range(3):
+                for k in range(2):
+                    normsum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                    emissum+=lls*V[0,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1.0 ) / (w[i]-8.0/3.0)    )
+                    normsum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                    emissum+=lrs*V[1,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1.0 ) / (w[i]-8.0/3.0)    )
+                    normsum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp((break_points[j+1]-breaklatest)*w[i]) - 1.0)/w[i]
+                    emissum+=rrs*V[2,i]*Vinv[i,k*2]*QgammaA[k*2,A]*(exp(-8.0/3.0*(breaklatest+offset))*(exp((break_points[j+1]-breaklatest)*(w[i]-8.0/3.0)) - 
+                                                                    1.0 ) / (w[i]-8.0/3.0)    )
+        
+               
+            else:
+                emissum=0
+                normsum=0
+                emissum+=lls*c1/(8.0/3.0+c1)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-breaklatest)*(8.0/3.0+c1)))
+                normsum+=lls*(1.0-exp(-c1*(break_points[j+1]-breaklatest))) 
+#               emissum+=lrs*0
+#               normsum+=lrs*0
+                emissum+=rrs*c2/(8.0/3.0+c2)*exp(-8.0/3.0*(breaklatest+offset))*(1.0-exp(-(break_points[j+1]-breaklatest)*(8.0/3.0+c2)) )
+                normsum+=rrs*(1.0-exp(-c2*(break_points[j+1]-breaklatest)))
+        
 def emission_matrix7(break_points, params,intervals, outgroup_split, ctmc_system,offset=0.0, ctmc_postpone=0):
     """
     Like emission_matrix6 except we have an outgroup. We calculate the emissionmatrix exactly under the assumption
@@ -967,13 +1015,11 @@ def emission_matrix7(break_points, params,intervals, outgroup_split, ctmc_system
     no_epochs=len(intervals)
     epoch=-1
     intervals=cumsum(array(intervals))
-    emission_probabilities = Matrix(len(ctmc_system.break_points), 3)  #IF SOMETHING GOES UNEXPECTED THIS MIGHT BE THE CAUSE. 
-    #here we use the ctmc.systems breakpoints instead of the user specified breakpoints so that we 0 are propagated
+    emission_probabilities = Matrix(len(break_points), 3)
     for j in xrange(ctmc_postpone):
-        emission_probabilities[j,0]=1.0
+        emission_probabilities[j,0]=1.0     #just default values
         emission_probabilities[j,1]=0.0
         emission_probabilities[j,2]=1.0
-    restbefore=0
 
     for j in range(len(break_points[:-1])):
         breaklatest=break_points[j]

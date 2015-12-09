@@ -11,7 +11,7 @@ from variable_migration_model_with_ancestral import VariableCoalAndMigrationRate
 from likelihood2 import Likelihood, maximum_likelihood_estimate
 
 from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, UniformPrior, MCG
-from math import log,floor
+from math import log,floor, exp, isnan
 from numpy.random import permutation, randint, random
 from copy import deepcopy
 from numpy import array
@@ -345,9 +345,9 @@ log_likelihood_24 = Likelihood(model_24, forwarders_24)
 
 
 def log_likelihood(params):
-    return (None,None,log_likelihood_12(params)[2]+log_likelihood_13(params)[2]+\
+    return log_likelihood_12(params)[2]+log_likelihood_13(params)[2]+\
         log_likelihood_14(params)[2]+log_likelihood_23(params)[2]+\
-        log_likelihood_24(params)[2]+log_likelihood_34(params)[2])
+        log_likelihood_24(params)[2]+log_likelihood_34(params)[2]
 
 
 
@@ -412,7 +412,7 @@ print printFrequency
 
 if options.no_mcmc:
     
-    changers=[]
+    
     parm_scale_dictionary={}
     if options.fix_parameters_to_be_equal:
         groups=options.fix_parameters_to_be_equal.split(":")
@@ -420,59 +420,93 @@ if options.no_mcmc:
             members=map(int,group.split(","))
             leader=members[0]
             for i in members[1:]:
-                changers.append(i)
                 parm_scale_dictionary[i]=(leader, float(startVal[i])/float(startVal[leader]) )
-    NeverChangeParam=startVal
-    startVal=[s for n,s in enumerate(startVal) if n not in changers and n not in options.fix_params]
-    print NeverChangeParam
-    print startVal
-    print changers
-    print parm_scale_dictionary
-
     
-         
-    def fullparams(parameters):
-        fullparm=[] #the parameters to feed log likelihood with
-        count=0
-        for i in xrange(4*no_epochs+1):#running through all the non-time-scaling parameters
-            if i in options.fix_params: #
-                fullparm.append(NeverChangeParam[i])
-            elif i in changers:
-                fullparm.append(-1)
+    #this will be a list of the form [(1,1.0),(2,1.0),('fixed',1120.2),(3,1.0), (3,1.0),(3,0.5)... ]. 
+    #On index i of this list, eh[i][0] will be what completely variable parameter one should use to get the ith parameter of the likelihood. 
+    #If eh[i][0] is 'fixed', it means that one does not need the variable parameters to set it - and in that case its value is eh[i][1].
+    #If eh[i][0] is a number it means that we find the likparameter from saying varpar[eh[i][0]]*eh[i][1]
+    #So we have two different numberings of parameters. One is the parameters of the likelihood and the other is the parameters of the maximizer.
+    #We have |maximize_parameters|<=|likelihood_parameters|. As an extra twist we have the transformed_maximize_parameters because the maximizer Particle-Swarm only works on (0,1)^{no_params}
+    no_params=len(startVal) #m
+    eh=[0]*no_params
+    
+    count_of_variableParameter=0
+    for n in range(no_params):
+        if n not in options.fix_params and n not in parm_scale_dictionary:
+            eh[n]=(count_of_variableParameter,1.0)
+            count_of_variableParameter+=1
+    
+    for n,tup in parm_scale_dictionary.items():
+        eh[n]=(eh[tup[0]][0], tup[1])
+    for n in options.fix_params:
+        eh[n]=('fixed', startVal[n])
+        
+    print " ---------- Dimension of optimising space is ", count_of_variableParameter, " --------------"
+    print eh 
+        
+    def log_transformfunc(fro,to):
+        def transform(num):
+            return exp(num*log(to/fro)+log(fro))
+        return transform
+    def linear_transformfunc(scale,offset=0):    
+        def transform(num):
+            return num*scale+offset
+        return transform
+    
+    listOfTransforms=[]
+    if(options.optimizer=="Particle-Swarm"):
+        for i in xrange(no_epochs*2):
+            listOfTransforms.append(log_transformfunc(10.0,10000.0)) #coalescence rates
+    
+        for i in xrange(no_epochs*2):
+            listOfTransforms.append(log_transformfunc(1.0,10000.0)) #migration rates
+            
+        listOfTransforms.append(linear_transformfunc(1.0))#rho
+        
+        print "hei"
+        print startVal[no_epochs*4+1:]
+        
+        for i in startVal[no_epochs*4+1:]:
+            listOfTransforms.append(linear_transformfunc(10.0))#time scaling parameters
+    else:
+        for i in startVal:
+            listOfTransforms.append(linear_transformfunc(1.0))
+    
+        
+    
+    def from_maxvar_to_likpar(small_params):
+        """
+        input: list of parameters that are optimized freely by the optimizer
+        output: list of parameters that goes into the likelihood function
+        Before output, The variables will be transformed according to the transform, they should have.
+        """
+        big_params=[]
+        for lik_param,(var_param, value) in enumerate(eh):
+            if var_param=='fixed':
+                big_params.append(value)
             else:
-                fullparm.append(parameters[count])
-                count+=1
-        fullparm=[f if f is not -1 else fullparm[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
-        fullparm.extend(parameters[count:])
-        return fullparm
-    test=fullparams(startVal)
-    #making a wrapper to take care of fixed parameters and scaling parameters
-    def lwrap(parameters):#parameters is the vector of only variable parameters
-        parm=fullparams(parameters)
-        print parm
-        val=log_likelihood(array(parm))[2]
-        print val
+                big_params.append(listOfTransforms[lik_param](small_params[var_param])*value)
+        return big_params
+    
+    def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
+        likelihood_parms=from_maxvar_to_likpar(small_parameters)
+        val=log_likelihood(array(likelihood_parms))
+        print val,"=", likelihood_parms
+        if isnan(val):
+            val = float('-inf')
         return val
-    sVal=startVal
     
     if options.optimizer=="Particle-Swarm":
-        #inverting coalescence rates
-        def lwrapwrap(parameters):
-            fullp=fullparams(parameters)
-            fullp=[f if n>=(len(fullp)-1) or n in options.fix_params else 1/f for n,f in enumerate(fullp)]
-            print fullp
-            val=log_likelihood(array(fullp))[2]
-            print val
-            return val
+
         if options.parallels>1:
             op=OptimiserParallel()
-            mle_parameters = op.maximise(lwrapwrap, len(sVal), processes=options.parallels)
+            mle_parameters = op.maximise(lwrap, count_of_variableParameter, processes=options.parallels)
         else:
             op=Optimiser()
-            mle_parameters = op.maximise(lwrapwrap, len(sVal))
+            mle_parameters = op.maximise(lwrap, count_of_variableParameter)
         
-        max_log_likelihood = lwrapwrap(mle_parameters)
-        mle_parameters=[1.0/m for m in mle_parameters]
+        max_log_likelihood = lwrap(mle_parameters)
     else:     
         mle_parameters = \
             maximum_likelihood_estimate(lwrap, array(sVal),
@@ -480,7 +514,7 @@ if options.no_mcmc:
         max_log_likelihood = lwrap(mle_parameters)        
     with open(options.outfile, 'w') as outfile:
         print >> outfile, '\t'.join(beforeNames+['recombRate'])
-        print >> outfile, '\t'.join(map(str, transform(fullparams(mle_parameters)) + (max_log_likelihood,)))
+        print >> outfile, '\t'.join(map(str, transform(from_maxvar_to_likpar(mle_parameters)) + (max_log_likelihood,)))
 else:
 
     

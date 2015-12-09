@@ -2,8 +2,8 @@
 migration and coalescence.
 """
 
-from numpy import zeros, matrix, identity,cumsum,array, concatenate
-
+from numpy import zeros, matrix, identity,cumsum,array, concatenate, ndarray
+from math import isnan
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration, make_rates_table_single, Single
 from CTMC2 import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, compute_transition_probabilities, projection_matrix
@@ -159,6 +159,32 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
             for _ in xrange(self.intervals[epoch]):
                 interval_rates.append(coal_rate)
         return interval_rates
+    
+    def valid_parameters(self, parameters):
+        """Predicate testing if a given parameter point is valid for the model.
+        :param parameters: Model specific parameters
+        :type parameters: numpy.ndarray
+        :returns: True if all parameters are valid, otherwise False
+        :rtype: bool
+        """
+      
+        assert isinstance(parameters, ndarray)
+        
+        if not all(parameters >= 0):  # This is the default test, useful for most models.
+            return False
+        
+        coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate,fixed_time_points = self.unpack_parameters(parameters)
+        
+        #Here we check if all fixed_time_points leave a positive gap between them
+        for i,ti in fixed_time_points:
+            for j,tj in fixed_time_points:
+                if i>j and ti<=tj:
+                    return False
+                if j>i and tj<=ti:
+                    return False
+        return True
+        
+        
 
     def emission_points(self, *parameters):
         """Time points to emit from."""
@@ -216,9 +242,13 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
     #override for trying out special things
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
+
         ctmc_system = self.build_ctmc_system(*parameters)
+
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
         br=ctmc_system.break_points
+        
+
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #         
         if self.initial_state==self.migration_state_space.i12_index: #here we are checking for 0s in the first migration parameters.
@@ -251,7 +281,8 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 #                 print "intervals", self.intervals[indexOfFirstNonZero:]
 #                 print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
 #                 print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
-                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], 
+                                                ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints, dimOfEmissionMatrix=len(br))
                 
                 ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
                 
@@ -275,6 +306,19 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 #         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
 #         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
 #         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
+
+#         def printPyZipHMM(Matrix):
+#             finalString=""
+#             for i in range(Matrix.getHeight()):
+#                 for j in range(Matrix.getWidth()):
+#                     finalString=finalString+" "+str(Matrix[i,j])
+#                 finalString=finalString+"\n"
+#             print finalString
+#         
+#         printPyZipHMM(initial_probs)
+#         printPyZipHMM(transition_probs)
+#         printPyZipHMM(emission_probs)
+
         return initial_probs, transition_probs, emission_probs, ctmc_system.break_points
 
 
