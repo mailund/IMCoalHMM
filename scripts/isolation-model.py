@@ -51,6 +51,12 @@ and uniform coalescence and recombination rates."""
                         default="Nelder-Mead",
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
+
+    parser.add_argument('-v',"--verbose",
+                        type=bool,
+                        default=False,
+                        action='store_true')                        
+                        
     parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
 
     
@@ -87,9 +93,18 @@ and uniform coalescence and recombination rates."""
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     
     if options.emissionComplicated:
-        log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states), forwarders)
+        basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states), forwarders)
     else:
-        log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
+        basic_log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
+        
+    if options.verbose:
+        print "--verbose option activated"
+        def log_likelihood(params):
+            val=basic_log_likelihood(params)
+            print str(params)+"="+str(val)
+            return val
+    else:
+        log_likelihood=basic_log_likelihood
 
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
