@@ -52,8 +52,7 @@ and uniform coalescence and recombination rates."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
-    parser.add_argument('-v',"--verbose",
-                        type=bool,
+    parser.add_argument("--verbose",
                         default=False,
                         action='store_true')                        
                         
