@@ -1,7 +1,7 @@
 """Code for constructing and optimizing the HMM for an isolation model.
 """
 
-from numpy import zeros, matrix
+from numpy import zeros, matrix, ndarray
 from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
@@ -103,6 +103,20 @@ class IsolationModel(Model):
         self.no_hmm_states = no_hmm_states
         self.isolation_state_space = Isolation()
         self.single_state_space = Single()
+        
+    # noinspection PyMethodMayBeStatic
+    def valid_parameters(self, parameters):
+        """Predicate testing if a given parameter point is valid for the model.
+        :param parameters: Model specific parameters
+        :type parameters: numpy.ndarray
+        :returns: True if all parameters are valid, otherwise False
+        :rtype: bool
+        """
+        # This works but pycharm gives a type warning... I guess it doesn't see > overloading
+        assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
+        # noinspection PyTypeChecker
+        return all(parameters > 0)  # Normally this is >=0, but it is not good enough here because coal_rate=0 => error
+
 
     def emission_points(self, split_time, coal_rate, _):
         """Points to emit from."""
