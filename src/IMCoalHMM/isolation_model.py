@@ -115,6 +115,8 @@ class IsolationModel(Model):
         # This works but pycharm gives a type warning... I guess it doesn't see > overloading
         assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
         # noinspection PyTypeChecker
+        if parameters[1]<1e-8: #checking specifically for the coalescense rate
+            return False
         return all(parameters > 0)  # Normally this is >=0, but it is not good enough here because coal_rate=0 => error
 
 
