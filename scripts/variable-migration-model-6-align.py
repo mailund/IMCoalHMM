@@ -486,7 +486,8 @@ if options.no_mcmc:
             if var_param=='fixed':
                 big_params.append(value)
             else:
-                big_params.append(listOfTransforms[lik_param](small_params[var_param])*value)
+                print small_params
+                big_params.append((listOfTransforms[lik_param](small_params[var_param]))*value)
         return big_params
     
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
