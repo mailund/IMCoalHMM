@@ -487,12 +487,10 @@ if options.no_mcmc:
             if var_param=='fixed':
                 big_params.append(value)
             else:
-                print small_params
                 big_params.append((listOfTransforms[lik_param](small_params[var_param]))*value)
         return big_params
     
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
-        return 0
         likelihood_parms=from_maxvar_to_likpar(small_parameters)
         val=log_likelihood(array(likelihood_parms))
         print val,"=", likelihood_parms
