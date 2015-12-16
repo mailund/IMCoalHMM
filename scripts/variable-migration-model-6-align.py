@@ -410,6 +410,7 @@ else:
 print printFrequency
 
 
+
 if options.no_mcmc:
     
     
@@ -491,6 +492,7 @@ if options.no_mcmc:
         return big_params
     
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
+        return 0
         likelihood_parms=from_maxvar_to_likpar(small_parameters)
         val=log_likelihood(array(likelihood_parms))
         print val,"=", likelihood_parms
@@ -502,18 +504,19 @@ if options.no_mcmc:
 
         if options.parallels>1:
             op=OptimiserParallel()
-            mle_parameters = op.maximise(lwrap, count_of_variableParameter, processes=options.parallels)
+            result= op.maximise(lwrap, count_of_variableParameter, processes=options.parallels)
         else:
             op=Optimiser()
-            mle_parameters = op.maximise(lwrap, count_of_variableParameter)
-        
-        max_log_likelihood = lwrap(mle_parameters)
+            result= op.maximise(lwrap, count_of_variableParameter)
+        mle_parameters=result.best.positions
+        max_log_likelihood = result.best.fitness
     else:     
         mle_parameters = \
             maximum_likelihood_estimate(lwrap, array(sVal),
                                          optimizer_method=options.optimizer)
         max_log_likelihood = lwrap(mle_parameters)        
     with open(options.outfile, 'w') as outfile:
+        print "mle_params", mle_parameters
         print >> outfile, '\t'.join(beforeNames+['recombRate'])
         print >> outfile, '\t'.join(map(str, transform(from_maxvar_to_likpar(mle_parameters)) + (max_log_likelihood,)))
 else:
