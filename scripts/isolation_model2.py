@@ -8,8 +8,8 @@ from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between,compute_transition_probabilities
-from emissions2 import coalescence_points, emission_matrix6, emission_matrix, printPyZipHMM
-from IMCoalHMM.break_points import exp_break_points
+from emissions2 import coalescence_points, emission_matrix6, emission_matrix, printPyZipHMM, emission_matrix8
+from IMCoalHMM.break_points import exp_break_points,uniform_break_points
 from IMCoalHMM.model import Model
 
 
@@ -105,11 +105,18 @@ class IsolationModel(Model):
         # This works but pycharm gives a type warning... I guess it doesn't see > overloading
         assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
         # noinspection PyTypeChecker
+        
+        
         if parameters[1]<1e-8: #checking specifically for the coalescense rate
             return False
+        #checking the outgroup is larger than the split time
+        if self.outgroup:
+            if parameters[3]<parameters[0]:
+                return False
+        
         return all(parameters >= 0)
 
-    def __init__(self, no_hmm_states):
+    def __init__(self, no_hmm_states, outgroup=False):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but not the matrices for the
@@ -118,10 +125,14 @@ class IsolationModel(Model):
         self.no_hmm_states = no_hmm_states
         self.isolation_state_space = Isolation()
         self.single_state_space = Single()
+        self.outgroup=outgroup
 
     def emission_points(self, split_time, coal_rate, _):
         """Points to emit from."""
         break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        if self.outgroup:
+            if break_points[-1]>self.outmax: #if the break points become illegal with the outgroup, we will change the breakpoints
+                break_points=uniform_break_points(self.no_hmm_states, split_time, self.outmax-(self.outmax-split_time)/20.0)
         return coalescence_points(break_points, coal_rate)
 
     def build_ctmc_system(self, split_time, coal_rate, recomb_rate):
@@ -134,22 +145,38 @@ class IsolationModel(Model):
         single_rates = make_rates_table_single(coal_rate, recomb_rate)
         single_ctmc = make_ctmc(self.single_state_space, single_rates)
         break_points = exp_break_points(self.no_hmm_states, coal_rate, split_time)
+        if self.outgroup:
+            if break_points[-1]>self.outmax: #if the break points become illegal with the outgroup, we will change the breakpoints
+                break_points=uniform_break_points(self.no_hmm_states, split_time, self.outmax-(self.outmax-split_time)/20.0)
         return IsolationCTMCSystem(isolation_ctmc, single_ctmc, break_points)
     
     
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
-        split_time, coal_rate, recomb_rate = parameters
+        if len(parameters)==3: #that is, no outgroup
+            split_time, coal_rate, recomb_rate = parameters
+        elif len(parameters)==4:
+            split_time, coal_rate, recomb_rate,outgroup = parameters
+            self.outmax=outgroup
+        else:
+            assert False, "There number of parameters was wrong"
         ctmc_system = self.build_ctmc_system(split_time, coal_rate, recomb_rate)
         #changing the break_points
         break_points=exp_break_points(self.no_hmm_states, coal_rate, 0.0)
+        if self.outgroup:
+            if break_points[-1]>self.outmax: #if the break points become illegal with the outgroup, we will change the breakpoints
+                print "Redone breakpoints"
+                break_points=uniform_break_points(self.no_hmm_states, split_time, self.outmax-(self.outmax-split_time)/20.0)
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*2+[0.0]*2+[recomb_rate]
         intervals=[self.no_hmm_states]
 #         emission_probs = emission_matrix(self.emission_points(*parameters))
 #         print " ------------- Emis 0 --------------"
 #         print printPyZipHMM(emission_probs)
-        emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, split_time)
+        if self.outgroup:
+            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, split_time)
+        else:
+            emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, split_time)
         
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #           
@@ -174,10 +201,10 @@ class IsolationModel(Model):
 def main():
     """Test"""
 
-    model = IsolationModel(10)
+    model = IsolationModel(10, outgroup=True)
     print array([0.01, 0.0000000001, 0.01])
-    print model.valid_parameters(array([0.01, 0.0000001, 0.01]))
-    pi, trans_probs, emis_probs = model.build_hidden_markov_model((0.01, 0.0000000001, 0.01))
+    print model.valid_parameters(array([0.01, 0.0000001, 0.01,0.015]))
+    pi, trans_probs, emis_probs = model.build_hidden_markov_model((0.0001, 100, 0.4,0.0125))
 
     def printPyZipHMM(Matrix):
         finalString=""

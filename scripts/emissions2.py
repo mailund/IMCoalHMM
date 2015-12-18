@@ -9,9 +9,11 @@ from math import exp
 from numpy.random import gamma
 from numpy import cumsum,array, concatenate
 from numpy import sum as npsum
+from numpy.testing import assert_almost_equal
 from pyZipHMM import Matrix
 from bisect import bisect
 from numpy.linalg import eig, inv,det
+from operator import mul
 
 
 def printPyZipHMM(Matrix):
@@ -1151,6 +1153,7 @@ def classifyState(observed_states, R,W):
 
 LettersToComputation={}
 Letters=["A","C","G","T"]
+priorOnLetters=[0.25]*4
 nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
 from collections import defaultdict
 computationToLetters = defaultdict(list)
@@ -1161,6 +1164,7 @@ for a in Letters:
                 for e in Letters:
                     LettersToComputation[a+b+c+d+e]=classifyState((a,b,c),d,e)
                     computationToLetters[classifyState((a,b,c),d,e)].append(a+b+c+d+e)
+computationToLetters=dict(computationToLetters)
                     
 normalTerms=[[0.25,0.75], [0.75,-0.75]]
 
@@ -1171,8 +1175,12 @@ def getJCtermsAsFunction(emissums,normsum,outgroup):
         for n,(i,e) in enumerate(zip(indexes,equals)):
             res*=normalTerms[e][i]*groupSpecicTerm[n][i]
         numberOf4thirdsTinExponent=-indexes[0]-indexes[1]+indexes[2]
-        if numberOf4thirdsTinExponent!=0:
-            res*=emissums[numberOf4thirdsTinExponent]/normsum
+        if numberOf4thirdsTinExponent==-2:
+            res*=emissums[0]/normsum
+        elif numberOf4thirdsTinExponent==-1:
+            res*=emissums[1]/normsum
+        elif numberOf4thirdsTinExponent==1:
+            res*=emissums[2]/normsum
         return res
     return what
 
@@ -1192,12 +1200,14 @@ def getVectorOfCombinations(emissums, normsum, break_latest, break_new, outgroup
                         for j in range(2):  #the chosen terms of 1/4,3/4,-3/4 for YeqW 
                             for k in range(2):  #the chosen terms of 1/4,3/4,-3/4 for ReqW
                                 for l in range(2):  #the chosen terms of 1/4,3/4,-3/4 for ReqZ
-                                    baseIntegrals[(XeqW==1,YeqW==1, ReqW==1, ReqZ==1)]+=pbools(indexes=(i,j,k,l), equals=(XeqW,YeqW,ReqW,ReqZ))
+                                    baseIntegrals[(XeqW==0,YeqW==0, ReqW==0, ReqZ==0)]+=pbools(indexes=(i,j,k,l), equals=(XeqW,YeqW,ReqW,ReqZ))
+                                    #print (XeqW==1,YeqW==1, ReqW==1, ReqZ==1), baseIntegrals[(XeqW==1,YeqW==1, ReqW==1, ReqZ==1)]
     resVector=[0.0]*65
+    assert_almost_equal(sum(baseIntegrals.itervalues()),1.0)
     for letters,comput_name in LettersToComputation.items():
-        i1,i2,i3= nuc_map[letters[0]], nuc_map[letters[1]],nuc_map[letters[2]]
-        resVector[i1+i2*4+i3*16]+= baseIntegrals[comput_name]
-    resVector[-1]=1.0        
+        ivec=[nuc_map[l] for l in letters]
+        resVector[ivec[0]+ivec[1]*4+ivec[2]*16]+= baseIntegrals[comput_name]/float(len(computationToLetters[comput_name]))  #Here we see that 
+    resVector[-1]=1.0 
     return resVector
                 
         
@@ -1207,7 +1217,8 @@ def emission_matrix8(break_points, params, outgroup, intervals,  ctmc_system, of
     It is assumed that break_points[-1]<outgroup. It should be controlled elsewhere.
     """
     
-    assert break_points[-1]<outgroup
+    if break_points[-1]<outgroup:
+        i=bisect(break_points, outgroup)
  
     no_epochs=len(intervals)
     epoch=-1
@@ -1250,11 +1261,10 @@ def emission_matrix8(break_points, params, outgroup, intervals,  ctmc_system, of
             emissums, normsum = Expms.emissAndNorm(lls=lls,lrs=lrs,rrs=rrs, break_new=break_points[j+1], break_latest=break_points[j], Cs=exponents, offset=offset)
             addrow= getVectorOfCombinations(emissums, normsum, break_latest=break_points[j], break_new=break_points[j+1], outgroup=outgroup)
         
-        print "e[-8/3T]=",emissums[0]/normsum
-        print "e[-4/3T]=",emissums[1]/normsum
-        print "e[4/3T]=",emissums[2]/normsum
+#         print "e[-8/3T]=",emissums[0]/normsum
+#         print "e[-4/3T]=",emissums[1]/normsum
+#         print "e[4/3T]=",emissums[2]/normsum
         
-        print addrow
         for n,a in enumerate(addrow):
             emission_probabilities[j+ctmc_postpone,n]=a
         
@@ -1278,8 +1288,9 @@ def main():
     substime_third_change=0.0030
     def time_modifier():
         return [(5,substime_first_change),(10,substime_second_change)]
-    cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
-    parameters=[1000,1000,1000,  1000,1000,1000,    0,500,0,    0,100,0,    0.40]
+    cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_22, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier, outgroup=True)
+    parameters=[1000,1000,1000,  1000,1000,1000,    0,5000,0,    0,100,0,    0.40]
+    cd.outmax=0.02
     ctmc_system= cd.build_ctmc_system(*parameters)
     br=ctmc_system.break_points
     coals1,coals2,migs1,migs2,rho,_=cd.unpack_parameters(parameters)

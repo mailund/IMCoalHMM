@@ -139,6 +139,10 @@ parser.add_argument("--optimizer",
                     default="Nelder-Mead",
                     help="If no_mcmc is stated this will be the choice of optimizer.",
                     choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC', 'Particle-Swarm'])
+parser.add_argument('--outgroup', action='store_true', default=False, help="This indicates that the alignemnts are not pairwise but threewise and that the last entry will be ")
+parser.add_argument('--outgroup_minimum', type=float, default=0.01, help="The smallest number of substitutions thinkable between the outgroup and the species in question.")
+parser.add_argument('--outgroup_maximum', type=float, default=0.08, help="The smallest number of substitutions thinkable between the outgroup and the species in question.")
+
 
 options = parser.parse_args()
 
@@ -225,10 +229,14 @@ def transform(parameters):
     theta_1 = tuple([2 / coal_rate for coal_rate in coal_rates_1])
     theta_2 = tuple([2 / coal_rate for coal_rate in coal_rates_2])
     if options.single_scaling:
-        return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+(parameters[-1],)
-    if options.joint_scaling:
-         return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+tuple(parameters[(len(coal_rates_1)*4+1):])    
-    return theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
+        ans= theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+(parameters[4*len(coal_rates_1)+1],)
+    elif options.joint_scaling:
+         ans= theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)+tuple(parameters[(len(coal_rates_1)*4+1):(len(coal_rates_1)*4+1+len(options.joint_scaling))])    
+    else: 
+        ans= theta_1 + theta_2 + mig_rates_12 + mig_rates_21 + (recomb_rate,)
+    if options.outgroup:
+        ans.append(parameters[-1])#adding the outgroup parameter
+    return ans
 
 def switchChooser(inarray):
     if randint(0,2)==1:
@@ -313,19 +321,19 @@ def switchColumns(inarray):
 
 # load alignments
 if not options.last_epoch_ancestral:
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_13 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_34 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_23 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_24 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_14 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_13 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_34 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_23 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_24 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_14 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
 else:
-    model_12 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_13 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_34 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_14 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_23 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_24 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    model_12 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_13 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_34 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_14 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_23 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
+    model_24 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
 
 
 forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
@@ -364,6 +372,8 @@ if options.startWithGuess or options.startWithGuessElaborate:
             "StartWithGuessElaborate is ignored"
     if options.joint_scaling:
         startVal.extend([1.0]*len(options.joint_scaling))
+    if options.outgroup:
+        startVal.append(options.outgroup_minimum)
 else:
     startVal=None
 
@@ -468,8 +478,14 @@ if options.no_mcmc:
         print "hei"
         print startVal[no_epochs*4+1:]
         
-        for i in startVal[no_epochs*4+1:]:
-            listOfTransforms.append(linear_transformfunc(10.0))#time scaling parameters
+        if options.joint_scaling:
+            for i in startVal[no_epochs*4+1:no_epochs*4+1+len(options.joint_scaling)]:
+                listOfTransforms.append(linear_transformfunc(10.0))#time scaling parameters
+        elif options.single_scaling:
+            for i in startVal[no_epochs*4+1:no_epochs*4+1+1]:
+                listOfTransforms.append(linear_transformfunc(10.0))#time scaling parameters
+        if options.outgroup:
+            listOfTransforms.append(linear_transformfunc(options.outgroup_maximum-options.outgroup_minimum, startVal[-1])) #the
     else:
         for i in startVal:
             listOfTransforms.append(linear_transformfunc(1.0))

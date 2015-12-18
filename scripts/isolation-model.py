@@ -12,6 +12,9 @@ import isolation_model2
 
 
 def transform(params):
+    if len(params)==4:
+        split_time, coal_rate, recomb_rate, outgroup = params
+        return split_time, 2 / coal_rate, recomb_rate, outgroup
     split_time, coal_rate, recomb_rate = params
     return split_time, 2 / coal_rate, recomb_rate
 
@@ -57,6 +60,7 @@ and uniform coalescence and recombination rates."""
                         action='store_true')                        
                         
     parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
+    parser.add_argument('--outgroup', action='store_true', default=False, help="This indicates that the alignemnts are not pairwise but threewise and that the last entry will be ")
 
     
     optimized_params = [
@@ -76,6 +80,8 @@ and uniform coalescence and recombination rates."""
     options = parser.parse_args()
     if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
+    if options.outgroup and not options.emissionComplicated :
+        parser.error("You can't have an outgroup without the complicated emission probabilities!")
 
     # get options
     no_states = options.states
@@ -86,13 +92,18 @@ and uniform coalescence and recombination rates."""
     init_split = split
     init_coal = 1 / (theta / 2)
     init_recomb = rho
+    if options.outgroup:
+        init_outgroup = init_split*3
 
 
 
     forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
     
     if options.emissionComplicated:
-        basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states), forwarders)
+        if options.outgroup:
+            basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states, outgroup=True), forwarders)
+        else:
+            basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states, outgroup=False), forwarders)    
     else:
         basic_log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
         
@@ -101,7 +112,6 @@ and uniform coalescence and recombination rates."""
         def log_likelihood(params):
             val=basic_log_likelihood(params)
             print str(params)+"="+str(val)
-            return val
     else:
         log_likelihood=basic_log_likelihood
 
@@ -110,14 +120,24 @@ and uniform coalescence and recombination rates."""
 
             if options.header:
                 print >> logfile, '\t'.join(['split.time', 'theta', 'rho'])
-
-            mle_parameters = maximum_likelihood_estimate(log_likelihood,
-                                                         (init_split, init_coal, init_recomb),
-                                                         optimizer_method=options.optimizer,
-                                                         log_file=logfile,
-                                                         log_param_transform=transform)
+            if options.outgroup and options.emissionComplicated:
+                mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                             (init_split, init_coal, init_recomb, init_outgroup),
+                                                             optimizer_method=options.optimizer,
+                                                             log_file=logfile,
+                                                             log_param_transform=transform)
+            else:
+                mle_parameters = maximum_likelihood_estimate(log_likelihood,
+                                                             (init_split, init_coal, init_recomb),
+                                                             optimizer_method=options.optimizer,
+                                                             log_file=logfile,
+                                                             log_param_transform=transform)
     else:
-        mle_parameters = maximum_likelihood_estimate(log_likelihood, (init_split, init_coal, init_recomb),
+        if options.outgroup and options.emissionComplicated:
+            mle_parameters = maximum_likelihood_estimate(log_likelihood, (init_split, init_coal, init_recomb, init_outgroup),
+                                                     optimizer_method=options.optimizer)
+        else:
+            mle_parameters = maximum_likelihood_estimate(log_likelihood, (init_split, init_coal, init_recomb),
                                                      optimizer_method=options.optimizer)
 
     max_log_likelihood = log_likelihood(mle_parameters)

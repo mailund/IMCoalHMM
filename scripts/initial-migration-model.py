@@ -18,6 +18,10 @@ def transform(params):
     """
     Translate the parameters to the input and output parameter space.
     """
+    if len(params)==6:
+        isolation_time, migration_time, coal_rate, recomb_rate, mig_rate, outgroup = params
+        return isolation_time, migration_time, 2 / coal_rate, recomb_rate, mig_rate, outgroup
+    
     isolation_time, migration_time, coal_rate, recomb_rate, mig_rate = params
     return isolation_time, migration_time, 2 / coal_rate, recomb_rate, mig_rate
 
@@ -62,7 +66,12 @@ and uniform coalescence and recombination rates."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
     
+    parser.add_argument("--verbose",
+                        default=False,
+                        action='store_true')      
+    
     parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
+    parser.add_argument('--outgroup', action='store_true', default=False, help="This indicates that the alignemnts are not pairwise but threewise and that the last entry will be ")
 
     optimized_params = [
         ('isolation-period', 'time where the populations have been isolated', 1e6 / 1e9),
@@ -83,7 +92,9 @@ and uniform coalescence and recombination rates."""
     options = parser.parse_args()
     if len(options.alignments) < 1:
         parser.error("Input alignment not provided!")
-
+    if options.outgroup and not options.emissionComplicated :
+        parser.error("You can't have an outgroup without the complicated emission probabilities!")
+        
     # get options
     no_migration_states = options.migration_states
     no_ancestral_states = options.ancestral_states
@@ -97,13 +108,29 @@ and uniform coalescence and recombination rates."""
     init_coal = 1 / (theta / 2)
     init_recomb = rho
     init_migration = options.migration_rate
+    if options.outgroup:
+        init_outgroup = (init_isolation_time+init_migration_time)*3
 
     if options.emissionComplicated:
-        log_likelihood = Likelihood(isolation_with_migration_model2.IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
+        if options.outgroup:
+            base_log_likelihood = Likelihood(isolation_with_migration_model2.IsolationMigrationModel(no_migration_states, no_ancestral_states, outgroup=True), forwarders)
+        else:
+            base_log_likelihood = Likelihood(isolation_with_migration_model2.IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     else:
-        log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
+        base_log_likelihood = Likelihood(IsolationMigrationModel(no_migration_states, no_ancestral_states), forwarders)
     initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_recomb, init_migration)
-
+    if options.outgroup:
+        initial_parameters = (init_isolation_time, init_migration_time, init_coal, init_recomb, init_migration, init_outgroup)
+    
+    if options.verbose:
+        def log_likelihood(params):
+            val=base_log_likelihood(params)
+            print str(params)+"="+str(val)
+            return val
+    else:
+        log_likelihood=base_log_likelihood
+    
+    
     if options.logfile:
         with open(options.logfile, 'w') as logfile:
 

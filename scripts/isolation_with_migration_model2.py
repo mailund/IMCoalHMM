@@ -1,12 +1,12 @@
 """Code for constructing and optimizing the HMM for an isolation model.
 """
 
-from numpy import zeros, matrix
+from numpy import zeros, matrix, ndarray
 from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between, compute_transition_probabilities
-from emissions2 import coalescence_points,emission_matrix4,emission_matrix6, emission_matrix
+from emissions2 import coalescence_points,emission_matrix4,emission_matrix6, emission_matrix, emission_matrix8
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
 
@@ -129,7 +129,7 @@ class IsolationMigrationModel(Model):
     INITIAL_12=1
     INITIAL_22=2
     
-    def __init__(self, no_mig_states, no_ancestral_states, config=INITIAL_12):
+    def __init__(self, no_mig_states, no_ancestral_states, config=INITIAL_12, outgroup=False):
         """Construct the model.
 
         This builds the state spaces for the CTMCs but not the matrices for the
@@ -146,6 +146,30 @@ class IsolationMigrationModel(Model):
         self.single_state_space = Single()
         self.no_mig_states = no_mig_states
         self.no_ancestral_states = no_ancestral_states
+        self.outgroup=outgroup
+        
+    # noinspection PyMethodMayBeStatic
+    def valid_parameters(self, parameters):
+        """Predicate testing if a given parameter point is valid for the model.
+        :param parameters: Model specific parameters
+        :type parameters: numpy.ndarray
+        :returns: True if all parameters are valid, otherwise False
+        :rtype: bool
+        """
+        # This works but pycharm gives a type warning... I guess it doesn't see > overloading
+        assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
+        # noinspection PyTypeChecker
+        
+        
+        if parameters[2]<1e-8: #checking specifically for the coalescense rate
+            return False
+        
+        #checking the outgroup is larger than the split time
+        if self.outgroup:
+            if parameters[5]<parameters[0] or parameters[5]<parameters[1]:
+                return False
+        
+        return all(parameters >= 0)
 
     def emission_points(self, isolation_time, migration_time, coal_rate, recomb_rate, mig_rate):
         """Compute model specific coalescence points."""
@@ -153,6 +177,9 @@ class IsolationMigrationModel(Model):
         tau2 = isolation_time + migration_time
         migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
         ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
+        if self.outgroup:
+            if ancestral_break_points[-1]>self.outmax:
+                ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, self.outmax-(self.outmax-tau2)/20.0)
         break_points = list(migration_break_points) + list(ancestral_break_points)
         return coalescence_points(break_points, coal_rate)
 
@@ -178,6 +205,9 @@ class IsolationMigrationModel(Model):
         tau2 = isolation_time + migration_time
         migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
         ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
+        if self.outgroup:
+            if ancestral_break_points[-1]>self.outmax:
+                ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, self.outmax-(self.outmax-tau2)/20.0)
 
         return IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
                                             migration_break_points, ancestral_break_points)
@@ -185,6 +215,12 @@ class IsolationMigrationModel(Model):
         
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
+        
+        if self.outgroup:
+            outgroup=parameters[-1]
+            self.outmax=outgroup
+            parameters=parameters[:-1]
+        
         isolation_time, migration_time, coal_rate, recomb_rate, mig_rate = parameters
         ctmc_system = self.build_ctmc_system(isolation_time, migration_time, coal_rate, recomb_rate, mig_rate)
         #changing the break_points
@@ -192,6 +228,9 @@ class IsolationMigrationModel(Model):
         tau2 = isolation_time + migration_time
         migration_break_points = uniform_break_points(self.no_mig_states, 0, tau2-tau1)
         ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2-tau1)
+        if self.outgroup:
+            if ancestral_break_points[-1]>self.outmax:
+                ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, outgroup-(outgroup-tau2)/20.0)
         break_points=list(migration_break_points)+list(ancestral_break_points)
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
@@ -199,7 +238,10 @@ class IsolationMigrationModel(Model):
 #         emission_probs = emission_matrix(self.emission_points(*parameters))
 #         print " ------------- Emis 0 --------------"
 #         print printPyZipHMM(emission_probs)
-        emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, tau1)
+        if self.outgroup:
+            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, tau1)
+        else:
+            emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, tau1)
         
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #           
