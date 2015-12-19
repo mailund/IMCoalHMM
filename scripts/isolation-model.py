@@ -112,6 +112,7 @@ and uniform coalescence and recombination rates."""
         def log_likelihood(params):
             val=basic_log_likelihood(params)
             print str(params)+"="+str(val)
+            return val
     else:
         log_likelihood=basic_log_likelihood
 
