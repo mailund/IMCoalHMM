@@ -10,7 +10,7 @@ from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, com
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
-from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix5, emission_matrix6
+from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix5, emission_matrix6, emission_matrix7,emission_matrix8
 import pyZipHMM
 from IMCoalHMM import break_points
 
@@ -107,10 +107,11 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, intervals, breaktimes, breaktail=0, time_modifier=None):
+    def __init__(self, initial_configuration, intervals, breaktimes, breaktail=0, time_modifier=None, outgroup=False):
         self.breaktimes=breaktimes
         self.breaktail=breaktail
         self.time_modifier=time_modifier
+        self.outgroup=outgroup
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -136,19 +137,27 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         """Unpack the rate parameters for the model from the linear representation
         used in optimizations to the specific rate parameters.
         """
+        
+        
         no_epochs = len(self.intervals)
         coal_rates_1 = parameters[0:no_epochs]
         coal_rates_2 = parameters[no_epochs:(2*no_epochs)]
         mig_rates_12 = parameters[(2*no_epochs):(3*no_epochs)]
         mig_rates_21 = parameters[(3*no_epochs):(4*no_epochs)]
         recomb_rate = parameters[4*no_epochs]
-        if no_epochs*4+1<len(parameters):
+        if no_epochs*4+1<len(parameters) and self.time_modifier is not None:
+#             if self.outgroup:
+#                 fixed_time_points=self.time_modifier(parameters[(len(coal_rates_1)*4+1):-1])    #last variable is reserved for the outgroup parameter 
+#             else:
             fixed_time_points=self.time_modifier(parameters[(len(coal_rates_1)*4+1):])
         elif self.time_modifier is not None:
             fixed_time_points=self.time_modifier()
         else:
             fixed_time_points=[]
-        return coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate, fixed_time_points
+        ans=coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate, fixed_time_points
+#         if self.outgroup:
+#             ans.append(parameters[-1])
+        return ans
 
     def _map_rates_to_intervals(self, coal_rates):
         """Takes the coalescence rates as specified when building the CTMC
@@ -173,6 +182,9 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         if not all(parameters >= 0):  # This is the default test, useful for most models.
             return False
         
+        if self.outgroup:
+            parameters=parameters[:-1]
+            
         coal_rates_1, coal_rates_2, mig_rates_12, mig_rates_21, recomb_rate,fixed_time_points = self.unpack_parameters(parameters)
         
         #Here we check if all fixed_time_points leave a positive gap between them
@@ -235,6 +247,11 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 
         #break_points = psmc_break_points(self.no_states, t_max=self.tmax)
         break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail, fixed_time_points=fixed_time_points)
+        if self.outgroup: # if break_points is not suitable with the outgroup size, new breakpoints will be made.
+            if break_points[-1]>self.outmax:
+                print "Breakpoints redone to match outgroup"
+                fixed_time_points.append((len(break_points)-1, self.outmax*9.0/9.5))
+                break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail, fixed_time_points=fixed_time_points)
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
 
         return VariableCoalAndMigrationRateAndAncestralCTMCSystem(self.initial_state, sum(self.intervals[:-1]), ctmcs, break_points)
@@ -243,12 +260,19 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
     def build_hidden_markov_model(self, parameters):
         """Build the hidden Markov model matrices from the model-specific parameters."""
 
+        #checking for an outgroup:
+        print "before params",parameters
+        if self.outgroup:
+            outgroup=parameters[-1]
+            parameters=parameters[:-1]
+            self.outmax=outgroup
+        print "after params", parameters
         ctmc_system = self.build_ctmc_system(*parameters)
 
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
         br=ctmc_system.break_points
         
-
+        
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #         
         if self.initial_state==self.migration_state_space.i12_index: #here we are checking for 0s in the first migration parameters.
@@ -281,8 +305,14 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 #                 print "intervals", self.intervals[indexOfFirstNonZero:]
 #                 print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
 #                 print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
-                emission_probs=emission_matrix6(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], 
-                                                ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints, dimOfEmissionMatrix=len(br))
+                if self.outgroup:
+                    emission_probs=emission_matrix8(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, outgroup, self.intervals[indexOfFirstNonZero:], 
+                                                    ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+                else:
+                    emission_probs=emission_matrix7(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], 
+                                                    ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
+#                 emission_probs=emission_matrix7(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, self.intervals[indexOfFirstNonZero:], 
+#                                                 ctmc_system, offset=0,ctmc_postpone=indexOfFirstNonZeroMeasuredInBreakPoints)
                 
                 ##More like a hack but here we clean up the transition matrix who have produced nans but the inital_probabilities are already okay##
                 
@@ -294,9 +324,15 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
                             transition_probs[i,j]=float(1.0)/(len(br)-i-1)
             
             else:
-                emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
+                if self.outgroup:
+                    emission_probs=emission_matrix8(br, parameters, outgroup, self.intervals, ctmc_system,0.0)
+                else:
+                    emission_probs=emission_matrix7(br, parameters, self.intervals, ctmc_system,0.0)
         else:
-            emission_probs=emission_matrix6(br, parameters, self.intervals, ctmc_system,0.0)
+            if self.outgroup:
+                emission_probs=emission_matrix8(br, parameters, outgroup, self.intervals, ctmc_system,0.0)
+            else:
+                emission_probs=emission_matrix7(br, parameters, self.intervals, ctmc_system,0.0)
 #         emission_probs = emission_matrix4(br, parameters, self.intervals, ctmc_system)
 #         print "emission 4"
 #         print printPyZipHMM(emission_probs)
@@ -340,6 +376,7 @@ if __name__ == '__main__':
     cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
     ad= cd.build_hidden_markov_model(array([1000,1000,1000,  1000,1000,1000,    0,500,0,    0,100,0,    0.40]))
     print printPyZipHMM(ad[0])
+    print printPyZipHMM(ad[2])
     with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
         f.write(printPyZipHMM(ad[1]))
     with open("/home/svendvn/Dropbox/Bioinformatik/emission_matrix.txt", 'w') as f:
