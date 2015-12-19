@@ -249,7 +249,7 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail, fixed_time_points=fixed_time_points)
         if self.outgroup: # if break_points is not suitable with the outgroup size, new breakpoints will be made.
             if break_points[-1]>self.outmax:
-                print "Breakpoints redone to match outgroup"
+                #print "Breakpoints redone to match outgroup"
                 fixed_time_points.append((len(break_points)-1, self.outmax*9.0/9.5))
                 break_points=gamma_break_points(self.no_states,beta1=0.001*self.breaktimes,alpha=2,beta2=0.001333333*self.breaktimes, tenthsInTheEnd=self.breaktail, fixed_time_points=fixed_time_points)
         #break_points = uniform_break_points(self.no_states,0,self.tmax*1e-9)
@@ -261,12 +261,12 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         """Build the hidden Markov model matrices from the model-specific parameters."""
 
         #checking for an outgroup:
-        print "before params",parameters
+
         if self.outgroup:
             outgroup=parameters[-1]
             parameters=parameters[:-1]
             self.outmax=outgroup
-        print "after params", parameters
+
         ctmc_system = self.build_ctmc_system(*parameters)
 
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
