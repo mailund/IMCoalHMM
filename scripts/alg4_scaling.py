@@ -15,10 +15,10 @@ class AM4_scaling(object):
     classdocs
     '''
     
-    NONSWAP_PARAM=("theta",)
+    NONSWAP_PARAM=("theta","sigma")
     SWAP_PARAM=("thetaD","thetaID","thetaIID")
 
-    def __init__(self,startVal=1.0, params=[0.5,1,100,(0.2,0.0),0], sigmaStart=None, alphaDesired=0.234):
+    def __init__(self,startVal=1.0, params=[0.5,1,(500,1000),(0.2,0.0),0], sigmaStart=None, alphaDesired=0.234):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 
         starting value. 
@@ -30,10 +30,11 @@ class AM4_scaling(object):
             self.sigma=matrix(identity(size))*0.1
         else:
             self.sigma=sigmaStart
-        self.count=1
+        self.count=0
         self.alpha=params[0]
         self.multip=params[1]
-        self.timeTillStart=params[2]
+        self.timeTillStart=params[2][1]     #at what point should we use the matrix
+        self.timeUntilTrack=params[2][0]    #at what point should we start tracking the time
         self.proportions=params[3]
         self.majorToCome=params[4]
         self.major=2
@@ -49,21 +50,27 @@ class AM4_scaling(object):
     
     def setAdapParam(self, val):
         if len(val)>1:
-            self.sigma=val[1][3]
-            self.theta=val[0][0]
-            self.thetaDependent=val[1][0]
-            self.thetaIndependent=val[1][1]
-            self.thetaIdentical=val[1][2]
-            self.count=val[1][4]
-            self.adap=val[1][5]
-            self.firstValues=val[1][6]
+#             if len(val[1])>1:
+#                 self.sigma=val[1][3]
+#                 self.theta=val[0][0]
+#                 self.thetaDependent=val[1][0]
+#                 self.thetaIndependent=val[1][1]
+#                 self.thetaIdentical=val[1][2]
+#                 self.count=val[1][4]
+#                 self.adap=val[1][5]
+#                 self.firstValues=val[1][6]
+#             else:
+            self.sigma=val[1]
+            self.theta=val[0]
         else:
             self.theta=val[0]
+            
+
         
     def getAdapParam(self,all=False):
         if all:
-            return [self.theta], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma,self.count,self.adap, self.firstValues]
-        return [self.theta]
+            return [self.theta,self.sigma], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap, self.firstValues]
+        return [self.theta,sigma]
     
     def getStandardizedLogJumps(self):
         return [0] #this vector is not well defined here/useful here. 
@@ -73,6 +80,7 @@ class AM4_scaling(object):
         We record the mean. 
         '''
         self.first=map(log,params)
+        self.count += 1
         
     def stationaryPossible(self):
         return False
@@ -101,6 +109,7 @@ class AM4_scaling(object):
             self.second=[(f+a*sqrt(self.theta)*sqrt(self.thetaIdentical)) for f,a in zip(self.first,adds)]
 #             print "logsecond="+str(self.second)
             self.adap=2
+        #print "returned parameters=",map(exp,self.second)
         return map(exp,self.second)
         
     def update_alpha(self, accept, alphaXY):
@@ -117,8 +126,10 @@ class AM4_scaling(object):
         if self.count>self.timeTillStart:
             self.sigma += gamma*(outer(x-self.mean,x-self.mean)-self.sigma)
             self.mean += gamma*(x-self.mean)
-        else:
+        elif self.count>self.timeUntilTrack:
             self.firstValues.append(x)
+            if len(self.firstValues)>1:#this is so that the averaging doesn't give unrealistic results
+                self.sigma=cov(map(list,zip(*self.firstValues)))
         
         
         
@@ -173,12 +184,12 @@ class AM4_scaling(object):
             
             
             
-        self.count += 1
+        
         if (self.count-3)%2000==0:
             print self.sigma
             print self.theta
         
         
-        return [self.theta],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.sigma, self.count,self.adap,self.firstValues]
+        return [self.theta, self.sigma],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap,self.firstValues]
         
         

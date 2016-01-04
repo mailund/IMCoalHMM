@@ -108,6 +108,7 @@ parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='th
 parser.add_argument('--adap4_mediorizing', default=False, action='store_true', help='In adaptive scheme 4 there is a choice between making it hard for parameters to vanish or not. If this is stated, it is not.')
 parser.add_argument('--adap4_proportion', default=0.5, type=float, help='In adaption scheme 4 one can target those distributions which means a lot. The larger proportion, the more targeted.')
 parser.add_argument('--adap3_correlates_begin', default=100, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
+parser.add_argument('--adap3_tracking_begin', default=50, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
 parser.add_argument('--adap3_from_identical', default=0.2, type=float, help='How big proportion of the time after correlates_begin will we suggest independents with same variance.')
 parser.add_argument('--adap3_from_independent', default=0, type=float, help='Will we not use the correlates. If stated the covariance matrix will be estimated without off-diagonal entries.')
 
@@ -408,7 +409,11 @@ if options.adap==1:
 elif options.adap==2:
     adap=(MarginalScaler(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
 elif options.adap==3:
-    adap=AM4_scaling(startVal=no_params*[1.0], params=[options.adap_harmonic_power, options.adap_step_size, options.adap3_correlates_begin,(options.adap3_from_identical,options.adap3_from_independent), max_index], alphaDesired=options.adap_desired_accept)
+    adap=AM4_scaling(startVal=no_params*[1.0], 
+                     params=[options.adap_harmonic_power, options.adap_step_size, 
+                                                       (options.adap3_tracking_begin, options.adap3_correlates_begin),
+                                                       (options.adap3_from_identical,options.adap3_from_independent), max_index], 
+                     alphaDesired=options.adap_desired_accept)
 elif options.adap==4:
     adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap4_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept, targetProportion=options.adap4_proportion))
 else:

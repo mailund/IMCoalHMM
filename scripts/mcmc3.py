@@ -8,7 +8,7 @@ from likelihood2 import Likelihood
 from scipy.stats import norm, expon
 from numpy.random import random, randint,seed
 from math import log, exp,sqrt
-from numpy import array, sum,prod
+from numpy import array, sum, prod
 from break_points2 import gamma_break_points
 from copy import deepcopy
 import operator
@@ -345,6 +345,7 @@ class MCMC(object):
 
     def setNonSwapAdapParam(self, value):
         self.transform.setAdapParam(value)
+        
 
 
 class RemoteMCMC(object):
@@ -410,6 +411,7 @@ class RemoteMCMCProxy(object):
     
     def setNonSwapAdapParam(self,val):
         self.remote_chain.setNonSwapAdapParam(val)
+        
 
     def remote_complete(self):
         self.current_theta, self.current_prior, self.current_likelihood, self.current_posterior, self.accepts, self.rejections, self.nonSwapAdapParam,self.swapAdapParam, self.latest_squaredJumpSize = \
@@ -525,7 +527,12 @@ class MC3(object):
             for chain_no in range(self.no_chains):
                 self.chains[chain_no].remote_complete()
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
-            
+            if len(self.nsap[0])==2: ##This is when we have algorithm 4 scaling. So we take a weighted mean for each chain. We do this so that the probability of "killing" parameters is small
+                matrixsum=sum(self.nsap[n][1] for n in xrange(self.no_chains))
+                matrixmean=matrixsum/len(self.chains)
+                for chain_no in range(self.no_chains):
+                    self.nsap[chain_no][1]=matrixmean
+                
             
             if self.sort:
                 orderAndSort=sorted(enumerate(self.chains), key=lambda ch: -ch[1].current_posterior)
