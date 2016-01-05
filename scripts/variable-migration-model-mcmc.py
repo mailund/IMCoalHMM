@@ -570,7 +570,10 @@ else:
             else:
                 params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump= mcmc.sample()
                 if j%options.thinning==0:#reducing output a little
-                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
+                    if options.adap==3: #otherwise we print the sigma-matrix
+                        print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam[0])+tuple(swapAdapParam)))
+                    else:
+                        print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
             outfile.flush()
             if not options.record_steps and not options.mc3 and not options.mcg and not options.mc3_mcg_setup:
                 if j%max(int(options.samples/5),1)==0:
