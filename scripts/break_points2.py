@@ -112,10 +112,10 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
                 tenthsBasePoints[-1]=max(zip(*fixed_time_points)[1])
                 tenthsXpoints[-1]=tenthsXpoints[-2]+(tenthsXpoints[-1]-tenthsXpoints[-2])/2
                 tenthsXpoints.append(1.0)
-                tenthsBasePoints.append(tenthsBasePoints[-1]*1.5)
+                tenthsBasePoints.append(tenthsBasePoints[-1]*3.5)
         #print tenthsXpoints
         #print tenthsBasePoints
-        cdftenths=interp1d(tenthsBasePoints, tenthsXpoints)
+        cdftenths=interp1d(tenthsBasePoints, tenthsXpoints, bounds_error=False, fill_value=1.0)
         ppftenths=interp1d(tenthsXpoints, tenthsBasePoints)
 
     def gamma_exp_cdf(x):
@@ -163,6 +163,10 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
             f=no_intervals
             toU=1.0
             t=None
+    if len(points)!=no_intervals:
+        ##This has only been observed when fixed_time_points are really wrong - so wrong that it is rejected by the prior. Hence, this step will be rejected elsewhere
+        print fixed_time_points
+        return [float(i)/float(no_intervals)*fixed_time_points[0][1] for i in range(no_intervals)]
     return points
 
     
@@ -176,14 +180,16 @@ def main():
     print exp_break_points(5, 2.0)
     print exp_break_points(5, 1.0, 3.0)
     print uniform_break_points(5, 1.0, 3.0)
+    print "hallo"
 
     print len(psmc_break_points(20,t_max=7*4*20000*25))
     #print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
     b=gamma_break_points(26,beta1=0.001,alpha=2,beta2=0.001333, fixed_time_points=[(5,0.1),(18,0.5)], tenthsInTheEnd=3)
+    print b
     #print b
     #print len(b)
     #b=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=5)
-    print gamma_break_points(40, beta1=0.001,alpha=2,beta2=0.005,offset=0.0,tenthsInTheEnd=8, fixed_time_points=[(10,0.005),(20,0.01),(30,0.02)])
+    print gamma_break_points(40, beta1=0.001,alpha=2,beta2=0.005,offset=0.0,tenthsInTheEnd=8, fixed_time_points=[(10,0.005),(20,0.01),(39,0.02)])
     #print str(len(b))+" "+str(b)
 
 
