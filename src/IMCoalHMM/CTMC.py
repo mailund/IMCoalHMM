@@ -55,7 +55,7 @@ class CTMC(object):
 # of parameters, we are creating the same CTMCs again and again and computing the probability
 # transition matrices is where we spend most of the time.
 from cache import Cache
-CTMC_CACHE = Cache()
+CTMC_CACHE = Cache(20)
 
 
 def make_ctmc(state_space, rates_table):
