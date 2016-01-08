@@ -563,7 +563,7 @@ else:
                 for i in range(no_chains):
                     params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
                     if options.adap==3:
-                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam[:3])))+'\t')
+                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple([nonSwapAdapParam[0]])+tuple(swapAdapParam[:3])))+'\t')
                     else:
                         outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
                 print >> outfile,str(all[-1])
