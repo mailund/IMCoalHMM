@@ -1136,9 +1136,12 @@ def emission_matrix7(break_points, params,intervals,  ctmc_system,offset=0.0, ct
         else:
             emissum, normsum = Expms.emissAndNorm(lls=lls,lrs=lrs,rrs=rrs, break_new=break_points[j+1], break_latest=break_points[j], Cs=[-8.0/3.0], offset=offset)
         
-
-        emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum[0]/normsum
-        emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum[0]/normsum
+        if normsum+emissum[0]==0:
+            emission_probabilities[j+ctmc_postpone,0]=1.0
+            emission_probabilities[j+ctmc_postpone,1]=0.0
+        else:
+            emission_probabilities[j+ctmc_postpone,0]=0.25+0.75*emissum[0]/normsum
+            emission_probabilities[j+ctmc_postpone,1]=0.75-0.75*emissum[0]/normsum
         emission_probabilities[j+ctmc_postpone,2]=1.0
     
     return emission_probabilities
