@@ -18,14 +18,19 @@ class AM4_scaling(object):
     NONSWAP_PARAM=("theta","sigma")
     SWAP_PARAM=("thetaD","thetaID","thetaIID")
 
-    def __init__(self,startVal=1.0, params=[0.5,1,(500,1000),(0.2,0.0),0], sigmaStart=None, alphaDesired=0.234):
+    def __init__(self,startVal=1.0, params=[0.5,1,(500,1000),(0.2,0.0),0], sigmaStart=None, alphaDesired=0.234, small_parameters_function=None, full_parameters_function=None):
         '''
         Constructor. theta is the factor that is multiplied on all proposals. It is updated throughout so input to the constructor is only a 
         starting value. 
         alpha is the power in the updating rule theta_{count+1}=max(0.0001,theta_{count}+1/count^alpha*(1_{accept}(true)*2-1))
         '''
         self.theta=startVal[0]
-        size=len(startVal)
+        if small_parameters_function is not None:
+            size=len(small_parameters_function(startVal))
+        else:
+            size=len(startVal)
+        self.full_parameters_function=full_parameters_function
+        self.small_parameters_function=small_parameters_function
         if sigmaStart is None:
             self.sigma=matrix(identity(size))*0.1
         else:
@@ -79,7 +84,10 @@ class AM4_scaling(object):
         '''
         We record the mean. 
         '''
-        self.first=map(log,params)
+        if self.small_parameters_function is not None:
+            self.first=map(log,self.small_parameters_function(params))
+        else:
+            self.first=map(log,params)
         self.count += 1
         
     def stationaryPossible(self):
@@ -91,6 +99,8 @@ class AM4_scaling(object):
         Here we don't use the parameters, _, already simulated, we make new ones. 
         This doesn't change the prior
         '''
+#         print "len(self.first)",len(self.first),"len(adds)",len(adds)
+        adds=self.small_parameters_function(adds)
         if self.count>self.timeTillStart and random()>self.proportions[0]:
             if random()<self.proportions[1]/(1-self.proportions[0]):
                 print "count,self.theta, self.thetaID="+str((self.count,self.theta,self.thetaIndependent))
@@ -110,6 +120,8 @@ class AM4_scaling(object):
 #             print "logsecond="+str(self.second)
             self.adap=2
         #print "returned parameters=",map(exp,self.second)
+        if self.full_parameters_function is not None:
+            return self.full_parameters_function(map(exp,self.second))
         return map(exp,self.second)
         
     def update_alpha(self, accept, alphaXY):
@@ -158,6 +170,7 @@ class AM4_scaling(object):
             
         if self.count==self.timeTillStart:#we try to normalize self.theta, to skip some steps
             self.major=self.majorToCome
+            print "self.firstValues",self.firstValues
             self.sigma=cov(map(list,zip(*self.firstValues)))
             self.firstValues=[]
             print self.sigma

@@ -109,6 +109,7 @@ parser.add_argument('--adap3_correlates_begin', default=100, type=int, help='In 
 parser.add_argument('--adap3_tracking_begin', default=50, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
 parser.add_argument('--adap3_from_identical', default=0.2, type=float, help='How big proportion of the time after correlates_begin will we suggest independents with same variance.')
 parser.add_argument('--adap3_from_independent', default=0, type=float, help='Will we not use the correlates. If stated the covariance matrix will be estimated without off-diagonal entries.')
+parser.add_argument('--adap3_covariance_sharing', default=-1, type=float, help='If negative, this option will not be used. This is a number between 0 and 1 saying how much the covariance matrices are shared across temperatures. The higher, the less sharing.')
 
 parser.add_argument('--printPyMatrices', default=0, type=int, help='How many times should transitionmatrix and initialdistribution be printed for the chain(s) with the correct temperature')
 parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
@@ -121,7 +122,8 @@ parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this
 parser.add_argument('--pulse_uniform_prior', default=1.0, type=int, help='the maximum of the uniform prior on the pulse proportion is provided here. If nothing, the value 1.0 is used.')
 parser.add_argument('--fix_params', nargs='+', default=[], type=int, help="the index of the parameters who will be fixed to their starting value throughout simulations. For now it only works when adap=1.")
 parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
-parser.add_argument('--fix_parameters_to_be_equal', type=str, default="", help="FOR NOW THIS ONLY WORKS WITH no_mcmc. a comma and colon separated string. commas separate within group and colons separate between groups. If a startWithGuessElaborate is specified this will use the relationsships between the parameters in that as fixed. ")
+parser.add_argument('--fix_parameters_to_be_equal', type=str, default="", help="a comma and colon separated string. commas separate within group and colons separate between groups. If a startWithGuessElaborate is specified this will use the relationsships between the parameters in that as fixed. ")
+
 #One should specify a list of numbers, where the (2n-1)'th number is the index of the time interval one wants set. You can not specify 0 as that is always at time 0.0.
 #The 2n'th number is time point measuered in substitions. It will generally be around 10^-4-10^-2.
 parser.add_argument('--single_scaling', action='store_true', default=False, help='''if fixed_time_points is set, this will add a parameter to the model scaling 'the time points of fixed_time_points]' up and down(linearly). Default value is 1 of course.''') 
@@ -154,6 +156,7 @@ init_coal = 1 / (theta / 2)
 init_p = options.pulse
 init_recomb = rho
 
+
 # FIXME: I don't know what would be a good choice here...
 # intervals = [4] + [2] * 25 + [4, 6]
 intervals=options.intervals
@@ -162,6 +165,7 @@ index_of_pulses=cumsum(array(options.intervals))[:-1]                           
 print index_of_pulses
 no_epochs = len(intervals)
 no_params=no_epochs*4-2+1
+init_parameters=[init_coal]*no_epochs*2+[init_p]*2*(no_epochs-1)+[init_recomb]
 
 incr=range(1,no_epochs+1)*2+range(1,no_epochs)*2
 beforeNames=['pop1_coalRate_']*no_epochs+['pop2_coalRate_']*no_epochs+['pop12_migRate_']*no_epochs+['pop21_migRate_']*no_epochs
@@ -202,18 +206,26 @@ if options.single_scaling:
     fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
     fixed_time_pointer=single_scaler
     no_params+=1
+    init_parameters.append([1.0])
     names.append("time_scaling")
 elif options.joint_scaling:
     fixed_time_points=[]
+    print options.fix_time_points
+    print zip(options.fix_time_points[::2],options.fix_time_points[1::2])
     for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
         fixed_time_points.append((int(f), float(t)))
     for i in options.joint_scaling:
         if i==len(fixed_time_points)-1: #then this is for the last time interval
+            print "i am in the last fixed time point"
             priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer, a=0.95))
         else:
+            print "i am not in the last fixed time point"
             priors.append(UniformPrior(1.0,fixed_time_points[i+1][1]*9.0/(fixed_time_points[i][1]*10.0), proposal_sd=options.sd_multiplyer,a=0.95)) #this will leave a small band of error
+    print "prior-information", priors[-1].until, priors[-1].a, priors[-1].init
+    print "fixed_time_points", fixed_time_points
     fixed_time_pointer=joint_scaler
     no_params+=len(options.joint_scaling)
+    init_parameters.extend([1.0]*len(options.joint_scaling))
     names.extend(["time_scaling"+str(r) for r in range(1,len(options.joint_scaling)+1)])
 elif options.fix_time_points:
     print "we are in options.fix_time_points"
@@ -223,6 +235,61 @@ elif options.fix_time_points:
 else:
     fixed_time_pointer=None #in stead on could assign it the function that returns []. 
     
+    
+if options.startWithGuessElaborate:
+    init_parameters=options.startWithGuessElaborate
+
+parm_scale_dictionary={}
+if options.fix_parameters_to_be_equal:
+    groups=options.fix_parameters_to_be_equal.split(":")
+    for group in groups:
+        members=map(int,group.split(","))
+        leader=members[0]
+        for i in members[1:]:
+            parm_scale_dictionary[i]=(leader, float(init_parameters[i])/float(init_parameters[leader]) )
+
+#this will be a list of the form [(1,1.0),(2,1.0),('fixed',1120.2),(3,1.0), (3,1.0),(3,0.5)... ]. 
+#On index i of this list, eh[i][0] will be what completely variable parameter one should use to get the ith parameter of the likelihood. 
+#If eh[i][0] is 'fixed', it means that one does not need the variable parameters to set it - and in that case its value is eh[i][1].
+#If eh[i][0] is a number it means that we find the likparameter from saying varpar[eh[i][0]]*eh[i][1]
+#So we have two different numberings of parameters. One is the parameters of the likelihood and the other is the parameters of the maximizer.
+#We have |maximize_parameters|<=|likelihood_parameters|. As an extra twist we have the transformed_maximize_parameters because the maximizer Particle-Swarm only works on (0,1)^{no_params}
+no_params=len(init_parameters) #m
+eh=[0]*no_params
+
+count_of_variableParameter=0
+for n in range(no_params):
+    if n not in options.fix_params and n not in parm_scale_dictionary:
+        eh[n]=(count_of_variableParameter,1.0)
+        count_of_variableParameter+=1
+
+for n,tup in parm_scale_dictionary.items():
+    eh[n]=(eh[tup[0]][0], tup[1])
+for n in options.fix_params:
+    eh[n]=('fixed', init_parameters[n])
+    
+print " ---------- Dimension of optimising space is ", count_of_variableParameter, " --------------"
+print eh
+
+def from_maxvar_to_likpar(small_params):
+    """
+    input: list of parameters that are optimized freely by the optimizer
+    output: list of parameters that goes into the likelihood function
+    """
+    big_params=[]
+    for lik_param,(var_param, value) in enumerate(eh):
+        if var_param=='fixed':
+            big_params.append(value)
+        else:
+            big_params.append(small_params[var_param]*value)
+    return big_params
+
+def from_likpar_to_maxvar(big_params):
+    small_params=[0]*count_of_variableParameter
+    for n,(var_param,value) in enumerate(eh):
+        if var_param!='fixed':
+            small_params[var_param]=big_params[n]/value
+    return small_params
     
 
 def transform(parameters):
@@ -260,24 +327,25 @@ def log_likelihood(parameters):
     a1=log_likelihood_11(parameters)
     a2=log_likelihood_12(parameters)
     a3=log_likelihood_22(parameters)
-    print str(a1[2]+a2[2]+a3[2]), "=", str(parameters)
+    if random()<0.01:
+        print str(a1[2]+a2[2]+a3[2]), "=", str(parameters)
     return ((a1[0][0],a2[0][0],a3[0][0]), (a1[1][0],a2[1][0],a3[1][0]), a1[2]+a2[2]+a3[2])
 
-if options.startWithGuess or options.startWithGuessElaborate:
-    #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
-    if options.single_scaling:
-        startVal=[init_coal]*no_epochs*2+[init_p]*(no_epochs*2-2)+[init_recomb]+[1.0]
-    else:
-        startVal=[init_coal]*no_epochs*2+[init_p]*(2*no_epochs-2)+[init_recomb]
-    if len(options.startWithGuessElaborate)!=0:
-        if len(options.startWithGuessElaborate)==(len(options.intervals)*4-1):
-            startVal=options.startWithGuessElaborate
-        else:
-            "StartWithGuessElaborate is ignored"
-    if options.joint_scaling:
-        startVal.extend([1.0]*len(options.joint_scaling))
-else:
-    startVal=None
+# if options.startWithGuess or options.startWithGuessElaborate:
+#     #startVal=[2.0/0.000575675566598,2.0/0.00221160347741,2.0/0.000707559309234,2.0/0.00125938374711,2.0/0.00475558231719,2.0/0.000829398438542,2.0/0.000371427015082,2.0/0.000320768239201,127.278907998,124.475750838,105.490882058,131.840288312,137.498454174,114.216001115,123.259131284,101.646109897,1.42107787743]
+#     if options.single_scaling:
+#         startVal=[init_coal]*no_epochs*2+[init_p]*(no_epochs*2-2)+[init_recomb]+[1.0]
+#     else:
+#         startVal=[init_coal]*no_epochs*2+[init_p]*(2*no_epochs-2)+[init_recomb]
+#     if len(options.startWithGuessElaborate)!=0:
+#         if len(options.startWithGuessElaborate)==(len(options.intervals)*4-1):
+#             startVal=options.startWithGuessElaborate
+#         else:
+#             "StartWithGuessElaborate is ignored"
+#     if options.joint_scaling:
+#         startVal.extend([1.0]*len(options.joint_scaling))
+# else:
+#     startVal=None
 
 
 
@@ -299,11 +367,18 @@ if options.adap==1:
 elif options.adap==2:
     adap=(MarginalScaler(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
 elif options.adap==3:
-    adap=AM4_scaling(startVal=no_params*[1.0], 
-                     params=[options.adap_harmonic_power, options.adap_step_size, 
-                                                       (options.adap3_tracking_begin, options.adap3_correlates_begin),
-                                                       (options.adap3_from_identical,options.adap3_from_independent), max_index], 
-                     alphaDesired=options.adap_desired_accept)
+    if options.fix_parameters_to_be_equal or options.fix_params:
+        adap=AM4_scaling(startVal=no_params*[1.0], 
+                         params=[options.adap_harmonic_power, options.adap_step_size, 
+                                                           (options.adap3_tracking_begin, options.adap3_correlates_begin),
+                                                           (options.adap3_from_identical,options.adap3_from_independent), max_index], 
+                         alphaDesired=options.adap_desired_accept, small_parameters_function=from_likpar_to_maxvar, full_parameters_function=from_maxvar_to_likpar)
+    else:
+        adap=AM4_scaling(startVal=no_params*[1.0], 
+                         params=[options.adap_harmonic_power, options.adap_step_size, 
+                                                           (options.adap3_tracking_begin, options.adap3_correlates_begin),
+                                                           (options.adap3_from_identical,options.adap3_from_independent), max_index], 
+                         alphaDesired=options.adap_desired_accept)
 elif options.adap==4:
     adap=(MarginalScalerMax(startVal=[0.1]*no_params, params=[options.adap_harmonic_power, options.adap_step_size, options.adap4_mediorizing, options.adap_step_size_marginal], alphaDesired=options.adap_desired_accept, targetProportion=options.adap4_proportion))
 else:
@@ -325,78 +400,13 @@ else:
     printFrequency=0
 print printFrequency
 
+startVal=None #default value for mcmc
+
+
+
 
 if options.no_mcmc:
-    
-    changers=[]
-    parm_scale_dictionary={}
-    if options.fix_parameters_to_be_equal:
-        groups=options.fix_parameters_to_be_equal.split(":")
-        for group in groups:
-            members=map(int,group.split(","))
-            leader=members[0]
-            for i in members[1:]:
-                changers.append(i)
-                parm_scale_dictionary[i]=(leader, float(startVal[i])/float(startVal[leader]) )
-    NeverChangeParam=startVal
-    startVal=[s for n,s in enumerate(startVal) if n not in changers and n not in options.fix_params]
-    print NeverChangeParam
-    print startVal
-    print changers
-    print parm_scale_dictionary
-
-    
-         
-    def fullparams(parameters):
-        fullparm=[] #the parameters to feed log likelihood with
-        count=0
-        for i in xrange(4*no_epochs+1):#running through all the non-time-scaling parameters
-            if i in options.fix_params: #
-                fullparm.append(NeverChangeParam[i])
-            elif i in changers:
-                fullparm.append(-1)
-            else:
-                fullparm.append(parameters[count])
-                count+=1
-        fullparm=[f if f is not -1 else fullparm[parm_scale_dictionary[n][0]]*parm_scale_dictionary[n][1] for n,f in enumerate(fullparm)]
-        fullparm.extend(parameters[count:])
-        return fullparm
-    test=fullparams(startVal)
-    #making a wrapper to take care of fixed parameters and scaling parameters
-    def lwrap(parameters):#parameters is the vector of only variable parameters
-        parm=fullparams(parameters)
-        print parm
-        val=log_likelihood(array(parm))[2]
-        print val
-        return val
-    sVal=startVal
-    
-    if options.optimizer=="Particle-Swarm":
-        #inverting coalescence rates
-        def lwrapwrap(parameters):
-            fullp=fullparams(parameters)
-            fullp=[f if n>=(len(fullp)-1) or n in options.fix_params else 1/f for n,f in enumerate(fullp)]
-            print fullp
-            val=log_likelihood(array(fullp))[2]
-            print val
-            return val
-        if options.parallels>1:
-            op=OptimiserParallel()
-            mle_parameters = op.maximise(lwrapwrap, len(sVal), processes=options.parallels)
-        else:
-            op=Optimiser()
-            mle_parameters = op.maximise(lwrapwrap, len(sVal))
-        
-        max_log_likelihood = lwrapwrap(mle_parameters)
-        mle_parameters=[1.0/m for m in mle_parameters]
-    else:     
-        mle_parameters = \
-            maximum_likelihood_estimate(lwrap, array(sVal),
-                                         optimizer_method=options.optimizer)
-        max_log_likelihood = lwrap(mle_parameters)        
-    with open(options.outfile, 'w') as outfile:
-        print >> outfile, '\t'.join(beforeNames+['recombRate'])
-        print >> outfile, '\t'.join(map(str, transform(fullparams(mle_parameters)) + (max_log_likelihood,)))
+    print "no_mcmc not implemented"
 else:
 
     
@@ -452,7 +462,7 @@ else:
                 for i in range(no_chains):
                     params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
                     if options.adap==3:
-                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam[:3])))+'\t')
+                        outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple([nonSwapAdapParam[0]])+tuple(swapAdapParam[:3])))+'\t')
                     else:
                         outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
                 print >> outfile,str(all[-1])
@@ -460,7 +470,7 @@ else:
                 params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump= mcmc.sample()
                 if j%options.thinning==0:#reducing output a little
                     if options.adap==3: #otherwise we print the sigma-matrix
-                        print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam[0])+tuple(swapAdapParam)))
+                        print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple([nonSwapAdapParam[0]])+tuple(swapAdapParam)))
                     else:
                         print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))
             outfile.flush()

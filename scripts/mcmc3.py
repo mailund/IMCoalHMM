@@ -75,6 +75,40 @@ class UniformPrior(object):
     
     def log_proposal_step(self):
         return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
+    
+class UniformPriorWithGoalPosts(object):
+    
+    def __init__(self, init, until, proposal_sd=None, a=0.0):
+        self.until=until
+        self.init=init
+        self.a=a
+        if proposal_sd is not None:
+            self.proposal_sd = proposal_sd
+        else:
+            self.proposal_sd = 0.1
+            
+    def pdf(self, x):
+        if x<self.until and x>self.a:
+            return 1.0/(self.until-self.a)*0.5
+        elif x==self.until or x==self.a:
+            return 0.25
+        else:
+            return 0
+
+    def sample(self):
+        proposal=(1.3333*random()-0.3333)*(self.until-self.a)
+        if proposal<self.a:
+            return self.a
+        elif proposal>self.until:
+            return self.until
+        return proposal
+
+    def proposal(self, x):
+        log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
+        return exp(log_step)
+    
+    def log_proposal_step(self):
+        return norm.rvs(loc=0, scale=self.proposal_sd, size=1)[0]
 
 class ExpLogNormPrior(object):
     """Prior and proposal distribution. The prior is an exponential and steps are a
@@ -425,7 +459,7 @@ class RemoteMCMCProxy(object):
 class MC3(object):
     """A Metropolis-Coupled MCMC."""
 
-    def __init__(self, priors, log_likelihood, accept_jump, flip_suggestions, sort, chain_structure, thinning, switching, temperature_scale=1,fixedMax=None, **kwargs):
+    def __init__(self, priors, log_likelihood, accept_jump, flip_suggestions, sort, chain_structure, thinning, switching, temperature_scale=1,fixedMax=None,covariance_matrix_sharing=None, **kwargs):
         no_chains=len(chain_structure)
         if not "transferminator" in kwargs:
             kwargs["transferminator"]=[None]*no_chains
@@ -445,6 +479,7 @@ class MC3(object):
         self.accept_jump=accept_jump
         self.flip_suggestions=flip_suggestions
         self.sort=sort
+        self.covariance_matrix_sharing=covariance_matrix_sharing
         print kwargs
         self.chains = [RemoteMCMCProxy(priors, log_likelihood, switching, transferminator=kwargs["transferminator"][n], 
                                        mixtureWithScew=kwargs["mixtureWithScew"], mixtureWithSwitch=kwargs["mixtureWithSwitch"], 
@@ -527,12 +562,11 @@ class MC3(object):
             for chain_no in range(self.no_chains):
                 self.chains[chain_no].remote_complete()
                 self.nsap[chain_no]=deepcopy(self.chains[chain_no].nonSwapAdapParam)
-            if len(self.nsap[0])==2: ##This is when we have algorithm 4 scaling. So we take a weighted mean for each chain. We do this so that the probability of "killing" parameters is small
-                matrixsum=sum(self.nsap[n][1] for n in xrange(self.no_chains))
-                matrixmean=matrixsum/len(self.chains)
+            if self.covariance_matrix_sharing is not None: ##This is when we have algorithm 4 scaling. So we take a weighted mean for each chain. We do this so that the probability of "killing" parameters is small
                 for chain_no in range(self.no_chains):
-                    self.nsap[chain_no][1]=matrixmean
-                
+                    matrixsum=sum(self.nsap[n][1]*max(0,1-self.covariance_matrix_sharing*abs(n-chain_no)) for n in xrange(self.no_chains))
+                    matrixdivider=sum(max(0,1-self.covariance_matrix_sharing*abs(n-chain_no)) for n in xrange(self.no_chains))
+                    self.nsap[chain_no][1]=matrixsum/matrixdivider               
             
             if self.sort:
                 orderAndSort=sorted(enumerate(self.chains), key=lambda ch: -ch[1].current_posterior)

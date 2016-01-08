@@ -272,7 +272,7 @@ class PulseModel(Model):
         
         if not all(parameters >= 0):  # This is the default test, useful for most models.
             return False
-            
+        #print "parameters",parameters
         coal_rates_1, coal_rates_2, alphas,betas, recomb_rate,fixed_time_points = self.unpack_parameters(parameters)
         if not all(alphas<=1):
             return False
@@ -300,6 +300,7 @@ class PulseModel(Model):
         mig_rates_21 = parameters[(3*self.no_epochs-1):(4*self.no_epochs-2)]
         recomb_rate = parameters[4*self.no_epochs-2]
         if self.no_epochs*4-1<len(parameters):
+            assert len(parameters[(len(coal_rates_1)*4-1):])>0, "Wrong number of parameters encountered. Did you remember to specify all the parameters with startWithElaborate Guess?"
             fixed_time_points=self.time_modifier(parameters[(len(coal_rates_1)*4-1):])
         elif self.time_modifier is not None:
             fixed_time_points=self.time_modifier()
@@ -330,9 +331,7 @@ class PulseModel(Model):
     
     def build_hidden_markov_model(self, parameters):
         ctmc_system = self.build_ctmc_system(*parameters)
-        
         coal_rates_1, coal_rates_2, alphas, betas, recomb_rate,fixed_time_points = self.unpack_parameters(parameters)
-        
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
         br=ctmc_system.break_points
         
@@ -371,16 +370,20 @@ if __name__ == '__main__':
     substime_first_change=0.0005
     substime_second_change=0.0010
     substime_third_change=0.0030
-    def time_modifier():
-        return [(5,substime_first_change),(10,substime_second_change)]
-    ad=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
+    def time_modifier(t):
+        print t
+        return [(5,substime_first_change*t[0]),(10,substime_second_change)]
+    ad=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
     testParams2=[  8.13577869e+03 ,  1.87046487e+03 ,  3.69842619e+02  , 1.53735829e+04,
    9.41145544e+02 ,  1.41385396e+02,   6.71078803e+02 ,  4.83890546e+02,
    1.36369900e-01,   7.17341103e-01,   9.78034229e-01,   2.86343328e-01,
    7.53933794e-01,   8.21405069e-01,   5.21836511e-01]
+    testParams3=array([0.000863596795993   ,    0.00310780495672    ,    0.000629449575272   ,    0.00189871279872  ,      0.00120253154653   ,
+                      0.00953059649538   ,     0.00182727180054 ,       0.00122482695789 ,       0.855562449347 , 0.397245477065, 0.7859663152,
+                      0.169553864268 , 0.994536120807,  0.979299188747,  1.44802078062 ,  7.13453720054 ])
     testParams=array([1000.0]*8+[0.1]*2+[1.0]+[0.2]*2+[0.0]+[0.4])
     print testParams2
-    i,t,e,b=ad.build_hidden_markov_model(array(testParams))
+    i,t,e,b=ad.build_hidden_markov_model(array(testParams3))
     
     print printPyZipHMM(i)
     print printPyZipHMM(t)
@@ -396,9 +399,9 @@ if __name__ == '__main__':
         a12s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.12","2.12"]]
         a22s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.22","2.22"]]
         
-        model11=PulseModel(PulseModel.INITIAL_11, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
-        model12=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
-        model22=PulseModel(PulseModel.INITIAL_22, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
+        model11=PulseModel(PulseModel.INITIAL_11, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
+        model12=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
+        model22=PulseModel(PulseModel.INITIAL_22, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
         forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
         forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
         forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
@@ -406,7 +409,7 @@ if __name__ == '__main__':
         likeli12=Likelihood(model12, forwarders12)
         likeli22=Likelihood(model22, forwarders22)
         
-        print likeli11(testParams)
-        print likeli12(testParams)
-        print likeli22(testParams)
+        print likeli11(testParams3)
+        print likeli12(testParams3)
+        print likeli22(testParams3)
         
