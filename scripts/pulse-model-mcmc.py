@@ -119,7 +119,7 @@ parser.add_argument('--record_steps', action='store_true',default=False, help='i
 parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
 parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. Between each interval, there will be a pulse event')
 parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
-parser.add_argument('--pulse_uniform_prior', default=1.0, type=int, help='the maximum of the uniform prior on the pulse proportion is provided here. If nothing, the value 1.0 is used.')
+parser.add_argument('--pulse_uniform_prior', default=1.0, type=float, help='the maximum of the uniform prior on the pulse proportion is provided here. If nothing, the value 1.0 is used.')
 parser.add_argument('--fix_params', nargs='+', default=[], type=int, help="the index of the parameters who will be fixed to their starting value throughout simulations. For now it only works when adap=1.")
 parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
 parser.add_argument('--fix_parameters_to_be_equal', type=str, default="", help="a comma and colon separated string. commas separate within group and colons separate between groups. If a startWithGuessElaborate is specified this will use the relationsships between the parameters in that as fixed. ")
