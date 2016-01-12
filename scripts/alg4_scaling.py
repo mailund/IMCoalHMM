@@ -100,7 +100,8 @@ class AM4_scaling(object):
         This doesn't change the prior
         '''
 #         print "len(self.first)",len(self.first),"len(adds)",len(adds)
-        adds=self.small_parameters_function(adds)
+        if self.small_parameters_function is not None:
+            adds=self.small_parameters_function(adds)
         if self.count>self.timeTillStart and random()>self.proportions[0]:
             if random()<self.proportions[1]/(1-self.proportions[0]):
                 print "count,self.theta, self.thetaID="+str((self.count,self.theta,self.thetaIndependent))
