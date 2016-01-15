@@ -65,6 +65,7 @@ class AM4_scaling(object):
 #                 self.adap=val[1][5]
 #                 self.firstValues=val[1][6]
 #             else:
+            self.mean=val[2]
             self.sigma=val[1]
             self.theta=val[0]
         else:
@@ -74,7 +75,7 @@ class AM4_scaling(object):
         
     def getAdapParam(self,all=False):
         if all:
-            return [self.theta,self.sigma], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap, self.firstValues]
+            return [self.theta,self.sigma, self.mean], [self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap, self.firstValues]
         return [self.theta,sigma]
     
     def getStandardizedLogJumps(self):
@@ -176,21 +177,21 @@ class AM4_scaling(object):
             self.firstValues=[]
             print self.sigma
             if self.major==0:
-                normalizer=sum(diagonal(self.sigma))/len(self.first)
+                normalizer=max(diagonal(self.sigma))
                 print "normalizerD="+str(normalizer)
                 self.thetaIdentical=normalizer
                 self.thetaDependent=1.0
-                self.thetaIndependent=self.theta/normalizer
-                self.theta=self.thetaIndependent
+                self.thetaIndependent=1.0
+                self.theta=self.theta/normalizer
             elif self.major==1:
-                normalizer=sum(diagonal(self.sigma))/len(self.first)
+                normalizer=max(diagonal(self.sigma))
                 print "normalizerD="+str(normalizer)
                 self.thetaIdentical=normalizer
-                self.thetaDependent=self.theta/normalizer
+                self.thetaDependent=1.0
                 self.thetaIndependent=1.0
-                self.theta=self.thetaDependent
+                self.theta=self.theta/normalizer
             else:
-                normalizer=sum(diagonal(self.sigma))/len(self.first)
+                normalizer=max(diagonal(self.sigma))
                 self.thetaIdentical=self.theta
                 self.thetaDependent=1.0/normalizer
                 self.thetaIndependent=1.0/normalizer
@@ -204,6 +205,6 @@ class AM4_scaling(object):
             print self.theta
         
         
-        return [self.theta, self.sigma],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap,self.firstValues]
+        return [self.theta, self.sigma, self.mean],[self.thetaDependent, self.thetaIndependent,self.thetaIdentical,self.count,self.adap,self.firstValues]
         
         
