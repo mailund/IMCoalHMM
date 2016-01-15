@@ -145,6 +145,9 @@ class MCMC(object):
         self.latest_squaredJumpSize=0.0    
         if startVal is None:
             self.current_theta = array([pi.sample() for pi in self.priors])
+            if self.transform is not None:
+                self.transform.first_transform(self.current_theta)
+                self.current_theta=array(self.transform.after_transform([0]*len(self.current_theta)))
         else:
             self.current_theta=array(startVal)
         self.rejectedSwitches={}
