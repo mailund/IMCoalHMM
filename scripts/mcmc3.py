@@ -7,7 +7,7 @@ from likelihood2 import Likelihood
 
 from scipy.stats import norm, expon
 from numpy.random import random, randint,seed
-from math import log, exp,sqrt
+from math import log, exp,sqrt, isnan
 from numpy import array, sum, prod
 from break_points2 import gamma_break_points
 from copy import deepcopy
@@ -104,7 +104,7 @@ class UniformPriorWithGoalPosts(object):
         return proposal
 
     def proposal(self, x):
-        log_step = norm.rvs(loc=log(x), scale=self.proposal_sd, size=1)[0]
+        step = norm.rvs(loc=x, scale=self.proposal_sd, size=1)[0]
         return exp(log_step)
     
     def log_proposal_step(self):
@@ -281,13 +281,16 @@ class MCMC(object):
         self.transform.setAdapParam(bundleOfInfo[1])
         if len(bundleOfInfo)>=3:
             self.setSample(bundleOfInfo[2],bundleOfInfo[3])
-            
         self.transform.first_transform(self.current_theta)
         new_thetaTmp = array([self.priors[i].log_proposal_step() for i in xrange(len(self.current_theta))])
         new_theta= array(self.transform.after_transform(new_thetaTmp))
-        
         new_prior = self.log_prior(new_theta)
-        _, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        try:
+            _, self.latest_initialDistribution, new_log_likelihood = self.log_likelihood(new_theta)
+        except AssertionError as e:
+            print "The model has tried to move outside of its stabile values at temperature "+str(bundleOfInfo[0])+ " "+str(e)[0:10]+"..."
+            return new_theta,0,0, float('nan'),array(self.transform.getStandardizedLogJumps()),0, "doesnt matter",'doesnt matter',0
+        
         new_posterior=new_log_likelihood+new_prior
         jumps=array(self.transform.getStandardizedLogJumps())
         return new_theta,new_prior,new_log_likelihood, new_posterior,jumps,0, "doesnt matter",'doesnt matter',0
@@ -327,10 +330,13 @@ class MCMC(object):
                     print "\n"
         self.steps+=1
         if self.multiple_try:
+            
             bundleOfInfo=temperature
             if self.transform is not None:
+                
                 return self.PropstepScew(bundleOfInfo)
             else:
+                
                 return self.Propstep(bundleOfInfo) #doesnot exist
         elif not isinstance(temperature,float):#in some schemes we pass on more information
             bundleOfInfo=temperature
@@ -648,8 +654,11 @@ class MCG(object):
 
     
     def sample(self,temperatureBundle=(1.0,'keep')):
+        #print "sample is called"
+        
         if not temperatureBundle[1]=='keep' and temperatureBundle[1] is not None:
             self.glob_scale=(temperatureBundle[1],self.glob_scale[1])
+        
         temperature=temperatureBundle[0]
 
         posteriors=[0]*self.probs
@@ -657,19 +666,26 @@ class MCG(object):
         standardizedLogJumps=[0]*self.probs
         for chain_no in range(self.probs):
             self.chains[chain_no].remote_start((temperature, self.glob_scale,self.current_posterior,self.current_theta))
+            #print "chain ", chain_no, " started at temperature ", temperature
         for chain_no in range(self.probs):
             self.chains[chain_no].remote_complete()
+            #print "chain ", chain_no, " completed at temperature ", temperature
             posteriors[chain_no]=self.chains[chain_no].current_posterior
+            if isnan(posteriors[chain_no]):
+                posteriors[chain_no]=-float("inf")
             thetas[chain_no]=self.chains[chain_no].current_theta
             
             ###This is not the best notation. accepts variable doesn't contain accept probability
             #accept variable contains the logjumps
             if self.transferminator.stationaryPossible():
                 standardizedLogJumps[chain_no]=self.chains[chain_no].accepts.tolist()
+                #print "log jumps collected for chain ", chain_no, " at temperature ", temperature
         if self.current_posterior is None: #in the beginnning we just assign this to the most probable beginning state
             max_index, max_value = max(enumerate(posteriors), key=operator.itemgetter(1))
             self.current_posterior=max_value
             self.current_theta=thetas[max_index]
+        
+        #print "current posterior set", temperature
         
         posteriors.append(self.current_posterior)
         thetas.append(self.current_theta)
@@ -678,19 +694,20 @@ class MCG(object):
             pies[i]=exp(posteriors[i]/temperature-max(posteriors)/temperature)
         pies[self.probs]=exp(self.current_posterior/temperature-max(posteriors)/temperature)
         
+
+        
         
         #We now calculate K if the transformation method allows for it, so that we make a good suggestion.
         if self.transferminator.stationaryPossible(): 
             Ks=self.pool.map(Kcalculator, zip(*(range(self.probs+1),[standardizedLogJumps]*(self.probs+1))))
             stationary=[k*p for k,p in zip(Ks,pies)]
-            if sum(stationary)==0:
-                print "The sum of all choices was 0."
-                print "Ks="+str(Ks)
-                print "pies="+str(pies)
-                return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
-                    0, 1,self.glob_scale[0],self.glob_scale[1],0
+            #print temperature,"Ks="+str(Ks)
+            #print temperature,"pies="+str(pies)
+#                 return self.current_theta, self.current_prior,self.current_likelihood,self.current_posterior,\
+#                     0, 1,self.glob_scale[0],self.glob_scale[1],0
             stationary=[s/sum(stationary) for s in stationary]
             PathChoice=random_distr(zip(range(self.probs+1),stationary))
+            #print temperature,"Pathchoice=", PathChoice
         else:
             currentPath=self.probs #this is the index of the previous state.
             averageAlpha=0
@@ -707,7 +724,7 @@ class MCG(object):
                 averageAlpha+=alpha
             averageAlpha/=self.mcg_flip_suggestions
             PathChoice=currentPath
-        print "averageAlpha="+str(averageAlpha)
+            print "averageAlpha="+str(averageAlpha)
         #we translate so we always start at 0.
         
 
@@ -717,14 +734,20 @@ class MCG(object):
             self.current_likelihood=self.chains[PathChoice].current_likelihood
             self.current_prior=self.chains[PathChoice].current_prior
         
-
+        #print "ready to make the adaption at temperature", temperature
         #making the adaption
         self.transferminator.setAdapParam(self.glob_scale)
+        #print "hello", temperature
         if self.transferminator.stationaryPossible():
+          #  print "is", temperature
             self.transferminator.first=[0]*len(self.current_theta)
+           # print "it", temperature
             max_index, _= max(enumerate(stationary[:-1]), key=operator.itemgetter(1))
+           # print "me", temperature
             self.transferminator.jumps=standardizedLogJumps[max_index]
+           # print "you're", temperature
             self.glob_scale=self.transferminator.update_alpha(PathChoice<self.probs ,1-stationary[-1])
+           # print "looking for?", temperature
         else:
             self.transferminator.first=thetas[self.probs]
             self.transferminator.second=thetas[PathChoice]
