@@ -12,6 +12,8 @@ from argparse import ArgumentParser
 import bisect
 from bisect import bisect
 from break_points2 import uniform_break_points, exp_break_points
+from numpy import array, zeros, ndarray
+from numpy import sum as npsum
 
 parser = ArgumentParser(usage="generate from ms-variable-migration-model and construct emission matrices", version="%(prog)s 1.0")
 
@@ -25,6 +27,11 @@ parser.add_argument("-y","--python_prefix",
                     help="If the python scripts is not placed in the same folder as here prefix it should be pointed out here with their directory")
 
 parser.add_argument('-r',"--reps", type=int, default=1, help="number of times 1000000 positions should be simulated.")
+parser.add_argument('-m',"--m", type=int, default=1, help="scheme to use")
+#TABLE:
+    #m=1: ILS model, initial_distribution
+    #m=2: initial_migration med og uden outgroup, emissionssandsynligheder
+
 
 options=parser.parse_args()
 fileprefix=options.prefix
@@ -43,6 +50,7 @@ Ne=20000
 gen=25
 mu=1e-9
 rho_per_gen=1e-8
+new_val=1.0
 
 theta_years=4*Ne*gen
 #coal_rho=rho_per_gen*4*Ne*gen
@@ -51,7 +59,7 @@ rho_subs=rho_per_gen/(mu*gen)
 
 substime_first_change=0.0005
 substime_second_change=0.002
-substime_third_change=0.0030
+substime_third_change=0.0070
 time_first_change=substime_first_change/theta_subs
 time_second_change=substime_second_change/theta_subs
 time_third_change=substime_third_change/theta_subs
@@ -88,8 +96,51 @@ def simulate_forest(forest_file,sequence_file,align_dir_file):
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2,3', sequence_file,'phylip', align_dir_file, '--where_path_ends', str(3)])
 
 
-break_points_12 = uniform_break_points(3,substime_first_change,substime_second_change)
-break_points_123 = exp_break_points(3, 1000.0, substime_second_change) #here we implicitly assume coal_last=coal_123=coal123=1000.0
+def simulate_forest2(forest_file,sequence_file,align_dir_file): 
+    '''
+    iim with and without outgroup
+    '''
+    
+    seqgen_args= ['-q','-mHKY','-l', str(seg_length),'-s',str(theta_subs),'-p',str(s2),forest_file]
+#     ms_args = ['4', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '2', '2', '2', '1.0','-em',str(time_first_change),'1','2',str(new_val), 
+#                '-em', str(time_second_change),'1','2',str(old_val),'-em',str(time_second_change), '2','1', str(new_val2), '-em', str(time_third_change), '2','1', str(old_val)]
+    ms_args = ['3', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '3', '1', '1','1','0.0', '-em',str(time_first_change),'1','2',str(new_val),
+               '-em',str(time_first_change),'2','1',str(new_val),'-ej', str(time_second_change),'1','2','-ej', str(time_third_change),'2','3']
+    #em {mstime_for_change} 2 1 {changed_migration} -em {mstime_for_change} 1 2 {changed_migration} -ej {mstime_for_change2} 2 1 -ej {mstime_for_outgroup} 1 3
+        #python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
+
+    with open(forest_file, 'w') as f:
+        p = subprocess.Popen([_MS_PATH] + ms_args, stdout=subprocess.PIPE)
+        line_number = 0
+        for line in p.stdout.readlines():
+            line_number += 1
+            if line_number >= 4 and '//' not in line:
+                f.write(line)
+    print "."
+
+    with open(sequence_file, 'w') as f:
+        p = subprocess.Popen([_SEQGEN_PATH] + seqgen_args, stdout=subprocess.PIPE)
+        print ","
+        line_number = 0
+        for line in p.stdout.readlines():
+            line_number += 1
+            if line_number >= 1:
+                f.write(line)
+    print ","
+    subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2', sequence_file,'phylip', align_dir_file[0], '--where_path_ends', str(3)])
+    subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2,3', sequence_file,'phylip', align_dir_file[1], '--where_path_ends', str(3)])
+
+coal_rate=1000
+rho=0.4
+mig_rate=new_val/theta_subs
+
+if options.m==2:
+    break_points_12 = uniform_break_points(10,substime_first_change,substime_second_change)
+    break_points_123 = exp_break_points(10, 1000.0, substime_second_change) #here we implicitly assume coal_last=coal_123=coal123=1000.0
+else:
+    break_points_12 = uniform_break_points(3,substime_first_change,substime_second_change)
+    break_points_123 = exp_break_points(3, 1000.0, substime_second_change) #here we implicitly assume coal_last=coal_123=coal123=1000.0
+
 bre=break_points_12.tolist()+break_points_123.tolist()
 print "ms_bottom_time",time_first_change
 print bre
@@ -138,10 +189,13 @@ def count_tmrca(filename, subs):
     visitor = PairTMRCA()
     f = open(filename)
     res={}
+    tmrca12=[]
     for line in f:
         count, tree = process_tree(line)
         tmrca = visitor.get_TMRCA(tree)
+
         t12,t13,t23 = getCategories(tmrca[(1,2)],tmrca[(1,3)],tmrca[(2,3)])
+        tmrca12.append(t12)
         if t12==t13==t23:
             state=((frozenset([frozenset([2]), frozenset([3]), frozenset([1])]), t12, frozenset([frozenset([1, 2, 3])])),)
             res[state]=res.get(state,0)+count
@@ -156,31 +210,73 @@ def count_tmrca(filename, subs):
             res[state]=res.get(state,0)+count
     f.close()
 
-    return res
+    return res, tmrca12
 
 forestfile=fileprefix+"forest.nwk"
 alignphyle=fileprefix+"alignemnt.phylip"
+align_dirs=[fileprefix+"aligndd2", fileprefix+"aligndd3"]
 align_dir=fileprefix+"aligndd"
 
+# class Emissions:
+#     
+#     def __init__(self, alphabet_size):
+#         self.alphabet_size=alphabet_size
+#         
+#     def getAlphabet_size(self):
+#         return self.alphabet_size
+#     
+#     @abstractmethod
+#     def classify(self, nucleotides):
+#         pass
+#     
+# class Emission2(Emissions):
+#     
+#     def classify(self, nucleotides):
+        
 
-def countEmissions(vector,bins,emiss):
-    ans=[0]*((len(bins)-1)*2)
-    vector2=[bisect.bisect(bins,x)-1 for x in vector]
-    for t,m in zip(vector2,emiss):
-            ans[t*2+m]+=1
-    return ans
+def countEmissions(coalTimes,matrix_to_add_to, emissions):
+    ans=matrix_to_add_to
+    for t,m in zip(coalTimes,emissions):
+            ans[t,m]+=1
+    return array(ans)
+
+def getEmissions(pathToZiphmm):
+    with open(pathToZiphmm+"/original_sequence", 'r') as f:
+        seq=f.readline()
+    return map(int, seq.split(" "))
 
 rtotal={}
+resMat12=zeros(  ( len(bre_ms) , 2 )  )
+resMat123=zeros(  ( len(bre_ms) , 64 )  )
+
 for i in xrange(reps):
-    
-    subprocess.call(['rm','-R',align_dir])
-    simulate_forest(forestfile, alignphyle, align_dir)
+    if options.m==1:
+        subprocess.call(['rm','-R',align_dir])
+        simulate_forest(forestfile, alignphyle, align_dir)
+    elif options.m==2:
+        #subprocess.call(['rm','-Rf',align_dirs[0]])
+        #subprocess.call(['rm','-Rf',align_dirs[1]])
+        #simulate_forest2(forestfile, alignphyle, align_dirs)
+        pass
     print "simulated trees "+str(i)
-    r = count_tmrca(fileprefix+"forest.nwk", theta_subs)
+    r,t12 = count_tmrca(fileprefix+"forest.nwk", theta_subs)
     print "uncovered tree lengths " + str(i)
     for state,count in r.items():
         rtotal[state]=rtotal.get(state,0)+count
+    if options.m==2:
+        e12=getEmissions(align_dirs[0])
+        e123=getEmissions(align_dirs[1])
+        resMat12=countEmissions(t12,resMat12,e12)
+        resMat123=countEmissions(t12,resMat123,e123)
 
+
+if options.m==2:
+    r12sums=npsum(resMat12,axis=1)
+    r123sums=npsum(resMat123,axis=1)
+    print r12sums
+    print r123sums
+    print resMat12
+    print resMat123
     
 # def constructEmissionProbability(emissvector,filename):
 #     with open(filename,'w') as f:
@@ -218,35 +314,64 @@ def printPyZipHMM(Matrix):
 # constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
 # constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
 
-from IMCoalHMM.ILS import ILSModel
-from numpy import array
-ad=ILSModel(3,3)
-param1=array([0.009281520636207805, 0.003719596449434415, 845.6317446677223, 845.6317446677223, 845.6317446677223, 845.6317446677223, 1796.544857049849, 0.4])
-param2=array([substime_first_change,substime_second_change, 1000.0,1000.0,1000.0,1000.0,2000.0, 0.4])
-init, _,_=ad.build_hidden_markov_model(param1)
+if options.m==1:
+    from IMCoalHMM.ILS import ILSModel
+    ad=ILSModel(3,3)
+    param1=array([0.009281520636207805, 0.003719596449434415, 845.6317446677223, 845.6317446677223, 845.6317446677223, 845.6317446677223, 1796.544857049849, 0.4])
+    param2=array([substime_first_change,substime_second_change, 1000.0,1000.0,1000.0,1000.0,2000.0, 0.4])
+    init, _,_=ad.build_hidden_markov_model(param1)
+elif options.m==2:
+    from isolation_with_migration_model2 import IsolationMigrationModel
+    ad12=IsolationMigrationModel(10,10, outgroup=False)
+    ad123=IsolationMigrationModel(10,10, outgroup=True)
+    param12=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate])
+    param123=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate,time_third_change])
+    _,_,emiss12=ad12.build_hidden_markov_model(param12)
+    _,_,emiss123=ad123.build_hidden_markov_model(param123)
+    with open("/home/svendvn/emiss12.txt",'w') as f:
+        f.write(printPyZipHMM(emiss12))
+    with open("/home/svendvn/emiss123.txt",'w') as f:
+        f.write(printPyZipHMM(emiss123))
+    with open("/home/svendvn/obs12.txt",'w') as f:
+        resMat12.tofile(f)
+    with open("/home/svendvn/obs123.txt",'w') as f:
+        resMat123.tofile(f)
+
     
 #     estr=printPyZipHMM(e)
 #     print estr
 #     with open(filename,'w') as f:
 #         f.write(estr)
 
-print printPyZipHMM(init)
-print rtotal
-sumOfCounted=0.0
-for state, state_no in ad.tree_map.items():
-    print "---------------------"
-    print state_no, ": ",state
-    print rtotal.get(state,0.0)/float(options.reps*1000000.0), init[1,state_no]
-    sumOfCounted+=rtotal.get(state,0.0)/float(options.reps*1000000.0)
-
-print len(ad.tree_map.items())
-
-
-
-print "sumOfCounted", sumOfCounted
-
-
-
+if options.m==1:
+    print printPyZipHMM(init)
+    print rtotal
+    sumOfCounted=0.0
+    for state, state_no in ad.tree_map.items():
+        print "---------------------"
+        print state_no, ": ",state
+        print rtotal.get(state,0.0)/float(options.reps*1000000.0), init[1,state_no]
+        sumOfCounted+=rtotal.get(state,0.0)/float(options.reps*1000000.0)
+    
+    print len(ad.tree_map.items())
+    
+    
+    
+    print "sumOfCounted", sumOfCounted
+elif options.m==2:
+    print printPyZipHMM(emiss12)
+    print printPyZipHMM(emiss123)
+    for i in range(len(bre_ms)):
+        print "====",i,"12","===="
+        As= [emiss12[i,j] for j in range(emiss12.getWidth())]
+        Bs= resMat12[i,:]/r12sums[i]
+        for a,b in zip(As,Bs):
+            print a,b 
+        print "====",i,"123","===="
+        As= [emiss123[i,j] for j in range(emiss123.getWidth())]
+        Bs= resMat123[i,:]/r123sums[i]
+        for a,b in zip(As,Bs):
+            print a,b 
 
 
 #parm=[1000,1000,1000,  1000,1000,1000,    0,250,0,    0,100,0,    0.4]
