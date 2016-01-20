@@ -9,7 +9,7 @@ from pulse_model2 import PulseModel
 #from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel 
 from likelihood2 import Likelihood, maximum_likelihood_estimate
 
-from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, UniformPrior, MCG
+from mcmc3 import MCMC, MC3, LogNormPrior, ExpLogNormPrior, UniformPrior, MCG, UniformPriorWithGoalPosts
 from math import log,floor
 from numpy.random import permutation, randint, random
 from copy import deepcopy
@@ -180,8 +180,8 @@ for i in range(no_epochs):
     coalRate1Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
     coalRate2Priors.append(LogNormPrior(log(init_coal), proposal_sd=options.sd_multiplyer))
 for i in range(no_epochs-1):
-    p12Priors.append(UniformPrior(init_p, options.pulse_uniform_prior, proposal_sd=options.sd_multiplyer))
-    p21Priors.append(UniformPrior(init_p, options.pulse_uniform_prior,proposal_sd=options.sd_multiplyer))
+    p12Priors.append(UniformPriorWithGoalPosts(init_p, options.pulse_uniform_prior, proposal_sd=options.sd_multiplyer))
+    p21Priors.append(UniformPriorWithGoalPosts(init_p, options.pulse_uniform_prior,proposal_sd=options.sd_multiplyer))
 
 priors = coalRate1Priors+coalRate2Priors+p12Priors+p21Priors+recombRatePrior
 print priors
@@ -353,15 +353,9 @@ toTakeMaxFrom=[1-options.adap3_from_identical-options.adap3_from_independent, op
 max_index,_ = max(enumerate(toTakeMaxFrom), key=itemgetter(1))
 
 if options.adap==1:
-    if options.fix_params:
-        fixedParamDict={}
-        for f in options.fix_params:
-            if startVal is not None:
-                fixedParamDict[f]=startVal[f]
-            else:
-                inits=[init_coal]*no_epochs*2+[init_p]*2*(no_epochs-1)+[init_recomb]
-                fixedParamDict[f]=inits[f]
-        adap=Global_scaling_fixp(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept, fixes=fixedParamDict)
+    if options.fix_parameters_to_be_equal or options.fix_params:
+        adap=Global_scaling_fixp(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept, 
+                                 small_parameters_function=from_likpar_to_maxvar, full_parameters_function=from_maxvar_to_likpar)
     else:    
         adap=(Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept))
 elif options.adap==2:

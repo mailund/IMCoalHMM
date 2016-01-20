@@ -96,7 +96,7 @@ class UniformPriorWithGoalPosts(object):
             return 0
 
     def sample(self):
-        proposal=(1.3333*random()-0.3333)*(self.until-self.a)
+        proposal=self.a+random()*(self.until-self.a)
         if proposal<self.a:
             return self.a
         elif proposal>self.until:
