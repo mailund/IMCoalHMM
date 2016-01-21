@@ -325,7 +325,7 @@ elif options.m==2:
     ad12=IsolationMigrationModel(10,10, outgroup=False)
     ad123=IsolationMigrationModel(10,10, outgroup=True)
     param12=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate])
-    param123=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate,time_third_change])
+    param123=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate,substime_third_change])
     _,_,emiss12=ad12.build_hidden_markov_model(param12)
     _,_,emiss123=ad123.build_hidden_markov_model(param123)
     with open("/home/svendvn/emiss12.txt",'w') as f:
@@ -359,6 +359,12 @@ if options.m==1:
     
     print "sumOfCounted", sumOfCounted
 elif options.m==2:
+    nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
+    ar=[0]*64
+    for i1,v1 in nuc_map.items():
+        for i2,v2 in nuc_map.items():
+            for i3,v3 in nuc_map.items():
+                ar[v1+v2*4+v3*16]="".join(map(str,(i1,i2,i3)))
     print printPyZipHMM(emiss12)
     print printPyZipHMM(emiss123)
     for i in range(len(bre_ms)):
@@ -370,8 +376,8 @@ elif options.m==2:
         print "====",i,"123","===="
         As= [emiss123[i,j] for j in range(emiss123.getWidth())]
         Bs= resMat123[i,:]/r123sums[i]
-        for a,b in zip(As,Bs):
-            print a,b 
+        for n,(a,b) in enumerate(zip(As,Bs)):
+            print ar[n], a,b 
 
 
 #parm=[1000,1000,1000,  1000,1000,1000,    0,250,0,    0,100,0,    0.4]

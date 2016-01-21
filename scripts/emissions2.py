@@ -1149,12 +1149,12 @@ def emission_matrix7(break_points, params,intervals,  ctmc_system,offset=0.0, ct
     return emission_probabilities
 
 
-def classifyState(observed_states, R,W):
+def classifyState(observed_states, W):
     """
     Input is the tuple of nucleotides observed and two nucleotides R and W.
     """
     X,Y,Z=observed_states
-    return X==W, Y==W, W==R, R==Z
+    return X==W, Y==W, W==Z
 
 LettersToComputation={}
 Letters=["A","C","G","T"]
@@ -1166,16 +1166,15 @@ for a in Letters:
     for b in Letters:
         for c in Letters:
             for d in Letters:
-                for e in Letters:
-                    LettersToComputation[a+b+c+d+e]=classifyState((a,b,c),d,e)
-                    computationToLetters[classifyState((a,b,c),d,e)].append(a+b+c+d+e)
+                LettersToComputation[a+b+c+d]=classifyState((a,b,c),d)
+                computationToLetters[classifyState((a,b,c),d)].append(a+b+c+d)
 computationToLetters=dict(computationToLetters)
                     
 normalTerms=[[0.25,0.75], [0.75,-0.75]]
 
 def getJCtermsAsFunction(emissums,normsum,outgroup):
     def what(indexes,equals):
-        groupSpecicTerm=[[1,1],[1,1],[1,exp(-4.0/3.0*outgroup)], [1,exp(-4.0/3.0*outgroup)]]
+        groupSpecicTerm=[[1,1],[1,1],[1,exp(-8.0/3.0*outgroup)]]
         res=1
         for n,(i,e) in enumerate(zip(indexes,equals)):
             res*=normalTerms[e][i]*groupSpecicTerm[n][i]
@@ -1199,13 +1198,11 @@ def getVectorOfCombinations(emissums, normsum, break_latest, break_new, outgroup
     pbools=getJCtermsAsFunction(emissums, normsum, outgroup)
     for XeqW in range(2):
         for YeqW in range(2):
-            for ReqW in range(2):
-                for ReqZ in range(2):
-                    for i in range(2):  #the chosen terms of 1/4,3/4,-3/4 for XeqW 
-                        for j in range(2):  #the chosen terms of 1/4,3/4,-3/4 for YeqW 
-                            for k in range(2):  #the chosen terms of 1/4,3/4,-3/4 for ReqW
-                                for l in range(2):  #the chosen terms of 1/4,3/4,-3/4 for ReqZ
-                                    baseIntegrals[(XeqW==0,YeqW==0, ReqW==0, ReqZ==0)]+=pbools(indexes=(i,j,k,l), equals=(XeqW,YeqW,ReqW,ReqZ))
+            for WeqZ in range(2):
+                for i in range(2):  #the chosen terms of 1/4,3/4,-3/4 for XeqW 
+                    for j in range(2):  #the chosen terms of 1/4,3/4,-3/4 for YeqW 
+                        for k in range(2):  #the chosen terms of 1/4,3/4,-3/4 for WeqZ
+                            baseIntegrals[(XeqW==0,YeqW==0, WeqZ==0)]+=pbools(indexes=(i,j,k), equals=(XeqW,YeqW,WeqZ))
                                     #print (XeqW==1,YeqW==1, ReqW==1, ReqZ==1), baseIntegrals[(XeqW==1,YeqW==1, ReqW==1, ReqZ==1)]
     resVector=[0.0]*65
     assert_almost_equal(sum(baseIntegrals.itervalues()),1.0)
