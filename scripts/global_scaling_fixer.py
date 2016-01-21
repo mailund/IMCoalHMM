@@ -61,9 +61,6 @@ class Global_scaling_fixp(object):
         this takes a vector from scaled space and transforms it back
         '''
         adds=self.small_parameters_function(adds)
-        print self.first
-        print adds
-        print self.indices0
         self.second=[f+a*sqrt(self.theta) if n not in self.indices0 else a*sqrt(self.theta) for n,(f,a) in enumerate(zip(self.first,adds))]
         self.jumps=adds
 #         res=[exp(s) for s in self.second]
