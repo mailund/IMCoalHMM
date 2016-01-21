@@ -91,12 +91,25 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
     uExp=float(no_statesOfExponentialCover)/float(no_intervals)
     no_statesOfGammaCover=no_intervals-no_statesOfExponentialCover-tenthsInTheEnd
     uGamma=float(no_statesOfGammaCover+no_statesOfExponentialCover)/float(no_intervals)
-    uTenths=1.0-uGamma-uExp
+    uTenths=1.0-uGamma#-uExp
     divisionLineBetweenExpAndGamma=expon.ppf((float(no_statesOfExponentialCover-1) / no_statesOfExponentialCover)*coveredByExp, scale=beta1)
+#     if fixed_time_points:
+#         for interval,time in fixed_time_points:
+#             if interval<no_statesOfExponentialCover and time>divisionLineBetweenExpAndGamma:
+#                 divisionLineBetweenExpAndGamma=time
     divisionLineGammaCDF=gamma.cdf(divisionLineBetweenExpAndGamma,alpha, scale=beta2)
     
     divisionLineGammaTenthsInTheEnd=gamma.ppf(divisionLineGammaCDF+(1-divisionLineGammaCDF)*(float(no_statesOfGammaCover+(tenthsInTheEnd==0))/(no_statesOfGammaCover+1)),alpha, scale=beta2)
+#     if fixed_time_points:
+#         for interval,time in fixed_time_points:
+#             if interval<no_statesOfExponentialCover+no_statesOfGammaCover and time> divisionLineGammaTenthsInTheEnd:
+#                 divisionLineGammaTenthsInTheEnd=time
     tenthsCDF=gamma.cdf(divisionLineGammaTenthsInTheEnd,alpha, scale=beta2)
+    
+        
+        #extending the 
+        
+        
     
     #print "divisionLineBetweenExpAndGamma "+str(divisionLineBetweenExpAndGamma)
     #print "divisionLineGammaCDF "+str(divisionLineGammaCDF)
@@ -122,7 +135,8 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
         if x < divisionLineBetweenExpAndGamma:
             return expon.cdf(x,scale=beta1)*uExp/(expon.cdf(divisionLineBetweenExpAndGamma, scale=beta1))
         if x<=divisionLineGammaTenthsInTheEnd:
-            return uExp+(uGamma-uExp)*gamma.cdf(x,alpha, scale=beta2)/tenthsCDF
+            a=gamma.cdf(x,alpha, scale=beta2)
+            return uExp+(uGamma-uExp)*(a-divisionLineGammaCDF)/(tenthsCDF-divisionLineGammaCDF)
         return cdftenths(x)
         
 
@@ -150,7 +164,8 @@ def gamma_break_points(no_intervals=20, beta1=0.001,alpha=2,beta2=0.005,coveredB
     while fromU < (1.0-1e-9):
         #print "toU"+str(toU)
         for i in range(f-lastf-1):
-            points.append(gamma_exp_ppf(fromU+(toU-fromU)*(float(i)+1)/float(f-lastf)))
+            u=fromU+(toU-fromU)*(float(i)+1)/float(f-lastf)
+            points.append(gamma_exp_ppf(u))
         fromU=toU
         lastf=f
         if t is not None:
@@ -182,14 +197,16 @@ def main():
     print uniform_break_points(5, 1.0, 3.0)
     print "hallo"
 
-    print len(psmc_break_points(20,t_max=7*4*20000*25))
+    #print len(psmc_break_points(20,t_max=7*4*20000*25))
     #print gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750)
-    b=gamma_break_points(26,beta1=0.001,alpha=2,beta2=0.001333, fixed_time_points=[(5,0.1),(18,0.5)], tenthsInTheEnd=3)
+    #b=gamma_break_points(26,beta1=0.001,alpha=2,beta2=0.001333, fixed_time_points=[(5,0.1),(18,0.5)], tenthsInTheEnd=3)
+    b=gamma_break_points(15,beta1=0.001,alpha=2,beta2=0.001333, fixed_time_points=[(5,0.0005856098094),(10,0.0021)], tenthsInTheEnd=3)
     print b
+
     #print b
     #print len(b)
     #b=gamma_break_points(20,beta1=0.001,alpha=2,beta2=0.001333,tenthsInTheEnd=5)
-    print gamma_break_points(40, beta1=0.001,alpha=2,beta2=0.005,offset=0.0,tenthsInTheEnd=8, fixed_time_points=[(10,0.005),(20,0.01),(39,0.02)])
+    #print gamma_break_points(40, beta1=0.001,alpha=2,beta2=0.005,offset=0.0,tenthsInTheEnd=8, fixed_time_points=[(10,0.005),(20,0.01),(39,0.02)])
     #print str(len(b))+" "+str(b)
 
 
