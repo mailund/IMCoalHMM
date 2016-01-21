@@ -3,7 +3,7 @@ migration and coalescence.
 """
 
 from numpy import zeros, matrix, identity,cumsum,array, concatenate, ndarray
-from math import isnan
+from math import isnan, exp, log
 from IMCoalHMM.state_spaces import Migration, make_rates_table_migration, make_rates_table_single, Single
 from CTMC2 import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, compute_transition_probabilities, projection_matrix
@@ -107,11 +107,12 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
     INITIAL_12 = 1
     INITIAL_22 = 2
 
-    def __init__(self, initial_configuration, intervals, breaktimes, breaktail=0, time_modifier=None, outgroup=False):
+    def __init__(self, initial_configuration, intervals, breaktimes, breaktail=0, time_modifier=None, outgroup=False, time_point_threshold=0.02):
         self.breaktimes=breaktimes
         self.breaktail=breaktail
         self.time_modifier=time_modifier
         self.outgroup=outgroup
+        self.time_point_threshold=time_point_threshold
         """Construct the model.
 
         This builds the state spaces for the CTMCs but the matrices for the
@@ -181,6 +182,8 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         
         if not all(parameters >= 0):  # This is the default test, useful for most models.
             return False
+        if not all(parameters <=1e7): #to avoid the worst outliers
+            return False
         
         if self.outgroup:
             parameters=parameters[:-1]
@@ -189,6 +192,8 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
         
         #Here we check if all fixed_time_points leave a positive gap between them
         for i,ti in fixed_time_points:
+            if ti>self.time_point_threshold:
+                return False
             for j,tj in fixed_time_points:
                 if i>j and ti<=tj:
                     return False
@@ -269,9 +274,12 @@ class VariableCoalAndMigrationRateAndAncestralModel(Model):
 
         ctmc_system = self.build_ctmc_system(*parameters)
 
-        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
+        try:
+            initial_probs, transition_probs = compute_transition_probabilities(ctmc_system) #this code might throw a runtimeerror because NaNs are produced. If they are produced, they should be fixed later.
+        except AssertionError:
+            print "ASSERTION ERROR",parameters
+            print "break_points", ctmc_system.break_points
         br=ctmc_system.break_points
-        
         
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #         
@@ -368,15 +376,127 @@ if __name__ == '__main__':
                 finalString=finalString+" "+str(Matrix[i,j])
             finalString=finalString+"\n"
         return finalString
-    substime_first_change=0.0005
-    substime_second_change=0.0010
+    substime_first_change=0.0005*0.21
+    substime_second_change=0.0010*0.21
     substime_third_change=0.0030
-    def time_modifier():
-        return [(5,substime_first_change),(10,substime_second_change)]
+    def time_modifier(a):
+        return [(5,substime_first_change*a[0]),(10,substime_second_change*a[1])]
     cd=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
-    ad= cd.build_hidden_markov_model(array([1000,1000,1000,  1000,1000,1000,    0,500,0,    0,100,0,    0.40]))
+    cd11=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_11, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
+    cd22=VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateAndAncestralModel.INITIAL_22, intervals=[5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
+
+    param2=[3.14536287e+02 ,  3.14536287e+02 ,  3.14536287e+02 ,  3.14536287e+02, 3.14536287e+02,   3.14536287e+02,
+       0.00000000e+00,   6.37982897e+03, 0.00000000e+00,   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,
+   2.31825062e-01, 6.23481741e+00,   5.51867733e+00]
+    param3=[2.62858654e+01,   2.62858654e+01,   2.62858654e+01,   2.62858654e+01,
+   2.62858654e+01,   2.62858654e+01,   0.00000000e+00,   5.75033247e+03,
+   0.00000000e+00,   0.00000000e+00  , 0.00000000e+00,   0.00000000e+00,
+   5.55331709e-01,   2.16680768e+00,   8.03514202e+00]
+    param4=[2.05335908e+03,   2.05335908e+03 ,  2.05335908e+03 ,  2.05335908e+03,
+   2.05335908e+03,   2.05335908e+03 ,  0.00000000e+00  , 1.67634371e+02,
+   0.00000000e+00  , 0.00000000e+00 ,  0.00000000e+00  , 0.00000000e+00,
+   4.82299596e-01 , 6.69539765e-01 ,  3.15441969e+00]
+    param5=[3.88861162e+05 ,  3.88861162e+05  , 3.88861162e+05,   3.88861162e+05,
+   3.88861162e+05 ,  3.88861162e+05  , 0.00000000e+00,  7.87207757e+07,
+   0.00000000e+00 ,  0.00000000e+00  , 0.00000000e+00,   0.00000000e+00,
+   1.00000000e+00 ,  5.57723628e+00 ,  1.00000000e+01]
+    param6=[5.64218998e+13 ,  5.64218998e+13,   5.64218998e+13,   5.64218998e+13,
+   5.64218998e+13,   5.64218998e+13 ,  0.00000000e+00,   5.67125841e-06,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00  , 0.00000000e+00,
+   6.09890011e-01,   3.16923726e+00,   2.83031370e+01]
+    param7=[8.35908133e+12 ,  8.35908133e+12,   8.35908133e+12 ,  8.35908133e+12,
+   8.35908133e+12,   8.35908133e+12 ,  0.00000000e+00 ,  4.30441209e+36,
+   0.00000000e+00,   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,
+   4.72465675e+00 ,  1.73293016e+01 ,  3.32063571e+01]
+    param8=[5.52249123e+02 ,  5.52249123e+02,   5.52249123e+02,   5.52249123e+02,
+   5.52249123e+02,   5.52249123e+02,   0.00000000e+00,   1.55351268e+04,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,
+   1.39737743e-01,   4.06228914e+00  , 1.02141848e+01]
+    param9=[3.35926895e+02,   3.35926895e+02  , 3.35926895e+02,   3.35926895e+02,
+   3.35926895e+02,  3.35926895e+02  , 0.00000000e+00,   3.77618998e+00,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,   0.00000000e+00,
+   4.28667554e-02,  1.11438715e+01 ,  6.95000151e+00]
+    param10=[39.79413056 , 39.79413056  ,39.79413056,  39.79413056 , 39.79413056,
+  39.79413056,   0.    ,       0.42004685  , 0.   ,        0. ,          0.       ,    0.,
+   0.30270784 ,  6.46620357 ,  6.03938501]
+    param11=[ 9.09855530e+03 ,  9.09855530e+03 ,  9.09855530e+03 ,  9.09855530e+03,
+   9.09855530e+03   ,9.09855530e+03 ,  0.00000000e+00 ,  5.48347909e-21,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00 , 0.00000000e+00,
+   7.44164128e-01 ,  3.64138055e+01 ,  5.77346971e+01]
+    param12=[5.99735288e+009,   5.99735288e+009,   5.99735288e+009 ,  5.99735288e+009,
+   5.99735288e+009  , 5.99735288e+009 ,  0.00000000e+000 ,  5.86978280e-147,
+   0.00000000e+000 ,  0.00000000e+000 ,  0.00000000e+000 ,  0.00000000e+000,
+   4.34518694e+000 ,  2.10788844e+002 ,  3.75838496e+002]
+    param13=[399.15988633 , 399.15988633 , 399.15988633,  399.15988633 , 399.15988633,
+  399.15988633 ,   0.      ,    102.79775413  ,  0.     ,       0.  ,          0.,
+    0.      ,      0.43878485 ,   4.11523575  ,  4.40175474]
+    param14=[1.58608288e+02  , 1.58608288e+02  , 1.58608288e+02  , 1.58608288e+02,
+   1.58608288e+02 ,  1.58608288e+02,   0.00000000e+00,   1.48044094e+03,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,
+   4.49882939e-01 ,  7.46258111e+00 ,  5.26952249e+00]
+    param15=[7.97457501e-04  , 7.97457501e-04  , 7.97457501e-04  , 7.97457501e-04,
+   7.97457501e-04  , 7.97457501e-04   ,0.00000000e+00 , 9.74844240e+06,
+   0.00000000e+00  , 0.00000000e+00,  0.00000000e+00 ,  0.00000000e+00,
+   1.97190635e+00 ,  2.35674926e+01  , 2.26254669e+01]
+    param16=[6.40656479e+02  , 6.40656479e+02 ,  6.40656479e+02 ,  6.40656479e+02,
+   6.40656479e+02  , 6.40656479e+02,   0.00000000e+00,   1.31333975e+01,
+   0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00 ,  0.00000000e+00,
+   7.84365671e-02 ,  1.41428046e+00 ,  4.26427519e+00]
+    param17=[8.38656218e+02 ,  8.38656218e+02 ,  8.38656218e+02 ,  8.38656218e+02,
+   8.38656218e+02 ,  8.38656218e+02  , 0.00000000e+00   ,3.39907010e+03,
+   0.00000000e+00 ,  0.00000000e+00  , 0.00000000e+00  , 0.00000000e+00,
+   3.82257625e-01 ,  7.37601871e+00  , 6.52240101e+00]
+    
+    def log_transformfunc(fro,to):
+        def transform(num):
+            print num*log(to/fro)+log(fro)
+            return exp(num*log(to/fro)+log(fro))
+        return transform
+    def linear_transformfunc(scale,offset=0):    
+        def transform(num):
+            return num*scale+offset
+        return transform
+    coal=log_transformfunc(1.0, 10000.0)
+    mig=log_transformfunc(1.0, 10000.0)
+    rho=linear_transformfunc(1.0)
+    time=linear_transformfunc(10.0)
+    
+    param18mark=[60.96492709925478, 87.5066394820901, 65.29959132760096, 41.80847054348992, -0.4570658194957846]
+    param18=[coal(param18mark[0])]*6+[0.0]*3+[0.0]+[mig(param18mark[1])]+[0.0]+[rho(param18mark)]+[time(i) for i in param18mark[-2:]]
+    
+    param=array(param18)
+    
+    print "valid parameters", cd.valid_parameters(array(param))
+
+    print substime_first_change*param[-2]
+    print substime_second_change*param[-1]
+    ad= cd.build_hidden_markov_model(param)
+# 
     print printPyZipHMM(ad[0])
     print printPyZipHMM(ad[2])
+    print ad[3]
+
+    if True:    
+        from likelihood2 import Likelihood
+        from pyZipHMM import Forwarder
+        
+        pathToSim="/home/svendvn/IMCoalHMM-simulations.10977"
+        
+        a11s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.11"]]
+        a12s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.12"]]
+        a22s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.22"]]
+        
+        forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
+        forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
+        forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
+        likeli11=Likelihood(cd11, forwarders11)
+        likeli12=Likelihood(cd, forwarders12)
+        likeli22=Likelihood(cd22, forwarders22)
+        
+        print likeli11(param)
+        print likeli12(param)
+        print likeli22(param)
+
     with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
         f.write(printPyZipHMM(ad[1]))
     with open("/home/svendvn/Dropbox/Bioinformatik/emission_matrix.txt", 'w') as f:

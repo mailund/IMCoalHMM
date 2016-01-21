@@ -24,6 +24,7 @@ from marginal_scaler_maxer import MarginalScalerMax
 from operator import itemgetter
 
 from ParticleSwarm import Optimiser, OptimiserParallel
+from astropy.modeling.functional_models import Scale
 
 def printPyZipHMM(Matrix):
     finalString=""
@@ -335,13 +336,28 @@ else:
     model_23 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
     model_24 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
 
-
+from pympler import tracker
+tra = tracker.SummaryTracker()
+print "initialised modes"
+tra.print_diff()
 forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
+print "read in 12s"
+tra.print_diff()
 forwarders_13 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments13]
+print "read in 13s"
+tra.print_diff()
 forwarders_14 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments14]
+print "read in 14s"
+tra.print_diff()
 forwarders_23 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments23]
+print "read in 23s"
+tra.print_diff()
 forwarders_24 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments24]
+print "read in 24s"
+tra.print_diff()
 forwarders_34 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments34]
+print "read in 34s"
+tra.print_diff()
 
 log_likelihood_13 = Likelihood(model_13, forwarders_13)
 log_likelihood_12 = Likelihood(model_12, forwarders_12)
@@ -349,10 +365,12 @@ log_likelihood_23 = Likelihood(model_23, forwarders_23)
 log_likelihood_14 = Likelihood(model_14, forwarders_14)
 log_likelihood_34 = Likelihood(model_34, forwarders_34)
 log_likelihood_24 = Likelihood(model_24, forwarders_24)
+print "initialised likelihoods"
 
 
 
 def log_likelihood(params):
+    #print "params",params
     return log_likelihood_12(params)[2]+log_likelihood_13(params)[2]+\
         log_likelihood_14(params)[2]+log_likelihood_23(params)[2]+\
         log_likelihood_24(params)[2]+log_likelihood_34(params)[2]
@@ -456,14 +474,29 @@ if options.no_mcmc:
     print " ---------- Dimension of optimising space is ", count_of_variableParameter, " --------------"
     print eh 
         
-    def log_transformfunc(fro,to):
-        def transform(num):
-            return exp(num*log(to/fro)+log(fro))
-        return transform
-    def linear_transformfunc(scale,offset=0):    
-        def transform(num):
-            return num*scale+offset
-        return transform
+    class log_transformfunc:
+        def __init__(self,fro,to):
+            self.fro=fro
+            self.to=to
+            
+        def __call__(self, num):
+            return exp(num*log(self.to/self.fro)+log(self.fro))
+        
+        def valid_input(self, input):
+            if input*log(self.to/self.fro)+log(self.fro)<500:
+                return True
+            return False
+            
+    class linear_transformfunc:    
+        def __init__(self,scale,offset=0):
+            self.scale=scale
+            self.offset=offset
+            
+        def __call__(self, num):
+            return num*self.scale+self.offset
+        
+        def valid_input(self, input):
+            return True
     
     listOfTransforms=[]
     if(options.optimizer=="Particle-Swarm"):
@@ -503,7 +536,11 @@ if options.no_mcmc:
             if var_param=='fixed':
                 big_params.append(value)
             else:
-                big_params.append((listOfTransforms[lik_param](small_params[var_param]))*value)
+                small_param=small_params[var_param]
+                if listOfTransforms[lik_param].valid_input(small_param):
+                    big_params.append((listOfTransforms[lik_param](small_params[var_param]))*value)
+                else:
+                    return [-1.0]*len(eh) #this will result in something that will be rejected later
         return big_params
     
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters

@@ -218,11 +218,11 @@ class OptimiserParallel(object):
         :return: A new instance of the class.
         """
         self.omega = 0.95
-        self.phi_particle = 2
-        self.phi_swarm = 2
+        self.phi_particle = 0.7
+        self.phi_swarm = 0.7
         self.log = None
         self.max_iterations = 500
-        self.max_initial_velocity = 0.02
+        self.max_initial_velocity = 0.002
         self.particle_count = 100
         self.timeout = None
         
@@ -331,8 +331,14 @@ class OptimiserParallel(object):
                     # Update the particle's position
                     particle.current.positions[i] += new_velocity
                 listOfArgs.append(particle.current.positions)
-
-            listOfResults=pool.map(fitness_function, listOfArgs) 
+            try:
+                listOfResults=pool.map(fitness_function, listOfArgs) 
+            except OverflowError:
+                for i in listOfArgs:
+                    try:
+                        fitness_function(i)
+                    except:
+                        raise ValueError("these parameters gave overflow:"+ str(i))
             
             for n,particle in enumerate(context.particles):
                 particle.current.fitness=listOfResults[n]
