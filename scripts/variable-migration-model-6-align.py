@@ -336,28 +336,20 @@ else:
     model_23 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
     model_24 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer, outgroup=options.outgroup)
 
-from pympler import tracker
-tra = tracker.SummaryTracker()
-print "initialised modes"
-tra.print_diff()
+
+print "initialised models"
 forwarders_12 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments12]
-print "read in 12s"
-tra.print_diff()
+
 forwarders_13 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments13]
-print "read in 13s"
-tra.print_diff()
+
 forwarders_14 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments14]
-print "read in 14s"
-tra.print_diff()
+
 forwarders_23 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments23]
-print "read in 23s"
-tra.print_diff()
+
 forwarders_24 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments24]
-print "read in 24s"
-tra.print_diff()
+
 forwarders_34 = [Forwarder.fromDirectory(alignment) for alignment in options.alignments34]
-print "read in 34s"
-tra.print_diff()
+
 
 log_likelihood_13 = Likelihood(model_13, forwarders_13)
 log_likelihood_12 = Likelihood(model_12, forwarders_12)
