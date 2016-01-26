@@ -6,7 +6,7 @@ from numpy.testing import assert_almost_equal
 
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between, compute_transition_probabilities
-from emissions2 import coalescence_points,emission_matrix4,emission_matrix6, emission_matrix, emission_matrix8
+from emissions2 import coalescence_points,emission_matrix4,emission_matrix7, emission_matrix, emission_matrix8
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
 
@@ -239,9 +239,9 @@ class IsolationMigrationModel(Model):
 #         print " ------------- Emis 0 --------------"
 #         print printPyZipHMM(emission_probs)
         if self.outgroup:
-            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, tau1)
+            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, 0)
         else:
-            emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, tau1)
+            emission_probs = emission_matrix7(break_points, parameters2, intervals, ctmc_system, 0)
         
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #           

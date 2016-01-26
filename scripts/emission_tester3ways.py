@@ -64,7 +64,7 @@ time_first_change=substime_first_change/theta_subs
 time_second_change=substime_second_change/theta_subs
 time_third_change=substime_third_change/theta_subs
 reps=options.reps
-
+print "time_first_change", time_first_change
 
 #ms 4 1 -T -r ${coal_rho} ${seg_length} -I 2 2 2 -em ${mstime_for_change} 1 2 $changed_migration -em ${mstime_for_change} 2 1 $changed_migration2 -ej $mstime_for_change_back 1 2
 def simulate_forest(forest_file,sequence_file,align_dir_file):
@@ -129,6 +129,11 @@ def simulate_forest2(forest_file,sequence_file,align_dir_file):
     print ","
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2', sequence_file,'phylip', align_dir_file[0], '--where_path_ends', str(3)])
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2,3', sequence_file,'phylip', align_dir_file[1], '--where_path_ends', str(3)])
+
+def simulate_forest3(align_dir_file):
+    bash_file_args=[align_dir_file, "/home/svendvn/"]
+    subprocess.Popen(["mkdir","-p",align_dir_file])
+    p = subprocess.Popen(["bash"] + ms_args, stdout=subprocess.PIPE)
 
 coal_rate=1000
 rho=0.4
@@ -195,7 +200,7 @@ def count_tmrca(filename, subs):
         tmrca = visitor.get_TMRCA(tree)
 
         t12,t13,t23 = getCategories(tmrca[(1,2)],tmrca[(1,3)],tmrca[(2,3)])
-        tmrca12.append(t12)
+        tmrca12.extend([t12]*count)
         if t12==t13==t23:
             state=((frozenset([frozenset([2]), frozenset([3]), frozenset([1])]), t12, frozenset([frozenset([1, 2, 3])])),)
             res[state]=res.get(state,0)+count
@@ -237,7 +242,8 @@ align_dir=fileprefix+"aligndd"
 def countEmissions(coalTimes,matrix_to_add_to, emissions):
     ans=matrix_to_add_to
     for t,m in zip(coalTimes,emissions):
-            ans[t,m]+=1
+        ans[t,m]+=1
+    print ans
     return array(ans)
 
 def getEmissions(pathToZiphmm):
@@ -254,9 +260,9 @@ for i in xrange(reps):
         subprocess.call(['rm','-R',align_dir])
         simulate_forest(forestfile, alignphyle, align_dir)
     elif options.m==2:
-        #subprocess.call(['rm','-Rf',align_dirs[0]])
-        #subprocess.call(['rm','-Rf',align_dirs[1]])
-        #simulate_forest2(forestfile, alignphyle, align_dirs)
+        subprocess.call(['rm','-Rf',align_dirs[0]])
+        subprocess.call(['rm','-Rf',align_dirs[1]])
+        simulate_forest2(forestfile, alignphyle, align_dirs)
         pass
     print "simulated trees "+str(i)
     r,t12 = count_tmrca(fileprefix+"forest.nwk", theta_subs)
@@ -266,6 +272,8 @@ for i in xrange(reps):
     if options.m==2:
         e12=getEmissions(align_dirs[0])
         e123=getEmissions(align_dirs[1])
+        from scipy.stats.stats import pearsonr  
+        print "correlation", pearsonr(e12,t12)
         resMat12=countEmissions(t12,resMat12,e12)
         resMat123=countEmissions(t12,resMat123,e123)
 

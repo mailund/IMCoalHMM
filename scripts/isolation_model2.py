@@ -8,7 +8,7 @@ from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
 from IMCoalHMM.CTMC import make_ctmc
 from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, compute_between,compute_transition_probabilities
-from emissions2 import coalescence_points, emission_matrix6, emission_matrix, printPyZipHMM, emission_matrix8
+from emissions2 import coalescence_points, emission_matrix7, emission_matrix, printPyZipHMM, emission_matrix8
 from IMCoalHMM.break_points import exp_break_points,uniform_break_points
 from IMCoalHMM.model import Model
 
@@ -162,7 +162,7 @@ class IsolationModel(Model):
             assert False, "There number of parameters was wrong"
         ctmc_system = self.build_ctmc_system(split_time, coal_rate, recomb_rate)
         #changing the break_points
-        break_points=exp_break_points(self.no_hmm_states, coal_rate, 0.0)
+        break_points=exp_break_points(self.no_hmm_states, coal_rate, split_time)
         if self.outgroup:
             if break_points[-1]>self.outmax: #if the break points become illegal with the outgroup, we will change the breakpoints
                 print "Redone breakpoints"
@@ -174,9 +174,9 @@ class IsolationModel(Model):
 #         print " ------------- Emis 0 --------------"
 #         print printPyZipHMM(emission_probs)
         if self.outgroup:
-            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, split_time)
+            emission_probs = emission_matrix8(break_points, parameters2, outgroup, intervals, ctmc_system, 0)
         else:
-            emission_probs = emission_matrix6(break_points, parameters2, intervals, ctmc_system, split_time)
+            emission_probs = emission_matrix7(break_points, parameters2, intervals, ctmc_system, 0)
         
 #         emission_probs = emission_matrix3(br, parameters, self.intervals)
 #           
@@ -195,6 +195,17 @@ class IsolationModel(Model):
 #         print " ------------- Emis 6 --------------"
 #         print printPyZipHMM(emission_probs)
 #         
+        def printPyZipHMM(Matrix):
+            finalString=""
+            for i in range(Matrix.getHeight()):
+                for j in range(Matrix.getWidth()):
+                    finalString=finalString+" "+str(Matrix[i,j])
+                finalString=finalString+"\n"
+            return finalString
+        print "--------- EMISS ---------"
+        print printPyZipHMM(emission_probs)
+        
+        
         return initial_probs, transition_probs, emission_probs
 
 
