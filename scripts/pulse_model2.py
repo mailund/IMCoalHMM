@@ -15,6 +15,7 @@ from IMCoalHMM.admixture import outer_product, powerset, complement, population_
 # 
 from numpy import zeros, matrix, identity, ix_, exp, diff, cumsum, array, ndarray,concatenate
 from numpy import sum as matrixsum
+from numpy import dot as matrixdot
 # from numpy.testing import assert_almost_equal
 # import numpy
 from pyZipHMM import Matrix
@@ -23,6 +24,7 @@ from pyZipHMM import Matrix
 #from pympler import tracker
 from bisect import bisect
 from emissions2 import emission_matrix7
+from sympy.polys.polytools import intervals
 
 
 
@@ -159,20 +161,23 @@ class PulseCTMCSystem(CTMCSystem):
 #         print "break_points", len(break_points)
 #         print "index_of_pulses", index_of_pulses
 #         print "len(ctmcs)", len(ctmcs)
-        
         index_of_pulses0=[0]+index_of_pulses.tolist()
         for i in range(len(index_of_pulses0)-1):
             for j in range(index_of_pulses0[i],index_of_pulses0[i+1]):
                 self.through_.append(   ctmcs[i].probability_matrix(break_points[j+1] - break_points[j])  )
-            projection=admixture_state_space_map(ctmcs[i].state_space, ctmcs[i+1].state_space, alphas[i],betas[i])
-            self.through_[index_of_pulses0[i+1]-1]= self.through_[index_of_pulses0[i+1]-1] *projection
+
         
         for j in range(index_of_pulses0[-1],len(break_points)-1):
             self.through_.append(ctmcs[-1].probability_matrix(break_points[j+1] - break_points[j]))
             
+        for n,i in enumerate(index_of_pulses):
+            projection=admixture_state_space_map(ctmcs[n].state_space, ctmcs[n+1].state_space, alphas[n],betas[n])
+            self.through_[i-1]= self.through_[i-1]*projection
+            
         pseudo_through = matrix(zeros((len(self.ctmcs[-1].state_space.states), len(self.ctmcs[-1].state_space.states))))
         pseudo_through[:, self.ctmcs[-1].state_space.end_states[0]] = 1.0
         self.through_.append(pseudo_through)
+        
             
         #constructing other lists of matrices
         upto0 = matrix(identity(len(ctmcs[0].state_space.states)))
@@ -233,7 +238,7 @@ class PulseModel(Model):
         self.initial_configuration=initial_configuration
         self.index_of_pulses=index_of_pulses
         self.no_epochs=len(index_of_pulses)+1
-        self.intervals=intervals=diff([0]+self.index_of_pulses.tolist()+[no_intervals])
+        self.intervals=diff([0]+self.index_of_pulses.tolist()+[no_intervals])
         print [0]+self.index_of_pulses+[no_intervals]
         print "self.intervals",self.intervals,"self.index_of_pulses",self.index_of_pulses
 
@@ -373,7 +378,7 @@ if __name__ == '__main__':
     def time_modifier(t):
         print t
         return [(5,substime_first_change*t[0]),(10,substime_second_change)]
-    ad=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
+    ad=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
     testParams2=[  8.13577869e+03 ,  1.87046487e+03 ,  3.69842619e+02  , 1.53735829e+04,
    9.41145544e+02 ,  1.41385396e+02,   6.71078803e+02 ,  4.83890546e+02,
    1.36369900e-01,   7.17341103e-01,   9.78034229e-01,   2.86343328e-01,
@@ -383,7 +388,12 @@ if __name__ == '__main__':
                       0.169553864268 , 0.994536120807,  0.979299188747,  1.44802078062 ,  7.13453720054 ])
     testParams=array([1000.0]*8+[0.1]*2+[1.0]+[0.2]*2+[0.0]+[0.4])
     print testParams2
-    i,t,e,b=ad.build_hidden_markov_model(array(testParams3))
+    param1=[7.98440550e+07 ,  8.61542658e+04 ,  4.48464377e+03   ,5.88901751e+03,
+   4.82655337e+05,   2.06577188e+09  , 1.39947388e+01  , 7.96313869e+04,
+   8.49173833e-02,   1.03104476e-05 , 1.00000000e+00  , 1.97424860e-09,
+   3.51565665e-01,   0.00000000e+00 ,  8.56107672e-10]
+    param=array(testParams)
+    i,t,e,b=ad.build_hidden_markov_model(param)
     
     print printPyZipHMM(i)
     print printPyZipHMM(t)
@@ -394,14 +404,14 @@ if __name__ == '__main__':
         from likelihood2 import Likelihood
         from pyZipHMM import Forwarder
         
-        pathToSim="/home/svendvn/IMCoalHMM-simulations.14048"
+        pathToSim="/home/svendvn/IMCoalHMM-simulations.24539"
         a11s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.11","2.11"]]
         a12s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.12","2.12"]]
         a22s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.22","2.22"]]
         
-        model11=PulseModel(PulseModel.INITIAL_11, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
-        model12=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
-        model22=PulseModel(PulseModel.INITIAL_22, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=time_modifier)
+        model11=PulseModel(PulseModel.INITIAL_11, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
+        model12=PulseModel(PulseModel.INITIAL_12, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
+        model22=PulseModel(PulseModel.INITIAL_22, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=5, time_modifier=None)
         forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
         forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
         forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
@@ -409,7 +419,7 @@ if __name__ == '__main__':
         likeli12=Likelihood(model12, forwarders12)
         likeli22=Likelihood(model22, forwarders22)
         
-        print likeli11(testParams3)
-        print likeli12(testParams3)
-        print likeli22(testParams3)
+        print likeli11(param)
+        print likeli12(param)
+        print likeli22(param)
         
