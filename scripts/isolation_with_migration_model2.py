@@ -226,14 +226,16 @@ class IsolationMigrationModel(Model):
         #changing the break_points
         tau1 = isolation_time
         tau2 = isolation_time + migration_time
-        migration_break_points = uniform_break_points(self.no_mig_states, 0, tau2-tau1)
-        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2-tau1)
+        migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
+        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
         if self.outgroup:
             if ancestral_break_points[-1]>self.outmax:
                 ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, outgroup-(outgroup-tau2)/20.0)
         break_points=list(migration_break_points)+list(ancestral_break_points)
+        print break_points
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
+        print parameters2
         intervals=[self.no_mig_states,self.no_ancestral_states]
 #         emission_probs = emission_matrix(self.emission_points(*parameters))
 #         print " ------------- Emis 0 --------------"
