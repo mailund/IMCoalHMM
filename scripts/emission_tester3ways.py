@@ -332,8 +332,8 @@ elif options.m==2:
     from isolation_with_migration_model2 import IsolationMigrationModel
     ad12=IsolationMigrationModel(10,10, outgroup=False)
     ad123=IsolationMigrationModel(10,10, outgroup=True)
-    param12=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate])
-    param123=array([substime_first_change,substime_second_change, coal_rate,rho, mig_rate,substime_third_change])
+    param12=array([substime_first_change,substime_second_change-substime_first_change, coal_rate,rho, mig_rate])
+    param123=array([substime_first_change,substime_second_change-substime_first_change, coal_rate,rho, mig_rate,substime_third_change+float(1)/coal_rate])
     _,_,emiss12=ad12.build_hidden_markov_model(param12)
     _,_,emiss123=ad123.build_hidden_markov_model(param123)
     with open("/home/svendvn/emiss12.txt",'w') as f:
@@ -363,10 +363,17 @@ if options.m==1:
     
     print len(ad.tree_map.items())
     
-    
-    
     print "sumOfCounted", sumOfCounted
 elif options.m==2:
+    from scipy.stats import norm
+    from math import sqrt
+    def binom_test(x,n,p):
+        if p==0 or n==0:
+            return float('Inf')
+        if x>n*p:
+            return 2*(1-norm.cdf((x-n*p)/sqrt(n*p*(1-p))))
+        else:
+            return 2*norm.cdf((x-n*p)/sqrt(n*p*(1-p)))    
     nuc_map = {'A': 0, 'C': 1, 'G': 2, 'T': 3}
     ar=[0]*64
     for i1,v1 in nuc_map.items():
@@ -379,13 +386,13 @@ elif options.m==2:
         print "====",i,"12","===="
         As= [emiss12[i,j] for j in range(emiss12.getWidth())]
         Bs= resMat12[i,:]/r12sums[i]
-        for a,b in zip(As,Bs):
-            print a,b 
+        for n,(a,b) in enumerate(zip(As,Bs)):
+            print a,b,"=", binom_test(resMat12[i,n], r12sums[i], a)
         print "====",i,"123","===="
         As= [emiss123[i,j] for j in range(emiss123.getWidth())]
         Bs= resMat123[i,:]/r123sums[i]
         for n,(a,b) in enumerate(zip(As,Bs)):
-            print ar[n], a,b 
+            print ar[n], a,b , "=", binom_test(resMat123[i,n], r123sums[i],a)
 
 
 #parm=[1000,1000,1000,  1000,1000,1000,    0,250,0,    0,100,0,    0.4]

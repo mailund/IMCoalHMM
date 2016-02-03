@@ -40,7 +40,7 @@ else:
 _MS_PATH = 'ms'
 _SEQGEN_PATH= 'seq-gen'
 coal_rho = 800.0
-seg_length = 100000.0
+seg_length = 1000000.0
 s2=seg_length/10.0
 Ne=20000
 gen=25
@@ -194,6 +194,44 @@ def simulate_forest3(forest_file,sequence_file,align_dir_file):
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=3,4', sequence_file,'phylip', align_dir_file[1], '--where_path_ends', str(3)])
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,3', sequence_file,'phylip', align_dir_file[2], '--where_path_ends', str(3)])
 
+def simulate_forest4(forest_file,sequence_file,align_dir_file): 
+    '''
+    iim with and without outgroup
+    '''
+    
+    seqgen_args= ['-q','-mHKY','-l', str(seg_length),'-s',str(theta_subs),'-p',str(s2),forest_file]
+#     ms_args = ['4', '1', '-T', '-r', str(1000.0), str(seg_length), '-I', '2', '2', '2', '1.0','-em',str(time_first_change),'1','2',str(new_val), 
+#                '-em', str(time_second_change),'1','2',str(old_val),'-em',str(time_second_change), '2','1', str(new_val2), '-em', str(time_third_change), '2','1', str(old_val)]
+    ms_args = ['4', '1', '-T', '-r', str(coal_rho), str(seg_length), '-I', '2', '2', '2',str(sym_coal_mig_rate), 
+               '-em',str(time_first_change),'1', '2', str(new_val), 
+               '-em',str(time_second_change),'1', '2', str(sym_coal_mig_rate), 
+               '-em',str(time_second_change),'2', '1', str(new_val2), 
+               '-em',str(time_third_change),'2', '1', str(sym_coal_mig_rate)]
+    #em {mstime_for_change} 2 1 {changed_migration} -em {mstime_for_change} 1 2 {changed_migration} -ej {mstime_for_change2} 2 1 -ej {mstime_for_outgroup} 1 3
+        #python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
+
+    with open(forest_file, 'w') as f:
+        p = subprocess.Popen([_MS_PATH] + ms_args, stdout=subprocess.PIPE)
+        line_number = 0
+        for line in p.stdout.readlines():
+            line_number += 1
+            if line_number >= 4 and '//' not in line:
+                f.write(line)
+    print "."
+
+    with open(sequence_file, 'w') as f:
+        p = subprocess.Popen([_SEQGEN_PATH] + seqgen_args, stdout=subprocess.PIPE)
+        print ","
+        line_number = 0
+        for line in p.stdout.readlines():
+            line_number += 1
+            if line_number >= 1:
+                f.write(line)
+    print ","
+    subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2', sequence_file,'phylip', align_dir_file[0], '--where_path_ends', str(3)])
+    subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=3,4', sequence_file,'phylip', align_dir_file[1], '--where_path_ends', str(3)])
+    subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,3', sequence_file,'phylip', align_dir_file[2], '--where_path_ends', str(3)])
+
 
 class PairTMRCA(newick.tree.TreeVisitor):
     '''class for finding the TMRCA for all the pairs of leaves in a tree'''
@@ -255,6 +293,9 @@ breaks = imp.load_source('break_points2', pythonprefix+'break_points2.py')
 if options.m==2:
     bins=breaks.gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750.0,tenthsInTheEnd=3,
                                    fixed_time_points=[(5,substime_first_change),(10,substime_second_change),(15, substime_third_change)])
+elif options.m==4:
+    bins=breaks.gamma_break_points(20,beta1=0.001, alpha=2,beta2=float(1)/750.0,tenthsInTheEnd=3,
+                                   fixed_time_points=[(5,substime_first_change),(10,substime_second_change),(15, substime_third_change)])
 else:
     bins=breaks.gamma_break_points(15,beta1=0.001, alpha=2,beta2=float(1)/750.0,tenthsInTheEnd=3,
                                    fixed_time_points=[(5,substime_first_change),(10,substime_second_change)])
@@ -290,8 +331,10 @@ for i in xrange(reps):
         simulate_forest(forestfile, alignphyle, align_dirs)
     elif options.m==2:
         simulate_forest2(forestfile, alignphyle, align_dirs)
-    else:
+    elif options.m==3:
         simulate_forest3(forestfile, alignphyle, align_dirs)
+    elif options.m==4:
+        simulate_forest4(forestfile, alignphyle, align_dirs)
     print "simulated trees "+str(i)
     l,r,c = count_tmrca(fileprefix+"forest.nwk", theta_subs)
     print "uncovered tree lengths " + str(i)
@@ -357,6 +400,7 @@ def printPyZipHMM(Matrix):
 # constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
 
 from variable_migration_model_with_ancestral import VariableCoalAndMigrationRateAndAncestralModel
+from variable_migration_model2 import VariableCoalAndMigrationRateModel
 from pulse_model2 import PulseModel
 def constructTrueEmissionProbability2(params, model,filename):
     if options.m==1:
@@ -365,6 +409,8 @@ def constructTrueEmissionProbability2(params, model,filename):
         cd=PulseModel(model, no_intervals=20, index_of_pulses=array([5,10,15]), breaktimes=1.0, breaktail=3, time_modifier=time_modifier)
     elif options.m==3:
         cd=VariableCoalAndMigrationRateAndAncestralModel(model, intervals=[5,5,5], breaktimes=1.0, breaktail=3, time_modifier=time_modifier2)
+    elif options.m==4:
+        cd=VariableCoalAndMigrationRateModel(model, intervals=[5,5,5,5], breaktimes=1.0,breaktail=3,time_modifier=time_modifier)
     i,t,e,_=cd.build_hidden_markov_model(params)
     estr=printPyZipHMM(e)
     with open(filename,'w') as f:
@@ -390,6 +436,11 @@ elif options.m==3:
     i11,t11,e11=constructTrueEmissionProbability2(parm[options.Model],VariableCoalAndMigrationRateAndAncestralModel.INITIAL_11, fileprefix+"ll_theoretical_coalHMM.txt")
     i22,t22,e22=constructTrueEmissionProbability2(parm[options.Model],VariableCoalAndMigrationRateAndAncestralModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
     i12,t12,e12=constructTrueEmissionProbability2(parm[options.Model],VariableCoalAndMigrationRateAndAncestralModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
+elif options.m==4:
+    parm=array([1000,1000,1000,1000,  1000,1000,1000,1000,    500,250,500,500,   500,500,100,500,    0.4])
+    i11,t11,e11=constructTrueEmissionProbability2(parm,VariableCoalAndMigrationRateModel.INITIAL_11, fileprefix+"ll_theoretical_coalHMM.txt")
+    i22,t22,e22=constructTrueEmissionProbability2(parm,VariableCoalAndMigrationRateModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
+    i12,t12,e12=constructTrueEmissionProbability2(parm,VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
 
 from scipy.stats import norm
 from math import sqrt
