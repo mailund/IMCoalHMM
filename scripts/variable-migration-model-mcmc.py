@@ -145,7 +145,21 @@ if not options.use_trees_as_data:
         parser.error("Input alignment for the 12 system not provided!")
     if len(options.alignments22) < 1:
         parser.error("Input alignment for the 22 system not provided!")
-    
+        
+if len(options.alignments11)==1 and options.alignments11[0].endswith(".txt"):
+    tmp=options.alignments11[0]
+    with open(tmp, 'r') as f:
+        options.alignments11=f.read().split()
+if len(options.alignments12)==1 and options.alignments12[0].endswith(".txt"):
+    tmp=options.alignments12[0]
+    with open(tmp, 'r') as f:
+        options.alignments12=f.read().split()        
+if len(options.alignments22)==1 and options.alignments22[0].endswith(".txt"):
+    tmp=options.alignments22[0]
+    with open(tmp, 'r') as f:
+        options.alignments22=f.read().split()
+        
+            
 if options.joint_scaling and options.single_scaling:
     parser.error("Joint and single scaling not optional at the same time")
 if options.constant_break_points and not options.fix_time_points:
