@@ -1040,7 +1040,7 @@ class ExpMatrix:
     #               emissum+=lrs*0
     #               normsum+=lrs*0
                 emissums[n]+=rrs*self.c2/(-c+self.c2)*exp(c*(break_latest+offset))*(1.0)
-            return emissums, normsum
+        return emissums, normsum
         
 def extract_starting_positions(states):
     leftleft=[]

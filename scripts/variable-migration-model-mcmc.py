@@ -5,7 +5,7 @@ from newick_count import count_tmrca
 from perfectLikelihood import Coal_times_log_lik
 
 from argparse import ArgumentParser
-from variable_migration_model2 import VariableCoalAndMigrationRateModel
+from variable_migration_model2 import VariableCoalAndMigrationRateModel, VariableCoalAndMigrationRateModelConstantBreaks
 from variable_migration_model_with_ancestral import VariableCoalAndMigrationRateAndAncestralModel
 #from IMCoalHMM.variable_migration_model import VariableCoalAndMigrationRateModel 
 from likelihood2 import Likelihood, maximum_likelihood_estimate
@@ -119,10 +119,11 @@ parser.add_argument('--use_trees_as_data', action='store_true', help='if so, the
 parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
 parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
 parser.add_argument('--intervals', nargs='+', default=[5,5,5,5], type=int, help='This is the setup of the intervals. They will be scattered equally around the breakpoints')
+parser.add_argument('--constant_break_points', default=False, action="store_true", help='If enabled, the break points will be fixed throughout the analysis but the epochs will change')
 parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
 parser.add_argument('--migration_uniform_prior', default=0, type=int, help='the maximum of the uniform prior on the migration rate is provided here. If nothing, the exponential prior is used.')
 parser.add_argument('--fix_params', nargs='+', default=[], type=int, help="the index of the parameters who will be fixed to their starting value throughout simulations. For now it only works when adap=1.")
-parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. Read source code for further explanation')
+parser.add_argument('--fix_time_points', nargs='+',default=[], help='this will fix the specified time points. If no constant_break_points it should be of the form interval_no_1 time_1 interval_no_2 time_2... If constant_break_points, it should be of the form time_1 time_2 ... ')
 parser.add_argument('--fix_parameters_to_be_equal', type=str, default="", help="FOR NOW THIS ONLY WORKS WITH no_mcmc. a comma and colon separated string. commas separate within group and colons separate between groups. If a startWithGuessElaborate is specified this will use the relationsships between the parameters in that as fixed. ")
 #One should specify a list of numbers, where the (2n-1)'th number is the index of the time interval one wants set. You can not specify 0 as that is always at time 0.0.
 #The 2n'th number is time point measuered in substitions. It will generally be around 10^-4-10^-2.
@@ -147,6 +148,14 @@ if not options.use_trees_as_data:
     
 if options.joint_scaling and options.single_scaling:
     parser.error("Joint and single scaling not optional at the same time")
+if options.constant_break_points and not options.fix_time_points:
+    parser.error("When break points are constant you have to set them")
+if options.constant_break_points and len(options.intervals)!=len(options.fix_time_points)+1:
+    parser.error("When constant break points is turned on, the intervals parameter should have length =length(fix_time_points)-1")
+    def strictly_increasing(L):
+        return all(x<y for x, y in zip(L, L[1:]))
+    if not strictly_increasing(options.fix_time_points):
+        parser.error("in the constant_break_points scheme, the fix time points should be increasing")
 
 # get options
 theta = options.theta
@@ -196,28 +205,51 @@ def joint_scaler(args):
     for ind,arg in zip(options.joint_scaling,args):
         times[ind]=(times[ind][0], times[ind][1]*arg)
     return times
+
 def fix_scaler():
     return fixed_time_points
+
+def single_scaler_constant(args):
+    scale=args[0]
+    return [scale*t for t in fixed_time_points]
+def joint_scaler_constant(args):
+    assert len(args)==len(options.joint_scaling), "the given scalers in args="+str(args)+" does not match the previously specified scalers in joint_scaling="+str(options.joint_scaling)
+    return [t*a for t,a in zip(fixed_time_points,args)]
+
+
 if options.single_scaling:
     priors.append(UniformPrior(1.0, 10.0, proposal_sd=options.sd_multiplyer))
-    fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
-    fixed_time_pointer=single_scaler
+    if options.constant_break_points:
+        fixed_time_points=map(float,options.fix_time_points)
+        fixed_time_pointer=single_scaler_constant
+    else:
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
+        fixed_time_pointer=single_scaler
     no_params+=1
 elif options.joint_scaling:
     fixed_time_points=[]
-    for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2]):
-        fixed_time_points.append((int(f), float(t)))
+    if options.constant_break_points:
+        fixed_time_points=map(float,options.fix_time_points)
+        fixed_time_pointer=joint_scaler_constant
+    else:
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
+        fixed_time_pointer=joint_scaler
     for i in options.joint_scaling:
         if i==len(fixed_time_points)-1: #then this is for the last time interval
             priors.append(UniformPrior(1.0,10.0, proposal_sd=options.sd_multiplyer, a=0.95))
         else:
-            priors.append(UniformPrior(1.0,fixed_time_points[i+1][1]*9.0/(fixed_time_points[i][1]*10.0), proposal_sd=options.sd_multiplyer,a=0.95)) #this will leave a small band of error
-    fixed_time_pointer=joint_scaler
+            if options.constant_break_points:
+                priors.append(UniformPrior(1.0,fixed_time_points[i+1]*9.0/(fixed_time_points[i]*10.0), proposal_sd=options.sd_multiplyer,a=0.95)) #this will leave a small band of error
+            else:
+                priors.append(UniformPrior(1.0,fixed_time_points[i+1][1]*9.0/(fixed_time_points[i][1]*10.0), proposal_sd=options.sd_multiplyer,a=0.95)) #this will leave a small band of error
+    
     no_params+=len(options.joint_scaling)
 elif options.fix_time_points:
     print "we are in options.fix_time_points"
-    fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
-
+    if options.constant_break_points:
+        fixed_time_points=map(float,options.fix_time_points)
+    else:
+        fixed_time_points=[(int(f),float(t)) for f,t in zip(options.fix_time_points[::2],options.fix_time_points[1::2])]
     fixed_time_pointer=fix_scaler
 else:
     fixed_time_pointer=None #in stead on could assign it the function that returns []. 
@@ -320,9 +352,20 @@ def switchColumns(inarray):
 
 # load alignments
 if not options.last_epoch_ancestral:
-    model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
-    model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    if options.constant_break_points:
+        model_11 = VariableCoalAndMigrationRateModelConstantBreaks(VariableCoalAndMigrationRateModelConstantBreaks.INITIAL_11, 
+                                                                   no_states=sum(intervals), no_epochs=len(intervals), breaktimes=options.breakpoints_time,
+                                                                    breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_12 = VariableCoalAndMigrationRateModelConstantBreaks(VariableCoalAndMigrationRateModelConstantBreaks.INITIAL_12,
+                                                                   no_states=sum(intervals), no_epochs=len(intervals), breaktimes=options.breakpoints_time,
+                                                                    breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_22 = VariableCoalAndMigrationRateModelConstantBreaks(VariableCoalAndMigrationRateModelConstantBreaks.INITIAL_22, 
+                                                                   no_states=sum(intervals), no_epochs=len(intervals), breaktimes=options.breakpoints_time,
+                                                                    breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+    else:
+        model_11 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_12 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
+        model_22 = VariableCoalAndMigrationRateModel(VariableCoalAndMigrationRateModel.INITIAL_22, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
 else:
     model_11 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_11, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)
     model_12 = VariableCoalAndMigrationRateAndAncestralModel(VariableCoalAndMigrationRateModel.INITIAL_12, intervals, breaktimes=options.breakpoints_time, breaktail=options.breakpoints_tail_pieces, time_modifier=fixed_time_pointer)

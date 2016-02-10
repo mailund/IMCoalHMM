@@ -105,17 +105,17 @@ class AM4_scaling(object):
             adds=self.small_parameters_function(adds)
         if self.count>self.timeTillStart and random()>self.proportions[0]:
             if random()<self.proportions[1]/(1-self.proportions[0]):
-                print "count,self.theta, self.thetaID="+str((self.count,self.theta,self.thetaIndependent))
+                #print "count,self.theta, self.thetaID="+str((self.count,self.theta,self.thetaIndependent))
 #                 print "diagsigma="+str(diagonal(self.sigma))
                 self.second = normal(loc=self.first, scale=sqrt(self.theta*self.thetaIndependent)*0.1*array(map(sqrt, diagonal(self.sigma))), size=len(self.first))
 #                 print "expsecond="+str(map(exp,self.second))
                 self.adap=1
             else:
-                print "count,self.theta, self.thetaD="+str((self.count,self.theta,self.thetaDependent))
+                #print "count,self.theta, self.thetaD="+str((self.count,self.theta,self.thetaDependent))
                 self.second = multivariate_normal(self.first, 0.01*self.theta*self.thetaDependent*self.sigma)
                 self.adap=0
         else:
-            print "count, self.theta, self.thetaIID="+str((self.count,self.theta,self.thetaIdentical))
+            #print "count, self.theta, self.thetaIID="+str((self.count,self.theta,self.thetaIdentical))
 #             print "self.first="+str(self.first)
 #             print "adds="+str(adds)
             self.second=[(f+a*sqrt(self.theta)*sqrt(self.thetaIdentical)) for f,a in zip(self.first,adds)]
