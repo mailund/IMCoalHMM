@@ -10,7 +10,7 @@ from IMCoalHMM.transitions import CTMCSystem, compute_upto, compute_between, com
 from break_points2 import psmc_break_points, uniform_break_points, gamma_break_points
 from IMCoalHMM.emissions import coalescence_points
 from IMCoalHMM.model import Model
-from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix5, emission_matrix7
+from emissions2 import emission_matrix3,emission_matrix4, emission_matrix3b, emission_matrix6, emission_matrix7
 import pyZipHMM
 
 
