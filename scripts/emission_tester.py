@@ -326,7 +326,7 @@ rr_trans=None
 cc_trans=None
 for i in xrange(reps):
     for r in align_dirs:
-        subprocess.call(['rm','-R',r])
+        subprocess.call(['rm','-Rf',r])
     if options.m==1:
         simulate_forest(forestfile, alignphyle, align_dirs)
     elif options.m==2:
