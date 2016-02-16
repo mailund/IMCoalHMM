@@ -61,6 +61,9 @@ and uniform coalescence and recombination rates."""
                         
     parser.add_argument("--emissionComplicated", default=False, action="store_true", help="This will use an emission matrix which is not an approximation.")
     parser.add_argument('--outgroup', action='store_true', default=False, help="This indicates that the alignemnts are not pairwise but threewise and that the last entry will be ")
+    parser.add_argument('--constant_break_points', default=False, action="store_true", help='If enabled, the break points will be fixed throughout the analysis but the epochs will change')
+    parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
+    parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
 
     
     optimized_params = [
@@ -102,8 +105,12 @@ and uniform coalescence and recombination rates."""
     if options.emissionComplicated:
         if options.outgroup:
             basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states, outgroup=True), forwarders)
+        elif options.constant_break_points:
+            basic_log_likelihood = Likelihood(isolation_model2.IsolationModelConstantBreaks(no_states, breaktail=options.breakpoints_tail_pieces,
+                                                                                             breaktimes=options.breakpoints_time, outgroup=False), forwarders)    
         else:
             basic_log_likelihood = Likelihood(isolation_model2.IsolationModel(no_states, outgroup=False), forwarders)    
+
     else:
         basic_log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
         

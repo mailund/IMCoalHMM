@@ -9,6 +9,7 @@ from IMCoalHMM.transitions import CTMCSystem, projection_matrix, compute_upto, c
 from emissions2 import coalescence_points,emission_matrix4,emission_matrix7, emission_matrix, emission_matrix8
 from IMCoalHMM.break_points import exp_break_points, uniform_break_points
 from IMCoalHMM.model import Model
+from break_points2 import gamma_break_points
 
 from IMCoalHMM.state_spaces import Isolation, make_rates_table_isolation
 from IMCoalHMM.state_spaces import Single, make_rates_table_single
@@ -264,7 +265,277 @@ class IsolationMigrationModel(Model):
 #         
         return initial_probs, transition_probs, emission_probs
 
+from bisect import bisect
+from copy import deepcopy
+from pyZipHMM import Matrix
+from numpy import cumsum
+class IsolationMigrationModelConstantBreaks(Model):
+    """Class wrapping the code that generates an isolation model HMM."""
 
+    INITIAL_11=0
+    INITIAL_12=1
+    INITIAL_22=2
+    
+    def __init__(self, no_hmm_states, breaktimes=1, breaktail=2,config=INITIAL_12, outgroup=False):
+        """Construct the model.
+
+        This builds the state spaces for the CTMCs but not the matrices for the
+        HMM since those will depend on the rate parameters."""
+        super(IsolationMigrationModelConstantBreaks, self).__init__()
+        
+        self.constant_break_points=gamma_break_points(no_hmm_states,beta1=0.001*breaktimes,alpha=2,beta2=0.001333333*breaktimes, tenthsInTheEnd=breaktail)
+        
+        self.config=config
+        if config==IsolationMigrationModel.INITIAL_12:
+            self.isolation_state_space = Isolation()
+        elif config==IsolationMigrationModel.INITIAL_11:
+            self.isolation_state_space = IsolationSingle(1,2)
+        else:
+            self.isolation_state_space = IsolationSingle(2,1)
+        self.migration_state_space = Migration()
+        self.single_state_space = Single()
+        self.no_hmm_states=no_hmm_states
+        self.outgroup=outgroup
+        
+    # noinspection PyMethodMayBeStatic
+    def valid_parameters(self, parameters):
+        """Predicate testing if a given parameter point is valid for the model.
+        :param parameters: Model specific parameters
+        :type parameters: numpy.ndarray
+        :returns: True if all parameters are valid, otherwise False
+        :rtype: bool
+        """
+        # This works but pycharm gives a type warning... I guess it doesn't see > overloading
+        assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
+        # noinspection PyTypeChecker
+        
+        
+        if parameters[2]<1e-8: #checking specifically for the coalescense rate
+            return False
+        
+        #checking the outgroup is larger than the split time
+        if self.outgroup:
+            if parameters[5]<parameters[0] or parameters[5]<parameters[1]:
+                return False
+        
+        return all(parameters >= 0)
+
+    def emission_points(self, isolation_time, migration_time, coal_rate, recomb_rate, mig_rate):
+        """Compute model specific coalescence points."""
+        tau1 = isolation_time
+        tau2 = isolation_time + migration_time
+        migration_break_points = uniform_break_points(self.no_mig_states, tau1, tau2)
+        ancestral_break_points = exp_break_points(self.no_ancestral_states, coal_rate, tau2)
+        if self.outgroup:
+            if ancestral_break_points[-1]>self.outmax:
+                ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, self.outmax-(self.outmax-tau2)/20.0)
+        break_points = list(migration_break_points) + list(ancestral_break_points)
+        return coalescence_points(break_points, coal_rate)
+
+    def getAugmentedBreakPoints(self, time_points):
+        """
+        Input is the epoch-changing time point.
+        Output is the break_points with the epoch-changing output added.
+        In the variable epoch_changes is the index of the added time point. This could be 
+        used to collapse rows in the emission probabilities and transition and initial probabilities.
+        """
+        indexes=[]
+        for n,t in enumerate(time_points):
+            i=bisect(self.constant_break_points, t)
+            indexes.append(n+i)
+        epoch_changes=indexes
+        break_points=deepcopy(self.constant_break_points)
+        break_points.extend(time_points)
+        return sorted(break_points),epoch_changes
+    
+    
+    def build_ctmc_system(self, isolation_time, migration_time, coal_rate, recomb_rate, mig_rate):
+        """Construct CTMCs and compute HMM matrices given the split times
+        and the rates."""
+
+        # We assume here that the coalescence rate is the same in the two
+        # separate populations as it is in the ancestral. This is not necessarily
+        # true but it worked okay in simulations in Mailund et al. (2012).
+
+        isolation_rates = make_rates_table_isolation(coal_rate, coal_rate, recomb_rate)
+        isolation_ctmc = make_ctmc(self.isolation_state_space, isolation_rates)
+
+        migration_rates = make_rates_table_migration(coal_rate, coal_rate, recomb_rate,
+                                                     mig_rate, mig_rate)
+        migration_ctmc = make_ctmc(self.migration_state_space, migration_rates)
+
+        single_rates = make_rates_table_single(coal_rate, recomb_rate)
+        single_ctmc = make_ctmc(self.single_state_space, single_rates)
+
+        tau1 = isolation_time
+        tau2 = isolation_time + migration_time
+        
+        break_points, epoch_changes = self.getAugmentedBreakPoints([tau1,tau2])
+        epoch_changes.append(self.no_hmm_states+len(epoch_changes))
+        epoch_sizes=[j-i for i, j in zip(epoch_changes[:-1], epoch_changes[1:])]
+        epoch_sizes.insert(0,epoch_changes[0])
+        self.intervals=epoch_sizes
+        self.break_points=break_points
+        
+        if self.outgroup:
+            assert break_points[-1]>self.outmax
+
+        return IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
+                                            break_points[self.intervals[0]:(self.intervals[0]+self.intervals[1])], 
+                                            break_points[(self.intervals[0]+self.intervals[1]):])
+        
+        
+    def build_hidden_markov_model(self, parameters):
+        """Build the hidden Markov model matrices from the model-specific parameters."""
+        
+        if self.outgroup:
+            outgroup=parameters[-1]
+            self.outmax=outgroup
+            parameters=parameters[:-1]
+        
+        isolation_time, migration_time, coal_rate, recomb_rate, mig_rate = parameters
+        ctmc_system = self.build_ctmc_system(isolation_time, migration_time, coal_rate, recomb_rate, mig_rate)
+
+        break_points=self.break_points
+
+        initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
+        parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
+
+        #intervals=[self.no_mig_states,self.no_ancestral_states]
+#         emission_probs = emission_matrix(self.emission_points(*parameters))
+#         print " ------------- Emis 0 --------------"
+#         print printPyZipHMM(emission_probs)
+        if self.outgroup:
+            emission_probs = emission_matrix8(break_points[self.intervals[0]:], parameters2, outgroup, self.intervals[1:], ctmc_system, 0)
+        else:
+            emission_probs = emission_matrix7(break_points[self.intervals[0]:], parameters2, self.intervals[1:], ctmc_system, 0)
+        
+#         emission_probs = emission_matrix3(br, parameters, self.intervals)
+#           
+#         def printPyZipHMM(Matrix):
+#             finalString=""
+#             for i in range(Matrix.getHeight()):
+#                 for j in range(Matrix.getWidth()):
+#                     finalString=finalString+" "+str(Matrix[i,j])
+#                 finalString=finalString+"\n"
+#             return finalString
+#         strToWirte=str(parameters)+"\n"+str("3:")+printPyZipHMM(emission_probs)+"\n"
+        
+#         strToWirte=strToWirte+str("4:")+printPyZipHMM(emission_probs)+"\n"+"initial_probs: "+printPyZipHMM(initial_probs)
+#         emission_probs = emission_matrix3b(br, parameters, self.intervals,ctmc_system)
+#         print strToWirte+str("3b:")+printPyZipHMM(emission_probs)
+#         print " ------------- Emis 6 --------------"
+#         print printPyZipHMM(emission_probs)
+#         
+        def printPyZipHMM(Matrix):
+            finalString=""
+            for i in range(Matrix.getHeight()):
+                for j in range(Matrix.getWidth()):
+                    finalString=finalString+" "+str(Matrix[i,j])
+                finalString=finalString+"\n"
+            return finalString
+        
+#         print printPyZipHMM(initial_probs)
+#         
+#         print printPyZipHMM(emission_probs)
+        initial_probs, transition_probs, emission_probs = self.mergeMatrices(initial_probs, transition_probs, emission_probs, self.intervals[0])
+        
+#         print "--------- EMISS ---------"
+#         print printPyZipHMM(emission_probs)
+#         print printPyZipHMM(initial_probs)
+        
+        
+        return initial_probs, transition_probs, emission_probs
+
+    def mergeMatrices(self, init, trans, emiss, postpone):
+        def printPyZipHMM(Matrix):
+                finalString=""
+                for i in range(Matrix.getHeight()):
+                    for j in range(Matrix.getWidth()):
+                        finalString=finalString+" "+str(Matrix[i,j])
+                    finalString=finalString+"\n"
+                print finalString
+        joint=Matrix(self.no_hmm_states, self.no_hmm_states) #joint probabilities
+        i=Matrix(self.no_hmm_states,1)
+        e=Matrix(self.no_hmm_states,3)
+        k=self.no_hmm_states+2
+        a=cumsum(self.intervals)
+        #print k
+        count= self.no_hmm_states-1
+        mapping=[[]]
+        while k>=0:
+            if not k+1 in a:
+                mapping.insert(0,[])
+            mapping[0].append(k)
+            k-=1
+        dictMapping={n:tuple(l) for n,l in enumerate(mapping)}
+        reverseMap={}
+        for key, tup in dictMapping.items():
+            for v in tup:
+                if v in reverseMap:
+                    reverseMap[v].append(key)
+                else:
+                    reverseMap[v]=[key]
+#         print mapping
+#         print "reverseMap", reverseMap
+#         print "a",a
+        
+        #this step shouldn't be necessary, but it is
+        for rowSmall in range(self.no_hmm_states):
+            for colSmall in range(self.no_hmm_states):
+                joint[rowSmall, colSmall]=0
+            i[rowSmall,0]=0
+            e[rowSmall,0]=0
+            e[rowSmall,1]=0
+            e[rowSmall,2]=0
+        
+        p=self.intervals[0]
+        for rowBig, rowSmall_l in reverseMap.items():
+            rowSmall=rowSmall_l[0]
+            if rowBig>=p:
+                #print init[rowBig,0]
+                for colBig, colSmall_l in reverseMap.items():
+                    colSmall=colSmall_l[0]
+                    if colBig>=p:
+                        if rowSmall==self.no_hmm_states or colSmall==self.no_hmm_states:
+                            print rowSmall, colSmall
+                            print "a",a
+                            print "k",k
+                            print "mapping", mapping
+                            print "reverseMap", reverseMap
+                            print "dictMapping", dictMapping
+                            printPyZipHMM(init)
+                            
+                        #print joint[rowSmall, colSmall]
+                        joint[rowSmall, colSmall]+= trans[rowBig-p,colBig-p]*init[rowBig-p,0]
+                        if joint[rowSmall, colSmall]>1.0:
+                            print reverseMap
+                            print "WARNING"
+                            print trans[rowBig,colBig]*init[rowBig,0], rowBig, colBig, joint[rowSmall, colSmall], rowSmall,colSmall
+                i[rowSmall,0]+=init[rowBig-p,0]
+                e[rowSmall,0]+=emiss[rowBig-p,0]*init[rowBig-p,0]
+                e[rowSmall,1]+=emiss[rowBig-p,1]*init[rowBig-p,0]
+
+        t=Matrix(self.no_hmm_states, self.no_hmm_states)
+        for rowSmall in range(self.no_hmm_states):
+            for colSmall in range(self.no_hmm_states):
+                if i[rowSmall,0]>1e-200:
+                    t[rowSmall,colSmall]=joint[rowSmall,colSmall]/i[rowSmall,0]
+                else:
+                    if colSmall>rowSmall:
+                        t[rowSmall,colSmall]=float(1.0)/self.no_hmm_states
+                    else:
+                        t[rowSmall,colSmall]=0
+            if i[rowSmall,0]>1e-200:
+                e[rowSmall,0]=e[rowSmall,0]/i[rowSmall,0]
+                e[rowSmall,1]=e[rowSmall,1]/i[rowSmall,0]
+                e[rowSmall,2]=1.0
+            else:
+                e[rowSmall,0]=1.0
+                e[rowSmall,1]=0.0
+                e[rowSmall,2]=1.0
+        
+        return i,t,e
 
 def main():
     """Test"""
@@ -277,7 +548,7 @@ def main():
     recomb_rate = 0.4
     mig_rate = 300
 
-    model = IsolationMigrationModel(no_mig_states, no_ancestral_states)
+    model = IsolationMigrationModelConstantBreaks(no_mig_states+no_ancestral_states)
     parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
     pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
     print "--------- EMISS ---------"
@@ -300,7 +571,7 @@ def main():
     for row in xrange(no_states):
         for col in xrange(no_states):
             transitions_sum += transition_probs[row, col]
-    assert_almost_equal(transitions_sum, no_states)
+    assert_almost_equal(transitions_sum, no_states-3/8.0)
 
     print 'Done'
 
