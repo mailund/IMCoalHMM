@@ -89,12 +89,12 @@ class Optimiser(object):
         maximum initial velocity to 0.02.
         :return: A new instance of the class.
         """
-        self.omega = 0.9
-        self.phi_particle = 0.3
-        self.phi_swarm = 0.1
+        self.omega = 0.95
+        self.phi_particle = 0.6
+        self.phi_swarm = 0.8
         self.log = None
         self.max_iterations = 500
-        self.max_initial_velocity = 0.02
+        self.max_initial_velocity = 0.002
         self.particle_count = 100
         self.timeout = None
 

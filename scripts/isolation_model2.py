@@ -230,8 +230,13 @@ class IsolationModelConstantBreaks(Model):
         # noinspection PyTypeChecker
         
         
-        if parameters[1]<1e-8: #checking specifically for the coalescense rate
+        if parameters[1]<1e-8 or parameters[1]>1e8: #checking specifically for the coalescense rate
             return False
+        
+        #it breaks if number of isolation states is 0. Therefore
+        if bisect(self.constant_break_points,parameters[0])==len(self.constant_break_points):
+            return False
+        
         #checking the outgroup is larger than the split time
         if self.outgroup:
             if parameters[3]<parameters[0]:
@@ -246,7 +251,6 @@ class IsolationModelConstantBreaks(Model):
         HMM since those will depend on the rate parameters."""
         super(IsolationModelConstantBreaks, self).__init__()
         self.constant_break_points=gamma_break_points(no_hmm_states,beta1=0.001*breaktimes,alpha=2,beta2=0.001333333*breaktimes, tenthsInTheEnd=breaktail)
-
         self.no_hmm_states = no_hmm_states
         self.isolation_state_space = Isolation()
         self.single_state_space = Single()
@@ -314,7 +318,7 @@ class IsolationModelConstantBreaks(Model):
             assert break_points[-1]>self.outmax #if the break points become illegal with the outgroup, we will no longer change the breakpoints
 #                 print "Redone breakpoints"
 #                 break_points=uniform_break_points(self.no_hmm_states, split_time, self.outmax-(self.outmax-split_time)/20.0)
-
+        
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*2+[0.0]*2+[recomb_rate]
 #         emission_probs = emission_matrix(self.emission_points(*parameters))
@@ -462,9 +466,10 @@ def main():
     """Test"""
 
     model = IsolationModelConstantBreaks(10, outgroup=False)
-    print array([0.01, 0.0000000001, 0.01])
-    print model.valid_parameters(array([0.01, 0.0000001, 0.01]))
-    pi, trans_probs, emis_probs = model.build_hidden_markov_model((0.001, 100, 0.4,0.0125))
+    p=[8.03166604e-03  , 2.08326026e+02 ,  2.70346985e-01]
+    print array(p)
+    print model.valid_parameters(array(p))
+    pi, trans_probs, emis_probs = model.build_hidden_markov_model(array(p))
 
     def printPyZipHMM(Matrix):
         finalString=""

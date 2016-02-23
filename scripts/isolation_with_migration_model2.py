@@ -284,7 +284,7 @@ class IsolationMigrationModelConstantBreaks(Model):
         super(IsolationMigrationModelConstantBreaks, self).__init__()
         
         self.constant_break_points=gamma_break_points(no_hmm_states,beta1=0.001*breaktimes,alpha=2,beta2=0.001333333*breaktimes, tenthsInTheEnd=breaktail)
-        
+        print self.constant_break_points
         self.config=config
         if config==IsolationMigrationModel.INITIAL_12:
             self.isolation_state_space = Isolation()
@@ -310,7 +310,14 @@ class IsolationMigrationModelConstantBreaks(Model):
         # noinspection PyTypeChecker
         
         
-        if parameters[2]<1e-8: #checking specifically for the coalescense rate
+        if parameters[2]<1e-8 or parameters[2]>1e8: #checking specifically for the coalescense rate
+            return False
+        
+        if parameters[4]>1e8: #the migration rate
+            return False
+        
+        #For now the algorithm produces an error if there is only one migration state. 
+        if bisect(self.constant_break_points, parameters[0])==bisect(self.constant_break_points,parameters[0]+parameters[1]):
             return False
         
         #checking the outgroup is larger than the split time
@@ -379,6 +386,9 @@ class IsolationMigrationModelConstantBreaks(Model):
         
         if self.outgroup:
             assert break_points[-1]>self.outmax
+            
+        migstates=break_points[self.intervals[0]:(self.intervals[0]+self.intervals[1])]
+        ancstates=break_points[(self.intervals[0]+self.intervals[1]):]
 
         return IsolationMigrationCTMCSystem(isolation_ctmc, migration_ctmc, single_ctmc,
                                             break_points[self.intervals[0]:(self.intervals[0]+self.intervals[1])], 
@@ -397,7 +407,7 @@ class IsolationMigrationModelConstantBreaks(Model):
         ctmc_system = self.build_ctmc_system(isolation_time, migration_time, coal_rate, recomb_rate, mig_rate)
 
         break_points=self.break_points
-
+        print break_points
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
 
@@ -540,8 +550,8 @@ class IsolationMigrationModelConstantBreaks(Model):
 def main():
     """Test"""
 
-    no_mig_states = 4
-    no_ancestral_states = 4
+    no_mig_states = 10
+    no_ancestral_states = 15
     isolation_time = 0.0005
     migration_time = 0.0010
     coal_rate = 1000
@@ -549,7 +559,13 @@ def main():
     mig_rate = 300
 
     model = IsolationMigrationModelConstantBreaks(no_mig_states+no_ancestral_states)
+    model = IsolationMigrationModel(1,10)
     parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
+    from numpy import array
+    parameters= array( [2.37363022e-02 ,  1.71802474e-03  , 4.47721221e+03  , 7.04316188e-01,
+   2.76673627e+00])
+    parameters=[3.91531342e-03,  3.26090486e-03 ,  4.25513614e+02,   5.43219850e-01, 3.51619688e+00]
+    parameters=[1.91933718e-03,   2.23593093e-05,   4.22021142e+04,  3.92105098e-01, 2.26537374e+00]
     pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
     print "--------- EMISS ---------"
     print printPyZipHMM(emission_probs)
@@ -571,7 +587,7 @@ def main():
     for row in xrange(no_states):
         for col in xrange(no_states):
             transitions_sum += transition_probs[row, col]
-    assert_almost_equal(transitions_sum, no_states-3/8.0)
+    #assert_almost_equal(transitions_sum, no_states-3/8.0)
 
     print 'Done'
 
