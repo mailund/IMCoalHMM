@@ -56,6 +56,7 @@ theta_years=4*Ne*gen
 #coal_rho=rho_per_gen*4*Ne*gen
 theta_subs=mu*theta_years
 rho_subs=rho_per_gen/(mu*gen)
+print theta_subs
 
 substime_first_change=0.0005
 substime_second_change=0.002
@@ -75,6 +76,7 @@ def simulate_forest(forest_file,sequence_file,align_dir_file):
                '-ej',str(time_second_change),'2','3']
         #python /home/svendvn/workspace/IMCoalHMM/scripts/prepare-alignments.py --names=1,2 ${seqfile} phylip ${ziphmmfile11} --where_path_ends 3
 
+    #Run ms
     with open(forest_file, 'w') as f:
         p = subprocess.Popen([_MS_PATH] + ms_args, stdout=subprocess.PIPE)
         line_number = 0
@@ -84,6 +86,7 @@ def simulate_forest(forest_file,sequence_file,align_dir_file):
                 f.write(line)
     print "."
 
+    #run seq-gen
     with open(sequence_file, 'w') as f:
         p = subprocess.Popen([_SEQGEN_PATH] + seqgen_args, stdout=subprocess.PIPE)
         print ","
@@ -93,6 +96,7 @@ def simulate_forest(forest_file,sequence_file,align_dir_file):
             if line_number >= 1:
                 f.write(line)
     print ","
+    
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2,3', sequence_file,'phylip', align_dir_file, '--where_path_ends', str(3)])
 
 
@@ -130,19 +134,19 @@ def simulate_forest2(forest_file,sequence_file,align_dir_file):
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2', sequence_file,'phylip', align_dir_file[0], '--where_path_ends', str(3)])
     subprocess.call(['python',pythonprefix+'prepare-alignments.py', '--names=1,2,3', sequence_file,'phylip', align_dir_file[1], '--where_path_ends', str(3)])
 
-def simulate_forest3(align_dir_file):
-    bash_file_args=[align_dir_file, "/home/svendvn/"]
-    subprocess.Popen(["mkdir","-p",align_dir_file])
-    p = subprocess.Popen(["bash"] + ms_args, stdout=subprocess.PIPE)
+#def simulate_forest3(align_dir_file):
+#    bash_file_args=[align_dir_file, "/home/svendvn/"]
+#    subprocess.Popen(["mkdir","-p",align_dir_file])
+#    p = subprocess.Popen(["bash"] + ms_args, stdout=subprocess.PIPE)
 
 coal_rate=1000
 rho=0.4
 mig_rate=new_val/theta_subs
 
-if options.m==2:
+if options.m==2: #if IMM-outgroup
     break_points_12 = uniform_break_points(10,substime_first_change,substime_second_change)
     break_points_123 = exp_break_points(10, 1000.0, substime_second_change) #here we implicitly assume coal_last=coal_123=coal123=1000.0
-else:
+else: #else ILS
     break_points_12 = uniform_break_points(3,substime_first_change,substime_second_change)
     break_points_123 = exp_break_points(3, 1000.0, substime_second_change) #here we implicitly assume coal_last=coal_123=coal123=1000.0
 
@@ -322,12 +326,14 @@ def printPyZipHMM(Matrix):
 # constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_22, fileprefix+"rr_theoretical_coalHMM.txt")
 # constructTrueEmissionProbability(parm,varb.VariableCoalAndMigrationRateModel.INITIAL_12, fileprefix+"cc_theoretical_coalHMM.txt")
 
+
+#This code retrieves the CoalHMM matrices.
 if options.m==1:
     from IMCoalHMM.ILS import ILSModel
     ad=ILSModel(3,3)
     param1=array([0.009281520636207805, 0.003719596449434415, 845.6317446677223, 845.6317446677223, 845.6317446677223, 845.6317446677223, 1796.544857049849, 0.4])
-    param2=array([substime_first_change,substime_second_change, 1000.0,1000.0,1000.0,1000.0,2000.0, 0.4])
-    init, _,_=ad.build_hidden_markov_model(param1)
+    param2=array([substime_first_change,substime_second_change, 1000.0,1000.0,1000.0,1000.0,1000.0, 0.4])
+    init, _,_=ad.build_hidden_markov_model(param2)
 elif options.m==2:
     from isolation_with_migration_model2 import IsolationMigrationModel
     ad12=IsolationMigrationModel(10,10, outgroup=False)
@@ -358,7 +364,7 @@ if options.m==1:
     for state, state_no in ad.tree_map.items():
         print "---------------------"
         print state_no, ": ",state
-        print rtotal.get(state,0.0)/float(options.reps*1000000.0), init[1,state_no]
+        print rtotal.get(state,0.0)/float(options.reps*1000000.0), init[0,state_no]
         sumOfCounted+=rtotal.get(state,0.0)/float(options.reps*1000000.0)
     
     print len(ad.tree_map.items())
