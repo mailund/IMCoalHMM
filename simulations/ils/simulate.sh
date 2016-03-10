@@ -9,6 +9,7 @@ gen=25
 mu=10^-9
 split1_in_years=$(bc -l <<< ${split1_mya}*10^6)
 split2_in_years=$(bc -l <<< ${split2_mya}*10^6)
+split_diff=$(bc -l <<< ${split2_in_years}-${split1_in_years})
 rho_per_gen=$(bc -l <<< 0.01/10^6)
 seg_length=1000000
 
@@ -21,7 +22,7 @@ coal_tau2=$(bc -l <<< $split2_in_years/$theta_years )
 
 # units in substitutions
 tau1_subs=$(bc -l <<< $split1_in_years*$mu )
-tau2_subs=$(bc -l <<< $split2_in_years*$mu )
+tau2_subs=$(bc -l <<< $split_diff*$mu )
 theta_subs=$(bc -l <<< $theta_years*$mu )
 rho_subs=$(bc -l <<< $rho_per_gen/$gen/$mu )
 
@@ -53,7 +54,7 @@ for sim in `eval echo {1..${no_sims}}`; do
     ../../scripts/prepare-alignments.py --names=1,2,3 ${seqfile} phylip ${ziphmmfile}
 
 	echo -ne "${tau1_subs}\t${tau2_subs}\t${theta_subs}\t${rho_subs}\t"
-	../../scripts/ils-isolation-model.py ${ziphmmfile}
+	../../scripts/ils-isolation-model.py --logfile=/dev/stdout ${ziphmmfile}
 	#for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
 	#	
     #	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t${optimizer}\t"

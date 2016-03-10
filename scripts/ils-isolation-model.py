@@ -66,8 +66,8 @@ and uniform coalescence and recombination rates."""
                         help="Outgroup is included as fourth sequence in alignment.")
 
     optimized_params = [
-        ('split-12', 'First split time in substitutions', 1e6 / 1e9),
-        ('split-123', 'Second split time in substitutions', 1e6 / 1e9),
+        ('split-12', 'First split time in substitutions', 4e6 / 1e9),
+        ('split-123', 'Second split time in substitutions', 6e6 / 1e9),
         ('theta-1', 'effective population size in 4Ne substitutions for species 1', 1e6 / 1e9),
         ('theta-2', 'effective population size in 4Ne substitutions for species 2', 1e6 / 1e9),
         ('theta-3', 'effective population size in 4Ne substitutions for species 3', 1e6 / 1e9),
