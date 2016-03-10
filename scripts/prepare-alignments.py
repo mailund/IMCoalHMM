@@ -165,7 +165,7 @@ may want to split the alignment first if it's very large.
         if options.verbose:
             print "ZipHMM is pre-processing...",
             sys.stdout.flush()
-        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=9, minNoEvals=500)
+        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=65, minNoEvals=500)
         if options.verbose:
             print "done"
 
@@ -205,7 +205,7 @@ may want to split the alignment first if it's very large.
                     i1, i2, i3, i4 = nuc_map[s1], nuc_map[s2], nuc_map[s3], nuc_map[s4]
                     print >> f, i1 + 4*i2 + 16*i3 + 32*i4,
                 else:
-                    print >> f, 128,
+                    print >> f, 256,
 
         if options.verbose:
             print "done"
@@ -216,7 +216,7 @@ may want to split the alignment first if it's very large.
         if options.verbose:
             print "ZipHMM is pre-processing...",
             sys.stdout.flush()
-        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=9, minNoEvals=500)
+        f = Forwarder.fromSequence(seqFilename=outname, alphabetSize=256, minNoEvals=500)
         if options.verbose:
             print "done"
 

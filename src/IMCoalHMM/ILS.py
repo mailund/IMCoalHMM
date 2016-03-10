@@ -511,9 +511,9 @@ class ILSModel(Model):
                     likelihoods.append(1)
                 else:
                     tree = self.get_tree(path, align_column, coalescence_times, outgroup, branch_shortening)
-                    print tree
+                    #print tree
                     likelihoods.append(sum(prior[i] * prob_tree(tree, i, subst_model) for i in range(4)))
-            print sum(likelihoods)
+            #print sum(likelihoods)
             for align_column, emission_prob in enumerate(x/sum(likelihoods) for x in likelihoods):
                 emission_probabilities[state, align_column] = emission_prob
 

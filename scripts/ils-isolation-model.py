@@ -60,7 +60,7 @@ and uniform coalescence and recombination rates."""
                         help="Optimization algorithm to use for maximizing the likelihood (Nealder-Mead)",
                         choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC'])
 
-    parser.add_argument("--outgroup",
+    parser.add_argument("--has-outgroup",
                         action="store_true",
                         default=None,
                         help="Outgroup is included as fourth sequence in alignment.")
@@ -100,7 +100,7 @@ and uniform coalescence and recombination rates."""
         1 / (options.theta_123 / 2),
         options.rho
     )
-    if options.outgroup:
+    if options.has_outgroup: # FIXME: is this correct?
         init_parameters += (options.outgroup,)
 
     output_header = ['split.time.12', 'split.time.123',
@@ -109,7 +109,7 @@ and uniform coalescence and recombination rates."""
     if options.outgroup:
         output_header.append("outgroup")
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]   
     log_likelihood = Likelihood(ILSModel(options.states_12, options.states_123), forwarders)
 
     if options.logfile:

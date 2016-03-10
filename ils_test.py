@@ -38,10 +38,16 @@ idx_12 = [trees_12[k] for k in keys_12]
 idx_13 = [trees_13[k] for k in keys_ils]
 idx_23 = [trees_23[k] for k in keys_ils]
 
+for idx in [0,1]:
+    print idx, ':', pretty_marginal_time_path(model.reverse_tree_map[idx])
+print
 for idx in idx_12:
     print idx, ':', pretty_marginal_time_path(model.reverse_tree_map[idx])
 print
 for idx in idx_13:
+    print idx, ':', pretty_marginal_time_path(model.reverse_tree_map[idx])
+print
+for idx in idx_23:
     print idx, ':', pretty_marginal_time_path(model.reverse_tree_map[idx])
 print
 
@@ -59,9 +65,21 @@ def get_joints(parameters):
     return j13 - j23
 
 
-print get_joints(make_parameters(coal1=0.0, coal2=1000.0))
-print get_joints(make_parameters(coal1=0.0, coal2=100.0))
-print get_joints(make_parameters(coal1=0.0, coal2=10.0))
-print get_joints(make_parameters(coal1=0.0, coal2=0.0))
+#print get_joints(make_parameters(coal1=0.0, coal2=1000.0))
+#print get_joints(make_parameters(coal1=0.0, coal2=100.0))
+#print get_joints(make_parameters(coal1=0.0, coal2=10.0))
+#print get_joints(make_parameters(coal1=0.0, coal2=0.0))
 
-print model.build_hidden_markov_model(make_parameters(coal1=0.0, coal2=1000.0))
+parameters = {
+    "tau1": 0.004, "tau2": 0.006-0.004, 
+    "coal1": 2.0/0.002, "coal2": 2.0/0.002, "coal2": 2.0/0.002, "coal12": 2.0/0.002, "coal123": 2.0/0.002,
+    "recombination_rate": 0.4
+    }
+pi, T, E = model.build_hidden_markov_model(make_parameters(**parameters)[:-1])
+print [pi[0,i] for i in range(pi.getHeight())]
+print
+print [pi[0,i] for i in [9,10,11]]
+print [pi[0,i] for i in [12,13,14]]
+print
+
+print model.break_points_12, model.break_points_123
