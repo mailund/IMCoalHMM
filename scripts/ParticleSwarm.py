@@ -210,7 +210,7 @@ class OptimiserParallel(object):
     A Particle Swarm Optimiser.
     """
 
-    def __init__(self):
+    def __init__(self, starting_area=None):
         """
         Initialise a new instance of the class, setting the maximum number of iterations to 500, no maximum execution
         time, the particle count to 100, the phi_particle to 0.3, the phi_swarm to 0.1, the omega to 0.9, and the
@@ -218,13 +218,16 @@ class OptimiserParallel(object):
         :return: A new instance of the class.
         """
         self.omega = 0.95
-        self.phi_particle = 0.7
-        self.phi_swarm = 0.7
+        self.phi_particle = 0.55
+        self.phi_swarm = 0.55
         self.log = None
         self.max_iterations = 500
         self.max_initial_velocity = 0.002
         self.particle_count = 100
         self.timeout = None
+        self.starting_area_jitter=0.01
+        self.starting_area = starting_area
+        print "starting area", self.starting_area
         
         
 
@@ -256,7 +259,12 @@ class OptimiserParallel(object):
             context.particles.append(particle)
 
             # Initialise the particle's position with a uniformly distributed random vector.
-            particle.current.positions = [random.uniform(0.0, 1.0) for _ in xrange(parameter_count)]
+            if self.starting_area is not None:
+                particle.current.positions = [self.starting_area[i]+
+                                              (self.starting_area_jitter*random.uniform(0.0, 1.0)
+                                               -self.starting_area_jitter/2) for i in xrange(parameter_count)]
+            else:
+                particle.current.positions = [random.uniform(0.0, 1.0) for _ in xrange(parameter_count)]
             listOfArgs.append(particle.current.positions)
         
         listOfResults=pool.map(fitness_function, listOfArgs)

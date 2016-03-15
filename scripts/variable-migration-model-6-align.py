@@ -539,6 +539,9 @@ if options.no_mcmc:
         def __call__(self, num):
             return exp(num*log(self.to/self.fro)+log(self.fro))
         
+        def inverse(self, num):
+            return (log(num)-log(self.fro))/(log(self.to)-log(self.fro))
+        
         def valid_input(self, input):
             if input*log(self.to/self.fro)+log(self.fro)<500:
                 return True
@@ -551,6 +554,9 @@ if options.no_mcmc:
             
         def __call__(self, num):
             return num*self.scale+self.offset
+        
+        def inverse(self, num):
+            return (num-self.offset)/self.scale
         
         def valid_input(self, input):
             return True
@@ -589,6 +595,7 @@ if options.no_mcmc:
         Before output, The variables will be transformed according to the transform, they should have.
         """
         big_params=[]
+        #print "small_params", small_params
         for lik_param,(var_param, value) in enumerate(eh):
             if var_param=='fixed':
                 big_params.append(value)
@@ -599,6 +606,14 @@ if options.no_mcmc:
                 else:
                     return [-1.0]*len(eh) #this will result in something that will be rejected later
         return big_params
+    
+    def from_likpar_to_maxvar(big_params):
+        small_params=[0]*count_of_variableParameter
+        for n,(var_param,value) in enumerate(eh):
+            if var_param!='fixed':
+                small_params[var_param]=listOfTransforms[n].inverse(big_params[n]/value)
+        return small_params
+    
     
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
         likelihood_parms=from_maxvar_to_likpar(small_parameters)
@@ -611,7 +626,10 @@ if options.no_mcmc:
     if options.optimizer=="Particle-Swarm":
 
         if options.parallels>1:
-            op=OptimiserParallel()
+            if options.startWithGuess:
+                op=OptimiserParallel(from_likpar_to_maxvar(options.startWithGuessElaborate))
+            else:
+                op=OptimiserParallel()
             result= op.maximise(lwrap, count_of_variableParameter, processes=options.parallels)
         else:
             op=Optimiser()

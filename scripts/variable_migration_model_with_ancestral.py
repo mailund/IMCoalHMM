@@ -828,9 +828,13 @@ if __name__ == '__main__':
         return [0.0005*s[0], 0.0010*s[1]]
     cd=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_12, 
                                                                    no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
-    ad=cd.build_hidden_markov_model([316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 0.0, 100.00000000000004, 0.0, 0.0, 0.0, 0.0, 0.5, 5.0, 5.0])
+    cd11=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_11, 
+                                                                   no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+    cd22=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_22, 
+                                                                   no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+    #ad=cd.build_hidden_markov_model([316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 0.0, 100.00000000000004, 0.0, 0.0, 0.0, 0.0, 0.5, 5.0, 5.0])
 
-    print printPyZipHMM(ad[0])
+    #print printPyZipHMM(ad[0])
     
 #     def log_transformfunc(fro,to):
 #         def transform(num):
@@ -860,28 +864,70 @@ if __name__ == '__main__':
 #     print printPyZipHMM(ad[0])
 #     print printPyZipHMM(ad[2])
 #     print ad[3]
+    from numpy.linalg import norm
+    from numpy import zeros
+    from numpy import sum as npsum
+    def condition_numbers(functions, param, unfixed_params=None):
+        if unfixed_params is None:
+            unfixed_params = len(param)
+        condition_nums=[]
+        condition_total=0
+        g_totals=zeros((unfixed_params,len(functions)))
+        parmdiffs=[0]*unfixed_params
+        f_total=0
+        for n,function in enumerate(functions):
+            gradients=[]
+            lik_main=function(param)[2]
+            f_total+=lik_main
+            for i in xrange(unfixed_params):
+                param2=deepcopy(param)
+                #param3=deepcopy(param)
+                param2[i]*=0.99
+                #param3[i]*=1.01
+                likminus=function(param2)[2]
+                #likplus=function(para)
+                gradients.append((likminus-lik_main)/(param[i]*0.01))
+                g_totals[i,n]=likminus
+                parmdiffs[i]=param[i]*0.01
+            print gradients
+            condition_nums.append(norm(gradients))#*norm(param)/norm(lik_main))
+        c=(npsum(g_totals,axis = 1)-f_total)/parmdiffs#*norm(param)/norm(f_total)
+        
+        return c
+    
+                
+                
+            
+
 # 
-#     if True:    
-#         from likelihood2 import Likelihood
-#         from pyZipHMM import Forwarder
-#         
-#         pathToSim="/home/svendvn/IMCoalHMM-simulations.10977"
-#         
-#         a11s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.11"]]
-#         a12s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.12"]]
-#         a22s=[pathToSim + "/alignment."+ s+".ziphmm" for s in ["1.22"]]
-#         
-#         forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
-#         forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
-#         forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
-#         likeli11=Likelihood(cd11, forwarders11)
-#         likeli12=Likelihood(cd, forwarders12)
-#         likeli22=Likelihood(cd22, forwarders22)
-#         
-#         print likeli11(param)
-#         print likeli12(param)
-#         print likeli22(param)
-# 
+    if True:    
+        from likelihood2 import Likelihood
+        from pyZipHMM import Forwarder
+         
+        pathToSim="/home/svendvn/IMCoalHMM-simulations.21835"
+         
+        a11s=[pathToSim + "/alignment."+ str(s)+".11.ziphmm" for s in range(1,6)]
+        a12s=[pathToSim + "/alignment."+ str(s)+".12.ziphmm" for s in range(1,6)]
+        a22s=[pathToSim + "/alignment."+ str(s)+".22.ziphmm" for s in range(1,6)]
+         
+        forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
+        forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
+        forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
+        likeli11=Likelihood(cd11, forwarders11)
+        likeli12=Likelihood(cd, forwarders12)
+        likeli22=Likelihood(cd22, forwarders22)
+         
+        parmTrue=[1000]*6+[5,2,0.01,5,1,0.01]+[3.95]+[1.0/0.21]*2
+        parmTrue=[100,1000,100,1000,10001,10]+[500,500,500,100,100,100]+[0.40]+[1.0/0.21]*2
+        param=array(parmTrue)
+
+        print likeli11(param)
+        print likeli12(param)
+        print likeli22(param)
+        
+        print condition_numbers([likeli11,likeli12,likeli22], param, 13)
+        
+ 
 #     with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
 #         f.write(printPyZipHMM(ad[1]))
 #     with open("/home/svendvn/Dropbox/Bioinformatik/emission_matrix.txt", 'w') as f:
