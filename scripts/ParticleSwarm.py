@@ -210,7 +210,7 @@ class OptimiserParallel(object):
     A Particle Swarm Optimiser.
     """
 
-    def __init__(self, starting_area=None):
+    def __init__(self, starting_areas=None):
         """
         Initialise a new instance of the class, setting the maximum number of iterations to 500, no maximum execution
         time, the particle count to 100, the phi_particle to 0.3, the phi_swarm to 0.1, the omega to 0.9, and the
@@ -226,8 +226,8 @@ class OptimiserParallel(object):
         self.particle_count = 100
         self.timeout = None
         self.starting_area_jitter=0.01
-        self.starting_area = starting_area
-        print "starting area", self.starting_area
+        self.starting_areas = starting_areas
+        print "starting area", self.starting_areas
         
         
 
@@ -254,18 +254,28 @@ class OptimiserParallel(object):
 
         # Create the initial particles.
         listOfArgs=[]
-        for _ in xrange(self.particle_count):
-            particle = Particle()
-            context.particles.append(particle)
-
-            # Initialise the particle's position with a uniformly distributed random vector.
-            if self.starting_area is not None:
-                particle.current.positions = [self.starting_area[i]+
+        if self.starting_areas is not None:
+            no_areas=len(self.starting_areas)
+            particles_of_each=self.particle_count/no_areas                      #integer division intended
+            looper=[particles_of_each]*no_areas
+            for i in xrange(self.particle_count-particles_of_each*no_areas):    #keep number of particles fixed.
+                looper[i]+=1
+            for i,up_to in enumerate(looper):
+                for _ in xrange(up_to):
+                    particle = Particle()
+                    context.particles.append(particle)
+                    particle.current.positions=[self.starting_areas[i][j]+
                                               (self.starting_area_jitter*random.uniform(0.0, 1.0)
-                                               -self.starting_area_jitter/2) for i in xrange(parameter_count)]
-            else:
+                                               -self.starting_area_jitter/2) for j in xrange(parameter_count)]    
+                    listOfArgs.append(particle.current.positions)
+        else:
+            for _ in xrange(self.particle_count):
+                particle = Particle()
+                context.particles.append(particle)
+
                 particle.current.positions = [random.uniform(0.0, 1.0) for _ in xrange(parameter_count)]
-            listOfArgs.append(particle.current.positions)
+                
+                listOfArgs.append(particle.current.positions)
         
         listOfResults=pool.map(fitness_function, listOfArgs)
         

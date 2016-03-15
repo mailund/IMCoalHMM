@@ -120,6 +120,7 @@ parser.add_argument('--adap3_from_independent', default=0, type=float, help='Wil
 
 parser.add_argument('--printPyMatrices', default=0, type=int, help='How many times should transitionmatrix and initialdistribution be printed for the chain(s) with the correct temperature')
 parser.add_argument('--startWithGuess', action='store_true', help='should the initial step be the initial parameters(otherwise simulated from prior).')
+parser.add_argument('--startWithGuessFiles', default=[], nargs='+', type=str, help="list of .txt files that contain parameters to start the chain in. It should be in the form big_param. The first line of the files will be skipped.")
 parser.add_argument('--startWithGuessElaborate', nargs='+', default=[], type=float, help='should the initial step be the initial parameters(otherwise simulated from prior).')
 parser.add_argument('--record_steps', action='store_true',default=False, help='if so, the program will output the coalescence times of every tenth ')
 parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
@@ -626,8 +627,24 @@ if options.no_mcmc:
     if options.optimizer=="Particle-Swarm":
 
         if options.parallels>1:
-            if options.startWithGuess:
-                op=OptimiserParallel(from_likpar_to_maxvar(options.startWithGuessElaborate))
+            if options.startWithGuessFiles:
+                list_of_areas=[]
+                for f in options.startWithGuessFiles:
+                    with open(f,'r') as fil:
+                        fil.readline()                                      #skip first line
+                        params=array(map(float, fil.readline().split()))           
+                        params[0:(2*no_epochs)]=2/params[0:(2*no_epochs)]   #convert from theta to coal_rate
+                        
+                        #adding 1.1 to the migration rates as a hack. If the file has a zero for a migration rate
+                        #where this model expects a free parameter, it will cause problems. The model will still force
+                        #the fixed_params to their previously fixed value.
+                        params[(2*no_epochs):(4*no_epochs)]+=1.1
+                        
+                        list_of_areas.append(params[:-1])                   #remove the likelihood value.
+                print "list_of_areas", list_of_areas
+                op=OptimiserParallel([from_likpar_to_maxvar(area) for area in list_of_areas ] )
+            elif options.startWithGuess:
+                op=OptimiserParallel([from_likpar_to_maxvar(options.startWithGuessElaborate)])
             else:
                 op=OptimiserParallel()
             result= op.maximise(lwrap, count_of_variableParameter, processes=options.parallels)
