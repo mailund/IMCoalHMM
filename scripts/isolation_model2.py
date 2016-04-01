@@ -309,7 +309,7 @@ class IsolationModelConstantBreaks(Model):
             split_time, coal_rate, recomb_rate,outgroup = parameters
             self.outmax=outgroup
         else:
-            assert False, "There number of parameters was wrong"
+            assert False, "number of parameters was wrong"
         ctmc_system = self.build_ctmc_system(split_time, coal_rate, recomb_rate)
         #changing the break_points
         break_points=self.break_points

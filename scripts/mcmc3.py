@@ -154,6 +154,8 @@ class MCMC(object):
         self.acceptedSwitches={}
         self.multiple_try=multiple_try
         
+        print "paster",self.log_likelihood
+        print "paster2",self.current_theta
         self.current_prior = self.log_prior(self.current_theta)
         forget,forget2,self.current_likelihood = self.log_likelihood(self.current_theta)
         self.current_posterior = self.current_prior + self.current_likelihood

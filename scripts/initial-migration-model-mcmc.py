@@ -8,12 +8,22 @@ from newick_count import count_tmrca
 from argparse import ArgumentParser
 
 from IMCoalHMM.likelihood import Likelihood
-from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
+#from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
 from pyZipHMM import Forwarder
 
+from isolation_with_migration_model2 import IsolationMigrationModelConstantBreaks
+from isolation_with_migration_model2 import IsolationMigrationModel# as IsolationMigrationModel2
+
+from IMCoalHMM.mcmc import MCMC, MC3
+from mcmc3 import MC3 as MC3adap
+from mcmc3 import LogNormPrior, ExpLogNormPrior
+
+from global_scaling import Global_scaling
+from alg4_scaling import AM4_scaling
+from operator import itemgetter
+from copy import deepcopy
 
 
-from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior, ExpLogNormPrior
 from math import log,exp
 
 from numpy import array, dot
@@ -85,6 +95,30 @@ and uniform coalescence and recombination rates."""
     parser.add_argument("--temperature-scale", type=float, default=10.0,
                         help="The scale by which higher chains will have added temperature." \
                              "Chain i will have temperature scale*i.")
+    parser.add_argument('--mc3_switching', type=int, default=1, help='the number of switches per thinning period')
+    parser.add_argument('--mc3_jump_accept', type=float, default=0.234, help='the swap acceptance probability that the chain is adapting against. Default is 0.234.')
+    parser.add_argument('--mc3_flip_suggestions', type=int, default=1, help='The number of times after each step a flip is suggested. It has to be at least one, default is one.')
+    parser.add_argument('--mc3_sort_chains', action='store_true', default=False, help='If announced, this will sort each chain according to its posterior value, making it closer to the stationary')
+    parser.add_argument('--mc3_fixed_temp_max', default=None, type=float, help='If applied, this will make the temperature gaps equally crossable and the maximum is said parameter.')
+
+    
+    
+    
+    parser.add_argument('--adap', default=0, type=int, help='this number tells what adaption to use. Options=1,3. ')
+    parser.add_argument('--adap_step_size', default=1.0, type=float, help='this number is the starting step size of the adaption')
+    parser.add_argument('--adap_step_size_marginal', default=0.1, type=float, help='this number is the starting step size of the adaption of the marginals')
+    parser.add_argument('--adap_harmonic_power', default=0.5, type=float, help='this number is the power of the harmonical decrease in scew with adaption. It tells how fast the adaption vanishes.')
+    parser.add_argument('--adap_desired_accept', default=0.234, type=float, help='this number is the acceptance rate that the adaptive algorithm strives for')
+    parser.add_argument('--adap3_correlates_begin', default=100, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
+    parser.add_argument('--adap3_tracking_begin', default=50, type=int, help='In adaption scheme 3, this chooses when we should start simulate proposals using the empirical covariance.')
+    parser.add_argument('--adap3_from_identical', default=0.2, type=float, help='How big proportion of the time after correlates_begin will we suggest independents with same variance.')
+    parser.add_argument('--adap3_from_independent', default=0, type=float, help='Will we not use the correlates. If stated the covariance matrix will be estimated without off-diagonal entries.')
+
+    parser.add_argument('--constant_break_points', default=False, action="store_true", help='If enabled, the break points will be fixed throughout the analysis but the epochs will change')
+    parser.add_argument('--breakpoints_tail_pieces', default=0, type=int, help='this produce a tail of last a number of pieces on the breakpoints')
+    parser.add_argument('--breakpoints_time', default=1.0, type=float, help='this number moves the breakpoints up and down. Smaller values will give sooner timeperiods.')
+
+    
     parser.add_argument("-k", "--thinning",
                         type=int,
                         default=100,
@@ -127,41 +161,41 @@ and uniform coalescence and recombination rates."""
         if options.logfile and not options.mc3:
             parser.error("the --logfile option is only valid together with the --mc3 option.")
 
-    def transformToI(inarray):
-        inarray=map(log,inarray)
-        tmp= dot(array(    [[4.9875799, -1.3487765,      3.1201993,      1.2686557,     -5.7025884], \
-                                [0,          9.9498989,      10.2635097,    -0.0162581,     -2.8033441],\
-                                [0,          0,              4.2651228,      7.1733158,     -2.9267196],\
-                                [0,          0,              0,              6.2813348,      1.3268374],\
-                                [0,          0,              0,              0,              7.8601317]]).transpose(), inarray) 
-        return map(exp,tmp)
-    
-    def transformFromI(inarray):
-        inarray=map(log,inarray)
-        tmp=dot(array([[0.20049804,  0.02717887, -0.21207935,  0.20177098,  0.04212849],\
-                           [0,           0.10050353, -0.24184978,  0.27645379, -0.10087487],\
-                           [0,           0,           0.23445984, -0.26775431,  0.13249964],\
-                           [0,           0,           0,           0.15920183, -0.02687422],\
-                           [0,           0,           0,           0,           0.12722433]]).transpose(), inarray)
-        return map(exp,tmp)
-    
-    def transformToI2(inarray):
-        inarray=map(log,inarray)
-        tmp= dot(array(    [[4.982471, 0,      0,      0,     0], \
-                                [0,          6.749068,      0,    0,     0],\
-                                [0,          0,              2.457224,      0,     0],\
-                                [0,          0,              0,              2.238575,      0],\
-                                [0,          0,              0,              0,              2.874258]]).transpose(), inarray) 
-        return map(exp,tmp)
-    
-    def transformFromI2(inarray):
-        inarray=map(log,inarray)
-        tmp=dot(array([[0.2007036,  0, 0,  0,  0],\
-                           [0,           0.1481686, 0,  0, 0],\
-                           [0,           0,           0.4069633, 0,  0],\
-                           [0,           0,           0,           0.4467127, 0],\
-                           [0,           0,           0,           0,           0.3479159]]).transpose(), inarray)
-        return map(exp,tmp)
+#     def transformToI(inarray):
+#         inarray=map(log,inarray)
+#         tmp= dot(array(    [[4.9875799, -1.3487765,      3.1201993,      1.2686557,     -5.7025884], \
+#                                 [0,          9.9498989,      10.2635097,    -0.0162581,     -2.8033441],\
+#                                 [0,          0,              4.2651228,      7.1733158,     -2.9267196],\
+#                                 [0,          0,              0,              6.2813348,      1.3268374],\
+#                                 [0,          0,              0,              0,              7.8601317]]).transpose(), inarray) 
+#         return map(exp,tmp)
+#     
+#     def transformFromI(inarray):
+#         inarray=map(log,inarray)
+#         tmp=dot(array([[0.20049804,  0.02717887, -0.21207935,  0.20177098,  0.04212849],\
+#                            [0,           0.10050353, -0.24184978,  0.27645379, -0.10087487],\
+#                            [0,           0,           0.23445984, -0.26775431,  0.13249964],\
+#                            [0,           0,           0,           0.15920183, -0.02687422],\
+#                            [0,           0,           0,           0,           0.12722433]]).transpose(), inarray)
+#         return map(exp,tmp)
+#     
+#     def transformToI2(inarray):
+#         inarray=map(log,inarray)
+#         tmp= dot(array(    [[4.982471, 0,      0,      0,     0], \
+#                                 [0,          6.749068,      0,    0,     0],\
+#                                 [0,          0,              2.457224,      0,     0],\
+#                                 [0,          0,              0,              2.238575,      0],\
+#                                 [0,          0,              0,              0,              2.874258]]).transpose(), inarray) 
+#         return map(exp,tmp)
+#     
+#     def transformFromI2(inarray):
+#         inarray=map(log,inarray)
+#         tmp=dot(array([[0.2007036,  0, 0,  0,  0],\
+#                            [0,           0.1481686, 0,  0, 0],\
+#                            [0,           0,           0.4069633, 0,  0],\
+#                            [0,           0,           0,           0.4467127, 0],\
+#                            [0,           0,           0,           0,           0.3479159]]).transpose(), inarray)
+#         return map(exp,tmp)
     
     # Specify priors and proposal distributions... 
     # I am sampling in log-space to make it easier to make a random walk
@@ -173,6 +207,23 @@ and uniform coalescence and recombination rates."""
     migration_rate_prior = ExpLogNormPrior(means[4], proposal_sd=options.sd_multiplyer)
     priors = [isolation_period_prior, migration_period_prior,
               coal_prior, rho_prior, migration_rate_prior]
+    
+    no_params=5
+    
+    
+    if options.constant_break_points:
+        model = IsolationMigrationModelConstantBreaks(options.migration_states+ options.ancestral_states, 
+                                                      breaktail=options.breakpoints_tail_pieces,breaktimes=options.breakpoints_time)
+    else:
+        model= IsolationMigrationModel(options.migration_states, options.ancestral_states)
+        
+    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+    
+    base_log_likelihood= Likelihood(model, forwarders)
+    def log_likelihood(params):
+        return 0,0,base_log_likelihood(params)
+        
+    print log_likelihood(array([0.2]*5))
 
     # If we only want to sample from the priors we simply collect random points from these
     if options.sample_priors:
@@ -191,18 +242,39 @@ and uniform coalescence and recombination rates."""
         sys.exit(0) # Successful termination
 
     if options.mc3:
-        mcmc = MC3(priors, input_files=options.alignments,
-                   model=IsolationMigrationModel(options.migration_states, options.ancestral_states),
-                   thinning=options.thinning, no_chains=options.mc3_chains,
-                   switching=options.thinning/10,
-                   temperature_scale=options.temperature_scale)
+        if options.adap==1 or options.adap==3:
+            if options.adap==1:
+                adap = Global_scaling(params=[options.adap_harmonic_power, options.adap_step_size], alphaDesired=options.adap_desired_accept)
+
+            elif options.adap==3:
+                toTakeMaxFrom=[1-options.adap3_from_identical-options.adap3_from_independent, options.adap3_from_independent,options.adap3_from_identical]
+                max_index,_ = max(enumerate(toTakeMaxFrom), key=itemgetter(1))
+                adap=AM4_scaling(startVal=no_params*[1.0], 
+                     params=[options.adap_harmonic_power, options.adap_step_size, 
+                                                       (options.adap3_tracking_begin, options.adap3_correlates_begin),
+                                                       (options.adap3_from_identical,options.adap3_from_independent), max_index], 
+                     alphaDesired=options.adap_desired_accept)
+            chain_structure=[1]*options.mc3_chains
+            adapts=[] #we have to make a list of adaptors
+            for _ in range(options.mc3_chains):
+                adapts.append(deepcopy(adap))
+            mcmc = MC3adap(priors, log_likelihood=log_likelihood, accept_jump=options.mc3_jump_accept, flip_suggestions=options.mc3_flip_suggestions,
+                sort=options.mc3_sort_chains, chain_structure=chain_structure, thinning=options.thinning, switching=1, transferminator=adapts, 
+                mixtureWithScew=options.adap , mixtureWithSwitch=0, switcher=None,temperature_scale=1,
+                startVal=None, fixedMax=options.mc3_fixed_temp_max, printFrequency=0)
+        else:
+            mcmc = MC3(priors, input_files=options.alignments,
+                       model=model,
+                       thinning=options.thinning, no_chains=options.mc3_chains,
+                       switching=options.thinning/10,
+                       temperature_scale=options.temperature_scale)
     else:
         if options.use_trees_as_data:
             cT,counts=count_tmrca(subs=options.Ngmu4, filename=options.treefile, align3=False) #align3 is false, because we only want one alignment. 
-            IMmodel=IsolationMigrationModel(options.migration_states, options.ancestral_states)
-            log_likelihood=Coal_times_log_lik(times=cT,counts=counts,model=IMmodel)
+
+            log_likelihood=Coal_times_log_lik(times=cT,counts=counts,model=model)
         else:
-            forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+            
             log_likelihood = Likelihood(IsolationMigrationModel(options.migration_states,
                                                             options.ancestral_states),forwarders)
                                     
@@ -243,9 +315,20 @@ and uniform coalescence and recombination rates."""
 
         else:
             for _ in xrange(options.samples):
-                params, prior, likelihood, posterior = mcmc.sample()
-                print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
-                outfile.flush()
+                if options.adap>0:
+                    all=mcmc.sample()
+                    for i in range(options.mc3_chains):
+                        params, prior, likelihood, posterior, accepts, rejects,nonSwapAdapParam,swapAdapParam,squaredJump=all[i]
+                        if options.adap==3:
+                            outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple([nonSwapAdapParam[0]])+tuple(swapAdapParam[:3])))+'\t')
+                        else:
+                            outfile.write('\t'.join(map(str, transform(params) + (prior, likelihood, posterior, accepts, rejects)+tuple(nonSwapAdapParam)+tuple(swapAdapParam)))+'\t')
+                    print >> outfile,str(all[-1])
+                    outfile.flush()
+                else:
+                    params, prior, likelihood, posterior = mcmc.sample()
+                    print >> outfile, '\t'.join(map(str, transform(params) + (prior, likelihood, posterior)))
+                    outfile.flush()
 #                 if _%int(options.samples/5)==0:
 #                     print >> outfile, printPyZipHMM(mcmc.current_transitionMatrix)
 #                     print >> outfile, printPyZipHMM(mcmc.current_initialDistribution)

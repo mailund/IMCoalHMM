@@ -3,7 +3,7 @@ likelihoods. This is different from likelihood.py because of the extra return tr
 """
 
 import scipy.optimize
-
+import time
 
 
 def printPyZipHMM(Matrix):
@@ -41,7 +41,11 @@ class Likelihood(object):
             return "help", "help",-float('inf')
 
         init_probs, trans_probs, emission_probs,_ = self.model.build_hidden_markov_model(*parameters) #the ignore-part is not to unpack too many values
+
         bds=sum(forwarder.forward(init_probs, trans_probs, emission_probs) for forwarder in self.forwarders) 
+
+        #print "matrix generation:", hidden_markov_time-before_time
+        #print "likelihood computation", forwarder_time-hidden_markov_time
         ans=((trans_probs,),(init_probs,),bds)
         return ans
 

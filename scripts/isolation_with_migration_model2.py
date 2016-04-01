@@ -160,10 +160,14 @@ class IsolationMigrationModel(Model):
         # This works but pycharm gives a type warning... I guess it doesn't see > overloading
         assert isinstance(parameters, ndarray), "the argument parameters="+str(parameters)+ " is not an numpy.ndarray but an "+str(type(parameters))
         # noinspection PyTypeChecker
-        
-        
-        if parameters[2]<1e-8: #checking specifically for the coalescense rate
+        if not all(parameters >= 0):  # This is the default test, useful for most models.
             return False
+        if not all(parameters <=1e7): #to avoid the worst outliers
+            return False
+        
+        if parameters[2]<1e-8 or parameters[2]>1e8: #checking specifically for the coalescense rate
+            return False
+
         
         #checking the outgroup is larger than the split time
         if self.outgroup:
@@ -233,10 +237,10 @@ class IsolationMigrationModel(Model):
             if ancestral_break_points[-1]>self.outmax:
                 ancestral_break_points=uniform_break_points(self.no_mig_states, tau2, outgroup-(outgroup-tau2)/20.0)
         break_points=list(migration_break_points)+list(ancestral_break_points)
-        print break_points
+        #print break_points
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
-        print parameters2
+        #print parameters2
         intervals=[self.no_mig_states,self.no_ancestral_states]
 #         emission_probs = emission_matrix(self.emission_points(*parameters))
 #         print " ------------- Emis 0 --------------"
@@ -407,7 +411,7 @@ class IsolationMigrationModelConstantBreaks(Model):
         ctmc_system = self.build_ctmc_system(isolation_time, migration_time, coal_rate, recomb_rate, mig_rate)
 
         break_points=self.break_points
-        print break_points
+        #print break_points
         initial_probs, transition_probs = compute_transition_probabilities(ctmc_system)
         parameters2=[coal_rate]*4+[mig_rate,0,mig_rate,0]+[recomb_rate]
 
@@ -559,7 +563,7 @@ def main():
     mig_rate = 300
 
     model = IsolationMigrationModelConstantBreaks(no_mig_states+no_ancestral_states)
-    model = IsolationMigrationModel(1,10)
+    model = IsolationMigrationModel(100,100)
     parameters = isolation_time, migration_time, coal_rate, recomb_rate, mig_rate
     from numpy import array
     parameters= array( [2.37363022e-02 ,  1.71802474e-03  , 4.47721221e+03  , 7.04316188e-01,
@@ -567,6 +571,8 @@ def main():
     parameters=[3.91531342e-03,  3.26090486e-03 ,  4.25513614e+02,   5.43219850e-01, 3.51619688e+00]
     parameters=[1.91933718e-03,   2.23593093e-05,   4.22021142e+04,  3.92105098e-01, 2.26537374e+00]
     pi, transition_probs, emission_probs = model.build_hidden_markov_model(parameters)
+    
+    
     print "--------- EMISS ---------"
     print printPyZipHMM(emission_probs)
     print "------- TRANS -----------"
