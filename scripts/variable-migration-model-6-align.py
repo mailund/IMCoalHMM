@@ -546,7 +546,6 @@ if options.no_mcmc:
             return (log(num)-log(self.fro))/(log(self.to)-log(self.fro))
         
         def valid_input(self, input):
-            print input, log(self.to/self.fro)+log(self.fro)
             if input*log(self.to/self.fro)+log(self.fro)<500:
                 return True
             return False
@@ -622,7 +621,7 @@ if options.no_mcmc:
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
         likelihood_parms=from_maxvar_to_likpar(small_parameters)
         val=log_likelihood(array(likelihood_parms))
-        print small_parameters
+        #print small_parameters
         print val,"=", likelihood_parms
         if isnan(val):
             val = float('-inf')
