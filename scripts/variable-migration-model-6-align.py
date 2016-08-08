@@ -22,6 +22,7 @@ from datetime import datetime
 from marginal_scaling import MarginalScaler
 from marginal_scaler_maxer import MarginalScalerMax
 from operator import itemgetter
+from regression_optimizer import RegressionOptimiser
 
 from ParticleSwarm import Optimiser, OptimiserParallel
 from astropy.modeling.functional_models import Scale
@@ -140,7 +141,7 @@ parser.add_argument("--optimizer",
                     type=str,
                     default="Nelder-Mead",
                     help="If no_mcmc is stated this will be the choice of optimizer.",
-                    choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC', 'Particle-Swarm'])
+                    choices=['Nelder-Mead', 'Powell', 'L-BFGS-B', 'TNC', 'Particle-Swarm', 'Grid-Sim'])
 parser.add_argument('--outgroup', action='store_true', default=False, help="This indicates that the alignemnts are not pairwise but threewise and that the last entry will be ")
 parser.add_argument('--outgroup_minimum', type=float, default=0.01, help="The smallest number of substitutions thinkable between the outgroup and the species in question.")
 parser.add_argument('--outgroup_maximum', type=float, default=0.08, help="The smallest number of substitutions thinkable between the outgroup and the species in question.")
@@ -429,6 +430,7 @@ print "initialised likelihoods"
 
 def log_likelihood(params):
     #print "params",params
+    #return 0
     return log_likelihood_12(params)[2]+log_likelihood_13(params)[2]+\
         log_likelihood_14(params)[2]+log_likelihood_23(params)[2]+\
         log_likelihood_24(params)[2]+log_likelihood_34(params)[2]
@@ -544,6 +546,7 @@ if options.no_mcmc:
             return (log(num)-log(self.fro))/(log(self.to)-log(self.fro))
         
         def valid_input(self, input):
+            print input, log(self.to/self.fro)+log(self.fro)
             if input*log(self.to/self.fro)+log(self.fro)<500:
                 return True
             return False
@@ -619,13 +622,16 @@ if options.no_mcmc:
     def lwrap(small_parameters):#small_parameters is the vector of only variable parameters
         likelihood_parms=from_maxvar_to_likpar(small_parameters)
         val=log_likelihood(array(likelihood_parms))
+        print small_parameters
         print val,"=", likelihood_parms
         if isnan(val):
             val = float('-inf')
         return val
     
-    if options.optimizer=="Particle-Swarm":
-
+    if options.optimizer=="Grid-Sim":
+        op=RegressionOptimiser()
+        max_log_likelihood,mle_parameters=op.maximise(lwrap, count_of_variableParameter)
+    elif options.optimizer=="Particle-Swarm":
         if options.parallels>1:
             if options.startWithGuessFiles:
                 list_of_areas=[]
@@ -653,10 +659,30 @@ if options.no_mcmc:
             result= op.maximise(lwrap, count_of_variableParameter)
         mle_parameters=result.best.positions
         max_log_likelihood = result.best.fitness
-    else:     
-        mle_parameters = \
-            maximum_likelihood_estimate(lwrap, [0.5]*count_of_variableParameter,
-                                         optimizer_method=options.optimizer)
+    else:
+        if options.startWithGuessFiles:
+            list_of_areas=[]
+            for f in options.startWithGuessFiles:
+                with open(f,'r') as fil:
+                    fil.readline()                                      #skip first line
+                    params=array(map(float, fil.readline().split()))           
+                    params[0:(2*no_epochs)]=2/params[0:(2*no_epochs)]   #convert from theta to coal_rate
+                    
+                    #adding 1.1 to the migration rates as a hack. If the file has a zero for a migration rate
+                    #where this model expects a free parameter, it will cause problems. The model will still force
+                    #the fixed_params to their previously fixed value.
+                    params[(2*no_epochs):(4*no_epochs)]+=1.1
+                    
+                    list_of_areas.append(params[:-1])                   #remove the likelihood value.
+            print "list_of_areas", list_of_areas
+            print "but only the first one used:", list_of_areas[0]
+            mle_parameters = \
+                maximum_likelihood_estimate(lwrap, from_likpar_to_maxvar(list_of_areas[0]),
+                                             optimizer_method=options.optimizer)
+        else:
+            mle_parameters = \
+                maximum_likelihood_estimate(lwrap, [0.5]*count_of_variableParameter,
+                                             optimizer_method=options.optimizer)
         max_log_likelihood = lwrap(mle_parameters)        
     with open(options.outfile, 'w') as outfile:
         print "mle_params", mle_parameters
