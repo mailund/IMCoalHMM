@@ -22,7 +22,7 @@ from datetime import datetime
 from marginal_scaling import MarginalScaler
 from marginal_scaler_maxer import MarginalScalerMax
 from operator import itemgetter
-from regression_optimizer import RegressionOptimiser
+#from regression_optimizer import RegressionOptimiser
 
 from ParticleSwarm import Optimiser, OptimiserParallel
 from astropy.modeling.functional_models import Scale
@@ -628,10 +628,10 @@ if options.no_mcmc:
             val = float('-inf')
         return val
     
-    if options.optimizer=="Grid-Sim":
-        op=RegressionOptimiser()
-        max_log_likelihood,mle_parameters=op.maximise(lwrap, count_of_variableParameter)
-    elif options.optimizer=="Particle-Swarm":
+#     if options.optimizer=="Grid-Sim":
+#         op=RegressionOptimiser()
+#         max_log_likelihood,mle_parameters=op.maximise(lwrap, count_of_variableParameter)
+    if options.optimizer=="Particle-Swarm":
         if options.parallels>1:
             if options.startWithGuessFiles:
                 list_of_areas=[]
