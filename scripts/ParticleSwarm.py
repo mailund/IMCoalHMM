@@ -261,13 +261,16 @@ class OptimiserParallel(object):
             for i in xrange(self.particle_count-particles_of_each*no_areas):    #keep number of particles fixed.
                 looper[i]+=1
             for i,up_to in enumerate(looper):
-                for _ in xrange(up_to):
+                for a in xrange(up_to-1):
                     particle = Particle()
                     context.particles.append(particle)
                     particle.current.positions=[self.starting_areas[i][j]+
                                               (self.starting_area_jitter*random.uniform(0.0, 1.0)
                                                -self.starting_area_jitter/2) for j in xrange(parameter_count)]    
                     listOfArgs.append(particle.current.positions)
+                    
+                #adding the starting area centrum also.
+                listOfArgs.append(self.starting_areas[i][j])
         else:
             for _ in xrange(self.particle_count):
                 particle = Particle()
