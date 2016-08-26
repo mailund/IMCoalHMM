@@ -270,7 +270,7 @@ class OptimiserParallel(object):
                     listOfArgs.append(particle.current.positions)
                     
                 #adding the starting area centrum also.
-                listOfArgs.append(self.starting_areas[i][j])
+                listOfArgs.append(self.starting_areas[i])
         else:
             for _ in xrange(self.particle_count):
                 particle = Particle()
