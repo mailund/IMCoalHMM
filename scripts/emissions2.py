@@ -978,6 +978,9 @@ class ExpMatrix:
             self.status=self.NORMAL_EXP
 
     def emissAndNorm(self, lls,lrs,rrs, break_new, break_latest, Cs, offset=0.0):
+        if break_new-break_latest < 1e-6:
+            break_new=break_latest+1e-6 #this introduced a bias but increases stability.
+            print "added correction to the points [", break_latest,",",break_new, "]" 
         if self.status==self.MATRIX_EXP:
             emissums=[0]*len(Cs)
             normsum=0
@@ -996,6 +999,7 @@ class ExpMatrix:
                         
                         emissums[n]+=rrs*self.V[2,i]*self.Vinv[i,k*2]*self.QgammaA[k*2,A]*(exp(c*(break_latest+offset))*(exp((break_new-break_latest)*(self.w[i]+c)) - 
                                                                         1.0 ) / (self.w[i]+c)    )
+#                     print i,k,normsum, emissums
                         
             return emissums, normsum
         
@@ -1134,8 +1138,9 @@ def emission_matrix7(break_points, params,intervals,  ctmc_system,offset=0.0, ct
         if j==(len(break_points)-1): #if we are at the last interval
             emissum, normsum = Expms.emissAndNormLast(lls=lls,lrs=lrs,rrs=rrs, break_latest=break_points[j], Cs=[-8.0/3.0], offset=offset)
         else:
+#             if j==0:
+#                 print lls,lrs,rrs,break_points[j+1], break_points[j],offset
             emissum, normsum = Expms.emissAndNorm(lls=lls,lrs=lrs,rrs=rrs, break_new=break_points[j+1], break_latest=break_points[j], Cs=[-8.0/3.0], offset=offset)
-        
         if normsum<1e-300 or emissum[0]<1e-300:
             if emissum[0]>1e-300:
                 print "----------------------------normsum=0 even though emissum>0---------------------------------------"
@@ -1311,7 +1316,30 @@ def main():
     #print printPyZipHMM(emission_matrix2(time_points, rates))
     print printPyZipHMM(emission_probs)
     
-
+def main2():
+    reduced_break_points=[0.0003798655630120683, 0.00037986956091920054, 0.00050262885656181212, 0.00064259490139711409, 0.00080539003584071322, 0.00099994076116108007, 0.001241713132308783, 0.0018015272602190868, 0.002413331524182922, 0.0024280334966443212, 0.0032248393313428908, 0.0044713624838764914, 0.00820346211633572, 0.011688909903087156, 0.015066506024371382, 0.018382127457537485]
+    reduced_break_points2=[0.00037986556301206824, 0.00037986956091920054, 0.00050262885656181212, 0.00064259490139711409, 0.00080539003584071322, 0.00099994076116108007, 0.001241713132308783, 0.0018015272602190868, 0.002413331524182922, 0.0024280334966443212, 0.0032248393313428908, 0.0044713624838764914, 0.00820346211633572, 0.011688909903087156, 0.015066506024371382, 0.018382127457537485]
+    postpone=4
+    intervals=[8,8]
+    parameters=[  676.5553078108497 ,  6.76555308e+02  , 6.76555308e+02  , 6.76555308e+02,
+   0.00000000e+00,   0.00000000e+00 ,  6.50226644e+02  , 0.00000000e+00,
+   4.91754930e-02]
+    
+    Expms=ExpMatrix(parameters[0], parameters[0], 0.0, 650.2266435409039)
+    
+    def getExp(lls,lrs,rrs,num):
+        if num==2:
+            break_latest=reduced_break_points2[0]
+        else:
+            break_latest=reduced_break_points[0]
+        ad= Expms.emissAndNorm(lls=lls,lrs=lrs,rrs=rrs, break_new=reduced_break_points[1], break_latest=break_latest, Cs=[-8.0/3.0], offset=0.0)
+        print reduced_break_points[1]-break_latest
+        print ad[0][0]
+        print ad[1]
+        print 0.75-0.75*ad[0][0]/ad[1]
+    
+    getExp(0,1,0,1)
+    getExp(0, 1, 0, 2)
 
 if __name__ == '__main__':
-    main()
+    main2()

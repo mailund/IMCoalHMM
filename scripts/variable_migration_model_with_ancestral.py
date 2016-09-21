@@ -601,7 +601,7 @@ class VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(Model):
 #                 print "reduced breakpoints", br[indexOfFirstNonZeroMeasuredInBreakPoints:]
 #                 print "reduced parameters", reducedParameters
 #                 print "intervals", self.intervals[indexOfFirstNonZero:]
-#                 print "offset", br[indexOfFirstNonZeroMeasuredInBreakPoints]
+#                 print "offset", 0
 #                 print "postponing", indexOfFirstNonZeroMeasuredInBreakPoints
                 if self.outgroup:
                     emission_probs=emission_matrix8(br[indexOfFirstNonZeroMeasuredInBreakPoints:], reducedParameters, outgroup, self.intervals[indexOfFirstNonZero:], 
@@ -753,8 +753,19 @@ if __name__ == '__main__':
                 finalString=finalString+" "+str(Matrix[i,j])
             finalString=finalString+"\n"
         return finalString
-    substime_first_change=0.0005*0.21
-    substime_second_change=0.0010*0.21
+    
+    def printPyZipHMM2(Matrix_one, Matrix_two):
+        finalString=""
+        for i in range(Matrix_one.getHeight()):
+            for j in range(Matrix_one.getWidth()):
+                if Matrix_two[i,j]==0 or Matrix_two[i,j]==0 or abs(Matrix_one[i,j]-Matrix_two[i,j])/Matrix_two[i,j]<0.00001:
+                    finalString=finalString+" "+str(Matrix_one[i,j])+" "*10
+                else:
+                    finalString=finalString+" "+str(Matrix_one[i,j])+"="+str(Matrix_two[i,j])
+            finalString=finalString+"\n"
+        return finalString
+    substime_first_change=0.0001
+    substime_second_change=0.0005
     substime_third_change=0.0030
     def time_modifier(a):
         return [(5,substime_first_change*a[0]),(10,substime_second_change*a[1])]
@@ -823,15 +834,41 @@ if __name__ == '__main__':
    8.38656218e+02 ,  8.38656218e+02  , 0.00000000e+00   ,3.39907010e+03,
    0.00000000e+00 ,  0.00000000e+00  , 0.00000000e+00  , 0.00000000e+00,
    3.82257625e-01 ,  7.37601871e+00  , 6.52240101e+00]
-    
+    param18=[676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 0.0, 0.0, 0.0, 0.0, 650.2266435409039, 0.0, 0.049175492955631186, 3.7986556301206824, 4.8266630483658437]
+    param19=[676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 676.5553078108497, 0.0, 0.0, 0.0, 0.0, 650.2266435409039, 0.0, 0.049175492955631186, 3.7986556301206829, 4.8266630483658437]
+
     def time_modifier3(s):
-        return [0.0005*s[0], 0.0010*s[1]]
+        return [0.0001*s[0], 0.0005*s[1]]
     cd=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_12, 
-                                                                   no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+                                                                   no_states=18, no_epochs=3, breaktimes=1.0,breaktail=5,time_modifier=time_modifier3)
     cd11=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_11, 
-                                                                   no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+                                                                   no_states=18, no_epochs=3, breaktimes=1.0,breaktail=5,time_modifier=time_modifier3)
     cd22=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_22, 
-                                                                   no_states=15, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+                                                                   no_states=18, no_epochs=3, breaktimes=1.0,breaktail=5,time_modifier=time_modifier3)
+    
+    res=[]
+    for i in xrange(600):
+        tid=1.0+(float(i)-500.0)/99999.0
+        
+        fact=3.7986556301206829*tid
+        tr=deepcopy(param19)
+        tr[13]=fact
+        num=cd.build_hidden_markov_model(tr)[2][3,1]
+        print tid, fact, 0.0001*fact,num
+        res.append(num)
+    with open("taylor_swift.txt", 'w') as f:
+        f.write(" ".join(map(str,res)))
+        
+        
+#     for a, b in zip(cd.build_hidden_markov_model(param18)[:3],cd.build_hidden_markov_model(param19)[:3]):
+#         print printPyZipHMM2(a,b) 
+#     for a, b in zip(cd11.build_hidden_markov_model(param18)[:3],cd11.build_hidden_markov_model(param19)[:3]):
+#         print printPyZipHMM2(a,b) 
+#     for a, b in zip(cd22.build_hidden_markov_model(param18)[:3],cd22.build_hidden_markov_model(param19)[:3]):
+#         print printPyZipHMM2(a,b)
+
+    #print cd11.build_hidden_markov_model(param18)
+    #print cd22.build_hidden_markov_model(param18)
     #ad=cd.build_hidden_markov_model([316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 316.22776601683796, 0.0, 100.00000000000004, 0.0, 0.0, 0.0, 0.0, 0.5, 5.0, 5.0])
 
     #print printPyZipHMM(ad[0])
@@ -898,35 +935,83 @@ if __name__ == '__main__':
                 
                 
             
-
+    from likelihood2 import Likelihood
+    from pyZipHMM import Forwarder
+     
+    pathToSim="/home/svendvn/IMCoalHMM-simulations.21835"
+     
+    a11s=[pathToSim + "/alignment."+ str(s)+".11.ziphmm" for s in range(1,6)]
+    a12s=[pathToSim + "/alignment."+ str(s)+".12.ziphmm" for s in range(1,6)]
+    a22s=[pathToSim + "/alignment."+ str(s)+".22.ziphmm" for s in range(1,6)]
+    forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
+    forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
+    forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
+    likeli11=Likelihood(cd11, forwarders11)
+    likeli12=Likelihood(cd, forwarders12)
+    likeli22=Likelihood(cd22, forwarders22)
 # 
-    if True:    
-        from likelihood2 import Likelihood
-        from pyZipHMM import Forwarder
-         
-        pathToSim="/home/svendvn/IMCoalHMM-simulations.21835"
-         
-        a11s=[pathToSim + "/alignment."+ str(s)+".11.ziphmm" for s in range(1,6)]
-        a12s=[pathToSim + "/alignment."+ str(s)+".12.ziphmm" for s in range(1,6)]
-        a22s=[pathToSim + "/alignment."+ str(s)+".22.ziphmm" for s in range(1,6)]
-         
-        forwarders11=[Forwarder.fromDirectory(a11) for a11 in a11s]
-        forwarders12=[Forwarder.fromDirectory(a12) for a12 in a12s]
-        forwarders22=[Forwarder.fromDirectory(a22) for a22 in a22s]
-        likeli11=Likelihood(cd11, forwarders11)
-        likeli12=Likelihood(cd, forwarders12)
-        likeli22=Likelihood(cd22, forwarders22)
+    if False:    
+        a11ss=[]
+        a11ss.append(a11s)
+        a11ss.append([j for _ in xrange(5) for j in a11s])
+        a11ss.append([j for _ in xrange(10) for j in a11s])
+        a11ss.append([j for _ in xrange(50) for j in a11s])
+        a11ss.append([j for _ in xrange(100) for j in a11s])
+        a11ss.append([j for _ in xrange(500) for j in a11s])
+
          
         parmTrue=[1000]*6+[5,2,0.01,5,1,0.01]+[3.95]+[1.0/0.21]*2
         parmTrue=[100,1000,100,1000,10001,10]+[500,500,500,100,100,100]+[0.40]+[1.0/0.21]*2
         param=array(parmTrue)
 
-        print likeli11(param)
-        print likeli12(param)
-        print likeli22(param)
+        states=[10,15,20,25,30,50,80,120,160]
+        resMat=zeros((len(a11ss),len(states)))
+        resLik=zeros((len(a11ss),len(states)))
+        for j, data in enumerate(a11ss):
+            forwarders11=[Forwarder.fromDirectory(a11) for a11 in data]
+            
+            for i,no_states in enumerate(states):
+                cd11=VariableCoalAndMigrationRateAndAncestralModelConstantBreaks(VariableCoalAndMigrationRateAndAncestralModelConstantBreaks.INITIAL_11, 
+                                                                   no_states=no_states, no_epochs=3, breaktimes=1.0,breaktail=3,time_modifier=time_modifier3)
+                
+                likeli11=Likelihood(cd11, forwarders11)
+                ans=likeli11(param)
+                resMat[j,i]=ans[3]
+                resLik[j,i]=ans[4]
+            
+        resTotal=resMat+resLik
+        print "resMat"
+        print resMat
+        print "resLik"
+        print resLik
+        print "resTotal"
+        print resTotal
         
-        print condition_numbers([likeli11,likeli12,likeli22], param, 13)
+        #print likeli12(param)
+        #print likeli22(param)
         
+        #print condition_numbers([likeli11,likeli12,likeli22], param, 13)
+    if False:
+        from random import random
+        def exp_uni_log(fro, to):
+            log_distance=log(to)-log(fro)
+            logsample=log_distance*random()+log(fro)
+            return exp(logsample)
+        
+        def simulateMigrationParams():
+            ans=[]
+            ans.extend([exp_uni_log(10,10000)]*6)
+            ans.extend([0,exp_uni_log(1,10000),0,0,exp_uni_log(1,10000),0])
+            ans.append(exp_uni_log(0.1,1.0))
+            ans+=[exp_uni_log(1, 10), exp_uni_log(1, 10)]
+            return ans
+        
+        while True:
+            a=simulateMigrationParams()
+            print " ".join(map(str,a+[likeli11(array(a))[2]+likeli12(array(a))[2]+likeli22(array(a))[2]]))
+        
+        
+
  
 #     with open("/home/svendvn/Dropbox/Bioinformatik/transition_matrix.txt", 'w') as f:
 #         f.write(printPyZipHMM(ad[1]))
