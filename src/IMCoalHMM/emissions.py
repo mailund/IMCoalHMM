@@ -6,8 +6,7 @@ probability of 1 for missing data.
 """
 
 from math import exp
-from pyZipHMM import Matrix
-
+import numpy as np
 
 def truncated_exp_midpoint(t1, t2, rate):
     """Calculates the mean coalescence point between t1 and t2
@@ -93,7 +92,7 @@ def emission_matrix(coal_points):
 
     :param coal_points: List coalescence points to emit from.
     """
-    emission_probabilities = Matrix(len(coal_points), 3)
+    emission_probabilities = np.zeros((len(coal_points), 3))
     for state in xrange(len(coal_points)):
         emission_probabilities[state, 0] = jukes_cantor(0, 0, 2 * coal_points[state])
         emission_probabilities[state, 1] = jukes_cantor(0, 1, 2 * coal_points[state])
