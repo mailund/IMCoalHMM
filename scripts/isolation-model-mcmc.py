@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood
-from pyZipHMM import Forwarder
+from IMCoalHMM.hmm import Forwarder
 
 from IMCoalHMM.mcmc import MCMC, MC3, LogNormPrior
 from math import log
@@ -115,7 +115,7 @@ and uniform coalescence and recombination rates."""
                    switching=options.thinning/10,
                    temperature_scale=options.temperature_scale)
     else:
-        forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+        forwarders = [Forwarder(arg, NSYM = 3) for arg in options.alignments]
         log_likelihood = Likelihood(IsolationModel(options.states), forwarders)
         mcmc = MCMC(priors, log_likelihood, thinning=options.thinning)
 
