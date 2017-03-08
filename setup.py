@@ -11,34 +11,22 @@ def read(fname):
 from setuptools import setup, find_packages
 setup(
     name = "IMCoalHMM",
-    version = "0.6.3",
+    version = "0.7.0",
     packages = find_packages(where='src'),
     package_dir = {'': 'src'},
     
     scripts = ['scripts/prepare-alignments.py',
                'scripts/isolation-model.py',
                'scripts/isolation-model-mcmc.py',
-               'scripts/isolation-model-posterior.py',
                'scripts/ils-isolation-model.py',
                'scripts/initial-migration-model.py',
                'scripts/initial-migration-model-mcmc.py',
-               'scripts/initial-migration-model-posterior.py',
-               'scripts/initial-migration-model-isolation-profile-likelihood.py',
-               'scripts/initial-migration-model-migration-profile-likelihood.py',
-               'scripts/initial-migration-model-theta-profile-likelihood.py',
-               'scripts/initial-migration-model-rho-profile-likelihood.py',
-               'scripts/initial-migration-model-migration-rate-profile-likelihood.py',
-               'scripts/initial-migration-epochs-model.py',
-               'scripts/initial-migration-epochs-model-mcmc.py',
-               #'scripts/psmc-isolation-model.py',
-               #'scripts/variable-migration-model.py',
-               'scripts/marginal-posterior.py',
                'scripts/heuristic-optimiser.py',
               ],
 
     install_requires = ['numpy', 
                         'scipy',
-                        #'pyZipHMM', -- FIXME: there isn't a package for this!
+                        'ziphmm'
                         ],
 
     # metadata for upload to PyPI
