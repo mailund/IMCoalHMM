@@ -64,6 +64,7 @@ def maximum_likelihood_estimate(log_likelihood, initial_parameters,
         def log_callback(parameters):
             log_params = [str(param) for param in log_param_transform(parameters)]
             print >> log_file, '\t'.join(log_params)
+            log_file.flush()
 
     def minimize_wrapper(parameters):
         return -log_likelihood(parameters)

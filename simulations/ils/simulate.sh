@@ -30,7 +30,7 @@ rho_subs=$(bc -l <<< $rho_per_gen/$gen/$mu )
 #echo ms 3 1 -T -r ${coal_rho} ${seg_length} -I 3 1 1 1 0.0 -ej ${coal_tau1} 2 1 -ej ${coal_tau2} 3 1 
 #exit
 
-echo "sim.tau1 sim.tau2 sim.theta sim.rho mle.tau mle.theta mle.rho logL"
+echo "sim.tau1 sim.tau2 sim.theta sim.rho mle.tau1 mle.tau2 mle.theta mle.rho logL"
 for sim in `eval echo {1..${no_sims}}`; do
     
     simdir=`mktemp -d /tmp/IMCoalHMM-simulations.XXXXXX`
@@ -54,7 +54,7 @@ for sim in `eval echo {1..${no_sims}}`; do
     ../../scripts/prepare-alignments.py --names=1,2,3 ${seqfile} phylip ${ziphmmfile}
 
 	echo -ne "${tau1_subs}\t${tau2_subs}\t${theta_subs}\t${rho_subs}\t"
-	../../scripts/ils-isolation-model.py --logfile=/dev/stdout ${ziphmmfile}
+	../../scripts/ils-isolation-model.py --logfile=log.$sim.txt ${ziphmmfile}
 
     break
 	#for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
