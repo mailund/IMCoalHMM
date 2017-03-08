@@ -109,8 +109,12 @@ and uniform coalescence and recombination rates."""
     if options.outgroup:
         output_header.append("outgroup")
 
-    # FIXME!!! I don't know how to get the NSYM here.
-    forwarders = [Forwarder(arg, NSYM = 64) for arg in options.alignments]   
+    if options.has_outgroup:
+        symbols = 257
+    else:
+        symbols = 65
+    
+    forwarders = [Forwarder(arg, NSYM = symbols) for arg in options.alignments]   
     log_likelihood = Likelihood(ILSModel(options.states_12, options.states_123), forwarders)
 
     if options.logfile:
