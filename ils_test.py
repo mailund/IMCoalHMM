@@ -76,10 +76,10 @@ parameters = {
     "recombination_rate": 0.4
     }
 pi, T, E = model.build_hidden_markov_model(make_parameters(**parameters)[:-1])
-print [pi[0,i] for i in range(pi.getHeight())]
+print pi
 print
-print [pi[0,i] for i in [9,10,11]]
-print [pi[0,i] for i in [12,13,14]]
+print [pi[i] for i in [9,10,11]]
+print [pi[i] for i in [12,13,14]]
 print
 
 print model.break_points_12, model.break_points_123

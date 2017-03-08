@@ -505,7 +505,7 @@ class ILSModel(Model):
             no_alignment_columns = 4**3 + 1
 
         no_states = len(self.tree_map)
-        emission_probabilities = np.array((no_states, no_alignment_columns))
+        emission_probabilities = zeros((no_states, no_alignment_columns))
 
         branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
 

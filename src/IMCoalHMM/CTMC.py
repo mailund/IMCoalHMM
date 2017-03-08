@@ -1,6 +1,7 @@
 """Code for constructing CTMCs and computing transition probabilities
 in them."""
 
+import numpy
 from numpy import zeros
 from scipy import matrix
 from scipy.linalg import expm
@@ -48,7 +49,11 @@ class CTMC(object):
         """
         if not delta_t in self.prob_matrix_cache:
             assert delta_t > 0.0
-            self.prob_matrix_cache[delta_t] = expm(self.rate_matrix * delta_t)
+            # The .A here extracts the underlying array. There is a bug in expm
+            # that makes it break on matrices larger than 199x199 but it works
+            # on arrays, so that is what we use here.
+            self.prob_matrix_cache[delta_t] = expm((self.rate_matrix * delta_t).A)
+
         return self.prob_matrix_cache[delta_t]
 
 
