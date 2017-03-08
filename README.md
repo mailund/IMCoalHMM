@@ -20,6 +20,6 @@ The script _initial-migration-model.py_ implements the isolation model from Mail
 Requirements
 ------------
 
-The code for building hidden Markov models requires [numpy](http://www.numpy.org) and [scipy](http://www.scipy.org) to be installed and the HMM code uses [ZipHMM](https://code.google.com/p/ziphmm/).
+The code for building hidden Markov models requires [numpy](http://www.numpy.org) and [scipy](http://www.scipy.org) to be installed and the HMM code uses [ziphmm](https://github.com/birc-aeh/mini-ziphmm).
 
 The _prepare-alignments.py_ script also requires [BioPython](http://biopython.org) to be installed in order to read in alignment files in different formats.
