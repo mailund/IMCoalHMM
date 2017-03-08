@@ -201,7 +201,7 @@ def _execute_model_i(optimiser):
     :return: None
     """
     from IMCoalHMM.isolation_model import IsolationModel
-    from pyZipHMM import Forwarder
+    from IMCoalHMM.hmm import Forwarder
     from IMCoalHMM.likelihood import Likelihood
 
     no_states = _config.try_int('model.states', 10)
@@ -222,7 +222,7 @@ def _execute_model_i(optimiser):
 
     _log_header()
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in _alignments]
+    forwarders = [Forwarder(arg, NSYM = 3) for arg in _alignments]
     model = IsolationModel(no_states)
     log_likelihood = Likelihood(model, forwarders)
 
@@ -254,7 +254,7 @@ def _execute_model_iim(optimiser):
     :param optimiser: The optimiser to use while executing the model.
     :return: None
     """
-    from pyZipHMM import Forwarder
+    from IMCoalHMM.hmm import Forwarder
     from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
     from IMCoalHMM.likelihood import Likelihood
 
@@ -285,7 +285,7 @@ def _execute_model_iim(optimiser):
 
     _log_header()
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in _alignments]
+    forwarders = [Forwarder(arg, NSYM = 3) for arg in _alignments]
     model = IsolationMigrationModel(no_migration_states, no_ancestral_states)
     log_likelihood = Likelihood(model, forwarders)
 
@@ -319,7 +319,7 @@ def _execute_model_iim_epochs(optimiser):
     :param optimiser: The optimiser to use while executing the model.
     :return: None
     """
-    from pyZipHMM import Forwarder
+    from IMCoalHMM.hmm import Forwarder
     from IMCoalHMM.isolation_with_migration_model_epochs import IsolationMigrationEpochsModel
     from IMCoalHMM.likelihood import Likelihood
 
@@ -357,7 +357,7 @@ def _execute_model_iim_epochs(optimiser):
 
     _log_header()
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in _alignments]
+    forwarders = [Forwarder(arg, NSYM = 3) for arg in _alignments]
     model = IsolationMigrationEpochsModel(epoch_factor, no_migration_states, no_ancestral_states)
     log_likelihood = Likelihood(model, forwarders)
 

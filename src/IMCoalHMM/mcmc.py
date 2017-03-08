@@ -3,7 +3,7 @@ Module for generic MCMC code.
 
 """
 
-from pyZipHMM import Forwarder
+from IMCoalHMM.hmm import Forwarder
 from IMCoalHMM.likelihood import Likelihood
 
 from scipy.stats import norm, expon
@@ -111,7 +111,7 @@ class RemoteMCMC(object):
         self.response_queue = Queue()
 
     def _set_chain(self):
-        forwarders = [Forwarder.fromDirectory(arg) for arg in self.input_files]
+        forwarders = [Forwarder(arg, NSYM = 3) for arg in self.input_files]
         log_likelihood = Likelihood(self.model, forwarders)
         self.chain = MCMC(priors=self.priors, log_likelihood=log_likelihood, thinning=self.thinning)
 

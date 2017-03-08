@@ -6,8 +6,7 @@ General code for calculations of HMM transition probabilities.
 from abc import ABCMeta, abstractmethod
 from numpy import zeros, identity, matrix, ix_
 from numpy.testing import assert_almost_equal
-from pyZipHMM import Matrix
-
+import numpy as np
 
 def projection_matrix(from_state_space, to_state_space, state_map):
     """
@@ -239,12 +238,12 @@ def compute_transition_probabilities(ctmc):
 
     assert_almost_equal(joint.sum(), 1.0)
 
-    initial_prob_vector = Matrix(no_states, 1)
-    transition_matrix = Matrix(no_states, no_states)
+    initial_prob_vector = np.zeros((no_states,))
+    transition_matrix = np.zeros((no_states, no_states))
     for i in xrange(no_states):
-        initial_prob_vector[i, 0] = joint[i, ].sum()
+        initial_prob_vector[i] = joint[i, ].sum()
         for j in xrange(no_states):
-            transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i, 0]
+            transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i]
 
     return initial_prob_vector, transition_matrix
 
