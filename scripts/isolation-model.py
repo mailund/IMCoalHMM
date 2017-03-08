@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 from IMCoalHMM.isolation_model import IsolationModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
-from pyZipHMM import Forwarder
+from IMCoalHMM.hmm import Forwarder
 
 
 def transform(params):
@@ -79,7 +79,7 @@ and uniform coalescence and recombination rates."""
     init_coal = 1 / (theta / 2)
     init_recomb = rho
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+    forwarders = [Forwarder(arg, NSYM = 3) for arg in options.alignments]
     log_likelihood = Likelihood(IsolationModel(no_states), forwarders)
 
     if options.logfile:

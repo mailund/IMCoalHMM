@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
 from IMCoalHMM.isolation_with_migration_model import IsolationMigrationModel
-from pyZipHMM import Forwarder
+from IMCoalHMM.hmm import Forwarder
 
 
 def transform(params):
@@ -84,7 +84,7 @@ and uniform coalescence and recombination rates."""
     theta = options.theta
     rho = options.rho
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]
+    forwarders = [Forwarder(arg, NSYM = 3) for arg in options.alignments]
 
     init_isolation_time = options.isolation_period
     init_migration_time = options.migration_period
