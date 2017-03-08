@@ -55,6 +55,8 @@ for sim in `eval echo {1..${no_sims}}`; do
 
 	echo -ne "${tau1_subs}\t${tau2_subs}\t${theta_subs}\t${rho_subs}\t"
 	../../scripts/ils-isolation-model.py --logfile=/dev/stdout ${ziphmmfile}
+
+    break
 	#for optimizer in Nelder-Mead Powell L-BFGS-B TNC; do
 	#	
     #	echo -ne "${tau_subs}\t${theta_subs}\t${rho_subs}\t${optimizer}\t"
@@ -64,8 +66,6 @@ for sim in `eval echo {1..${no_sims}}`; do
 	
     rm ${treefile}
     rm ${seqfile}
-    rm -rf ${ziphmmfile}/nStates2seq/
-    rm ${ziphmmfile}/*
-    rmdir ${ziphmmfile}
+    rm ${ziphmmfile}
     rmdir ${simdir}
 done

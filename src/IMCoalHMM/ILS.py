@@ -7,7 +7,6 @@ from IMCoalHMM.break_points import exp_break_points, trunc_exp_break_points
 
 from numpy import zeros, matrix, ix_
 from numpy.testing import assert_almost_equal
-from pyZipHMM import Matrix
 
 
 # For debugging...
@@ -268,12 +267,12 @@ class ILSCTMCSystem(object):
         joint = self.make_joint_matrix()
         assert_almost_equal(joint.sum(), 1.0)
 
-        initial_prob_vector = Matrix(no_states, 1)
-        transition_matrix = Matrix(no_states, no_states)
+        initial_prob_vector = zeros((no_states,))
+        transition_matrix = zeros((no_states, no_states))
         for i in xrange(no_states):
-            initial_prob_vector[i, 0] = joint[i, ].sum()
+            initial_prob_vector[i] = joint[i, ].sum()
             for j in xrange(no_states):
-                transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i, 0]
+                transition_matrix[i, j] = joint[i, j] / initial_prob_vector[i]
 
         return initial_prob_vector, transition_matrix
 
@@ -499,7 +498,7 @@ class ILSModel(Model):
             no_alignment_columns = 4**3 + 1
 
         no_states = len(self.tree_map)
-        emission_probabilities = Matrix(no_states, no_alignment_columns, )
+        emission_probabilities = np.array((no_states, no_alignment_columns))
 
         branch_shortening = [0, 0, 0] # FIXME: not sure how to pass in this information from the script...
 

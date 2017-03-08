@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 from IMCoalHMM.ILS import ILSModel
 from IMCoalHMM.likelihood import Likelihood, maximum_likelihood_estimate
-from pyZipHMM import Forwarder
+from IMCoalHMM.hmm import Forwarder
 
 
 def transform(params):
@@ -109,7 +109,8 @@ and uniform coalescence and recombination rates."""
     if options.outgroup:
         output_header.append("outgroup")
 
-    forwarders = [Forwarder.fromDirectory(arg) for arg in options.alignments]   
+    # FIXME!!! I don't know how to get the NSYM here.
+    forwarders = [Forwarder(arg, NSYM = 64) for arg in options.alignments]   
     log_likelihood = Likelihood(ILSModel(options.states_12, options.states_123), forwarders)
 
     if options.logfile:
