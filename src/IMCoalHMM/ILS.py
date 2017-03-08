@@ -388,6 +388,13 @@ class ILSModel(Model):
         self.break_points_12 = trunc_exp_break_points(self.no_12_intervals, coal12, tau1 + tau2, tau1)
         self.break_points_123 = exp_break_points(self.no_123_intervals, coal123, tau1 + tau2)
 
+        # print
+        # print "=" * 50
+        # print self.break_points_12
+        # print "=" * 50
+        # print self.break_points_123
+        # print
+
         return ILSCTMCSystem(self, epoch_1_ctmc, epoch_2_ctmc, epoch_3_ctmc, self.break_points_12, self.break_points_123)
 
     def emission_points(self, *parameters):

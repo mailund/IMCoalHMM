@@ -47,6 +47,7 @@ class CTMC(object):
         :rtype: matrix
         """
         if not delta_t in self.prob_matrix_cache:
+            assert delta_t > 0.0
             self.prob_matrix_cache[delta_t] = expm(self.rate_matrix * delta_t)
         return self.prob_matrix_cache[delta_t]
 

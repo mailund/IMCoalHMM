@@ -54,8 +54,9 @@ def trunc_exp_break_points(no_intervals, coal_rate, end, offset=0.0):
     :rtype: list
     """
     prob_mass_breaks = [i/float(no_intervals) for i in range(no_intervals)]
-    points = [-(log(1+(-1+exp(-coal_rate * end)) * p)/coal_rate) for p in prob_mass_breaks]
+    points = [-(log(1+(-1+exp(-coal_rate * (end - offset))) * p)/coal_rate) for p in prob_mass_breaks]
     return asarray(points + offset)
+
 
 def uniform_break_points(no_intervals, start, end):
     """Uniformly distributed break points between start and end.
