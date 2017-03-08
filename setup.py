@@ -26,7 +26,7 @@ setup(
 
     install_requires = ['numpy', 
                         'scipy',
-                        #'pyZipHMM', -- FIXME: there isn't a package for this!
+                        'ziphmm'
                         ],
 
     # metadata for upload to PyPI

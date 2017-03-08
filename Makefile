@@ -5,7 +5,7 @@ init:
 	pip install -e .
 
 test:
-	coverage run --source gwf setup.py test
+	coverage run --source IMCoalHMM setup.py test
 
 lint:
 	flake8
