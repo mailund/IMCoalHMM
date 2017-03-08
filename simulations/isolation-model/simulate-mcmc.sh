@@ -44,9 +44,6 @@ for sim in `eval echo {1..${no_sims}}`; do
 	
     rm ${treefile}
     rm ${seqfile}
-    rm ${ziphmmfile}/nStates2seq/*
-    rmdir ${ziphmmfile}/nStates2seq
-    rm ${ziphmmfile}/*
-    rmdir ${ziphmmfile}
+    rm ${ziphmmfile}
     rmdir ${simdir}
 done
